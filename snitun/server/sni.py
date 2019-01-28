@@ -103,7 +103,7 @@ def _parse_extension(data: bytes, pos: int) -> str:
 def _parse_host_name(data: bytes, pos: int) -> str:
     """Parse TLS ServerName Extension."""
 
-    # Skeep list size
+    # Seek list size
     pos += 2
 
     while pos + 3 < len(data):
