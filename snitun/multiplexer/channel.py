@@ -16,12 +16,17 @@ class MultiplexerChannel:
         """Initialize Multiplexer Channel."""
         self._input: asyncio.Queue = asyncio.Queue(2)
         self._output: asyncio.Queue = output
-        self._id: str = uuid.uuid4()
+        self._id: uuid.UUID = uuid.uuid4()
 
     @property
-    def id(self):
+    def id(self) -> uuid.UUID:
         """Return UUID of this channel."""
         return self._id
+
+    @property
+    def input_queue(self) -> asyncio.Queue:
+        """Return input queue for this channel."""
+        return self._input
 
     async def new(self) -> None:
         """Initialize a new session on peer."""
