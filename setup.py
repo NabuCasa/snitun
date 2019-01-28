@@ -25,4 +25,7 @@ setup(
     zip_safe=False,
     platforms="any",
     packages=["snitun", "snitun.server", "snitun.client"],
+    install_requires=[
+        "attrs=18.2.0"
+    ]
     include_package_data=True)
