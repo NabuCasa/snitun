@@ -3,6 +3,7 @@ import asyncio
 import logging
 import uuid
 
+from ..exceptions import MultiplexerTransportError
 from .message import (CHANNEL_FLOW_CLOSE, CHANNEL_FLOW_DATA, CHANNEL_FLOW_NEW,
                       MultiplexerMessage)
 
@@ -30,6 +31,9 @@ class MultiplexerChannel:
 
     async def new(self) -> None:
         """Initialize a new session on peer."""
+        if self._output.full():
+            raise MultiplexerTransportError()
+
         message = MultiplexerMessage(self._id, CHANNEL_FLOW_NEW, b'')
         await self._output.put(message)
 
@@ -49,5 +53,8 @@ class MultiplexerChannel:
 
     async def close(self) -> None:
         """Close channel."""
+        if self._output.full():
+            raise MultiplexerTransportError()
+
         message = MultiplexerMessage(self._id, CHANNEL_FLOW_CLOSE, b'')
         await self._output.put(message)
