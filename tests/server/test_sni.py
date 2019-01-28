@@ -8,9 +8,9 @@ from snitun.server import sni
 from . import const_tls as raw
 
 
-@pytest.mark.parametrize([
+@pytest.mark.parametrize("test_package", [
     raw.TLS_1_0, raw.TLS_1_0_OLD, raw.TLS_1_2, raw.TLS_1_2_MORE,
-    raw.TLS_1_2_ORDER
+    raw.TLS_1_2_ORDER, raw.TLS_1_2_BAD
 ])
 def test_good_client_hello(test_package: bytes):
     """Test good TLS packages."""
@@ -18,7 +18,7 @@ def test_good_client_hello(test_package: bytes):
 
 
 @pytest.mark.parametrize(
-    [raw.BAD_DATA1, raw.BAD_DATA2, raw.BAD_DATA3, raw.SSL_2_0, raw.SSL_3_0])
+    "test_package", [raw.BAD_DATA1, raw.BAD_DATA2, raw.SSL_2_0, raw.SSL_3_0])
 def test_bad_client_hello(test_package: bytes):
     """Test bad client hello."""
     with pytest.raises(ParseSNIError):
