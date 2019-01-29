@@ -62,7 +62,7 @@ async def test_read_data():
     assert isinstance(channel.id, UUID)
 
     message = MultiplexerMessage(channel.id, CHANNEL_FLOW_DATA, b"test")
-    await channel.input_queue.put(message)
+    await channel._input.put(message)
     data = await channel.read()
 
     assert data == b"test"
@@ -75,7 +75,7 @@ async def test_read_data_on_close():
     assert isinstance(channel.id, UUID)
 
     message = MultiplexerMessage(channel.id, CHANNEL_FLOW_CLOSE)
-    await channel.input_queue.put(message)
+    await channel._input.put(message)
     data = await channel.read()
 
     assert data is None

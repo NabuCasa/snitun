@@ -135,7 +135,7 @@ class Multiplexer:
                 return
 
             channel = MultiplexerChannel(self._queue)
-            self._channels[channel.id] = channel
+            self._channels[channel.channel_id] = channel
             self._loop.create_task(self._new_connections(channel))
 
         # Close
@@ -144,4 +144,5 @@ class Multiplexer:
             if message.channel_id not in self._channels:
                 _LOGGER.waring("Receive close from unknown channel")
                 return
-            await self._channels[message.channel_id].message_transport(message)
+            channel = self._channels.pop(message.channel_id)
+            await channel.message_transport(message)
