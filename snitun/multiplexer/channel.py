@@ -3,7 +3,7 @@ import asyncio
 import logging
 import uuid
 
-from ..exceptions import MultiplexerTransportError
+from ..exceptions import MultiplexerTransportClose
 from .message import (CHANNEL_FLOW_CLOSE, CHANNEL_FLOW_DATA, CHANNEL_FLOW_NEW,
                       MultiplexerMessage)
 
@@ -24,20 +24,11 @@ class MultiplexerChannel:
         """Return UUID of this channel."""
         return self._id
 
-    async def new(self) -> None:
-        """Initialize a new session on peer."""
-        if self._output.full():
-            _LOGGER.warning("Can't initialize new channel %s", self._id)
-            raise MultiplexerTransportError()
-
-        message = MultiplexerMessage(self._id, CHANNEL_FLOW_NEW)
-        await self._output.put(message)
-        _LOGGER.debug("New channel %s", self._id)
-
     async def write(self, data: bytes) -> None:
         """Send data to peer."""
         message = MultiplexerMessage(self._id, CHANNEL_FLOW_DATA, data)
         await self._output.put(message)
+
         _LOGGER.debug("Write message to channel %s", self._id)
 
     async def read(self) -> MultiplexerMessage:
@@ -49,17 +40,17 @@ class MultiplexerChannel:
             return message.data
 
         _LOGGER.debug("Read a close message for channel %s", self._id)
-        return None
+        raise MultiplexerTransportClose()
 
-    async def close(self) -> None:
-        """Close channel."""
-        if self._output.full():
-            _LOGGER.warning("Can't initialize close channel %s", self._id)
-            raise MultiplexerTransportError()
-
-        message = MultiplexerMessage(self._id, CHANNEL_FLOW_CLOSE)
-        await self._output.put(message)
+    def init_close(self) -> MultiplexerMessage:
+        """Init close message for transport."""
         _LOGGER.debug("Close channel %s", self._id)
+        return MultiplexerMessage(self._id, CHANNEL_FLOW_CLOSE)
+
+    def init_new(self) -> MultiplexerMessage:
+        """Init new session for transport."""
+        _LOGGER.debug("New channel %s", self._id)
+        return MultiplexerMessage(self._id, CHANNEL_FLOW_NEW)
 
     async def message_transport(self, message: MultiplexerMessage) -> None:
         """Only for internal ussage of core transport."""

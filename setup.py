@@ -25,5 +25,5 @@ setup(
     zip_safe=False,
     platforms="any",
     packages=["snitun", "snitun.server", "snitun.client", "snitun.multiplexer"],
-    install_requires=["attrs==18.2.0"],
+    install_requires=["attrs==18.2.0", "asyncio_timeout==3.0.1"],
     include_package_data=True)

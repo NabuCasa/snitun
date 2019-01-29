@@ -3,7 +3,9 @@ import asyncio
 import logging
 import uuid
 
-from ..exceptions import MultiplexerTransportClose
+import async_timeout
+
+from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from .message import (CHANNEL_FLOW_CLOSE, CHANNEL_FLOW_DATA, CHANNEL_FLOW_NEW,
                       MultiplexerMessage)
 from .channel import MultiplexerChannel
@@ -146,3 +148,30 @@ class Multiplexer:
                 return
             channel = self._channels.pop(message.channel_id)
             await channel.message_transport(message)
+
+    async def create_channel(self) -> MultiplexerChannel:
+        """Create a new channel for transport."""
+        channel = MultiplexerChannel(self._queue)
+        message = channel.init_new()
+
+        try:
+            async with async_timeout.timeout(5):
+                await self._queue.put(message)
+        except asyncio.TimeoutError:
+            raise MultiplexerTransportError() from None
+        else:
+            self._channels[channel.uuid] = channel
+
+        return channel
+
+    async def delete_channel(self, channel: MultiplexerChannel) -> None:
+        """Delete channel from transport."""
+        message = channel.init_close()
+
+        try:
+            async with async_timeout.timeout(5):
+                await self._queue.put(message)
+        except asyncio.TimeoutError:
+            self._channels[channel.uuid] = channel
+        finally:
+            self._channels.pop(channel, None)
