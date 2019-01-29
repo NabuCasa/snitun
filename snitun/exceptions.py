@@ -11,3 +11,7 @@ class ParseSNIError(SniTunError):
 
 class MultiplexerTransportError(SniTunError):
     """Raise if multiplexer have an problem with peer."""
+
+
+class MultiplexerTransportClose(SniTunError):
+    """Raise if connection to peer is closed."""

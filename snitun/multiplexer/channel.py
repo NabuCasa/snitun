@@ -15,9 +15,9 @@ class MultiplexerChannel:
 
     def __init__(self, output: asyncio.Queue) -> None:
         """Initialize Multiplexer Channel."""
-        self._input: asyncio.Queue = asyncio.Queue(2)
-        self._output: asyncio.Queue = output
-        self._id: uuid.UUID = uuid.uuid4()
+        self._input = asyncio.Queue(2)
+        self._output = output
+        self._id = uuid.uuid4()
 
     @property
     def id(self) -> uuid.UUID:
@@ -32,29 +32,36 @@ class MultiplexerChannel:
     async def new(self) -> None:
         """Initialize a new session on peer."""
         if self._output.full():
+            _LOGGER.warning("Can't initialize new channel %s", self.id)
             raise MultiplexerTransportError()
 
         message = MultiplexerMessage(self._id, CHANNEL_FLOW_NEW)
         await self._output.put(message)
+        _LOGGER.debug("New channel %s", self.id)
 
     async def write(self, data: bytes) -> None:
         """Send data to peer."""
         message = MultiplexerMessage(self._id, CHANNEL_FLOW_DATA, data)
         await self._output.put(message)
+        _LOGGER.debug("Write message to channel %s", self.id)
 
     async def read(self) -> MultiplexerMessage:
         """Read data from peer."""
         message = await self._input.get()
 
         if message.flow_type == CHANNEL_FLOW_DATA:
+            _LOGGER.debug("Read message to channel %s", self.id)
             return message.data
 
+        _LOGGER.debug("Read a close message for channel %s", self.id)
         return None
 
     async def close(self) -> None:
         """Close channel."""
         if self._output.full():
+            _LOGGER.warning("Can't initialize close channel %s", self.id)
             raise MultiplexerTransportError()
 
         message = MultiplexerMessage(self._id, CHANNEL_FLOW_CLOSE)
         await self._output.put(message)
+        _LOGGER.debug("Close channel %s", self.id)
