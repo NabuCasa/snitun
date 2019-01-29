@@ -135,7 +135,7 @@ class Multiplexer:
                 return
 
             channel = MultiplexerChannel(self._queue)
-            self._channels[channel.channel_id] = channel
+            self._channels[channel.uuid] = channel
             self._loop.create_task(self._new_connections(channel))
 
         # Close

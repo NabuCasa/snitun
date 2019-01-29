@@ -20,7 +20,7 @@ class MultiplexerChannel:
         self._id = uuid.uuid4()
 
     @property
-    def channel_id(self) -> uuid.UUID:
+    def uuid(self) -> uuid.UUID:
         """Return UUID of this channel."""
         return self._id
 
