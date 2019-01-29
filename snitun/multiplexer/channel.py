@@ -34,7 +34,7 @@ class MultiplexerChannel:
         if self._output.full():
             raise MultiplexerTransportError()
 
-        message = MultiplexerMessage(self._id, CHANNEL_FLOW_NEW, b'')
+        message = MultiplexerMessage(self._id, CHANNEL_FLOW_NEW)
         await self._output.put(message)
 
     async def write(self, data: bytes) -> None:
@@ -56,5 +56,5 @@ class MultiplexerChannel:
         if self._output.full():
             raise MultiplexerTransportError()
 
-        message = MultiplexerMessage(self._id, CHANNEL_FLOW_CLOSE, b'')
+        message = MultiplexerMessage(self._id, CHANNEL_FLOW_CLOSE)
         await self._output.put(message)

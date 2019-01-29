@@ -16,4 +16,4 @@ class MultiplexerMessage:
     channel_id = attr.ib(type=str)
     flow_type = attr.ib(
         type=int, validator=attr.validators.in_(CHANNEL_FLOW_ALL))
-    data = attr.ib(type=bytes)
+    data = attr.ib(type=bytes, default=b"")

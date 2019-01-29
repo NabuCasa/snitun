@@ -74,7 +74,7 @@ async def test_read_data_on_close():
     channel = MultiplexerChannel(output)
     assert isinstance(channel.id, UUID)
 
-    message = MultiplexerMessage(channel.id, CHANNEL_FLOW_CLOSE, b"")
+    message = MultiplexerMessage(channel.id, CHANNEL_FLOW_CLOSE)
     await channel.input_queue.put(message)
     data = await channel.read()
 
