@@ -65,3 +65,6 @@ class MultiplexerChannel:
         message = MultiplexerMessage(self._id, CHANNEL_FLOW_CLOSE)
         await self._output.put(message)
         _LOGGER.debug("Close channel %s", self.id)
+
+    async def message_transport(self, message: MultiplexerMessage) -> None:
+        """Only for internal ussage of core transport."""

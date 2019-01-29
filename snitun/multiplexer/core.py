@@ -1,8 +1,12 @@
 """Multiplexer for SniTun."""
 import asyncio
 import logging
+import uuid
 
 from ..exceptions import MultiplexerTransportClose
+from .message import (CHANNEL_FLOW_CLOSE, CHANNEL_FLOW_DATA, CHANNEL_FLOW_NEW,
+                      MultiplexerMessage)
+from .channel import MultiplexerChannel
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -10,8 +14,10 @@ _LOGGER = logging.getLogger(__name__)
 class Multiplexer:
     """Multiplexer Socket wrapper."""
 
-    def __init__(self, reader: asyncio.StreamReader,
-                 writer: asyncio.StreamWriter):
+    def __init__(self,
+                 reader: asyncio.StreamReader,
+                 writer: asyncio.StreamWriter,
+                 new_connections=None):
         """Initialize Multiplexer."""
         self._reader = reader
         self._writer = writer
@@ -19,9 +25,10 @@ class Multiplexer:
         self._queue = asyncio.Queue(10)
         self._processing_task = self._loop.create_task(self._runner())
         self._channels = {}  # type: Dict[MultiplexerMessage]
+        self._new_connections = new_connections
 
     async def shutdown(self):
-        """Shutdonw connection."""
+        """Shutdown connection."""
         if self._processing_task.done():
             return
 
@@ -34,9 +41,8 @@ class Multiplexer:
         from_peer = None
         to_peer = None
 
+        # Process stream
         try:
-
-            # Process stream
             while not transport.is_closing():
                 if not from_peer:
                     from_peer = self._loop.create_task(self._reader.read(21))
@@ -50,17 +56,13 @@ class Multiplexer:
 
                 # To peer
                 if to_peer.done():
-                    await self._write_message(to_peer.result())
+                    self._write_message(to_peer.result())
                     to_peer = None
 
                 # From peer
                 if from_peer.done():
-                    msg_header = from_peer.result()
+                    await self._read_message(from_peer.result())
                     from_peer = None
-
-                    if not msg_header:
-                        raise MultiplexerTransportClose()
-                    await self._read_message(msg_header)
 
         except asyncio.CancelledError:
             _LOGGER.debug("Receive canceling")
@@ -79,3 +81,67 @@ class Multiplexer:
                 self._writer.close()
 
         _LOGGER.debug("Multiplexer connection is closed")
+
+    def _write_message(self, message: MultiplexerMessage) -> None:
+        """Write message to peer."""
+        data = message.channel_id.binary
+        data += message.flow_type.to_bytes(1, byteorder='big')
+        data += len(message.data).to_bytes(4, byteorder='big')
+        data += message.data
+
+        self._writer.write(data)
+
+    async def _read_message(self, header: bytes) -> None:
+        """Read message from peer."""
+        if not header:
+            raise MultiplexerTransportClose()
+
+        try:
+            channel_id = header[0:15]
+            flow_type = int.from_bytes(header[16], byteorder='big')
+            data_size = int.from_bytes(header[17:21], byteorder='big')
+        except IndexError:
+            _LOGGER.waring("Wrong message header received")
+            return
+
+        # Read message data
+        if data_size:
+            data = await self._reader.readexactly(data_size)
+        else:
+            data = b""
+
+        message = MultiplexerMessage(
+            uuid.UUID(bytes=channel_id), flow_type, data)
+
+        # Process message to queue
+        await self._process_message(message)
+
+    async def _process_message(self, message: MultiplexerMessage) -> None:
+        """Process received message."""
+
+        # DATA
+        if message.flow_type == CHANNEL_FLOW_DATA:
+            # check if message exists
+            if message.channel_id not in self._channels:
+                _LOGGER.waring("Receive data from unknown channel")
+                return
+            await self._channels[message.channel_id].message_transport(message)
+
+        # New
+        if message.flow_type == CHANNEL_FLOW_NEW:
+            # Check if we would handle new connection
+            if not self._new_connections:
+                _LOGGER.warning("Request new Channel is not allow")
+                return
+
+            channel = MultiplexerChannel(self._queue)
+            self._channels[channel.id] = channel
+            self._loop.create_task(self._new_connections(channel))
+
+        # Close
+        if message.flow_type == CHANNEL_FLOW_CLOSE:
+            # check if message exists
+            if message.channel_id not in self._channels:
+                _LOGGER.waring("Receive close from unknown channel")
+                return
+            await self._channels[message.channel_id].message_transport(message)
