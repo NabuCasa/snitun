@@ -52,7 +52,7 @@ class SNIProxy:
                 return
             multiplexer = self._peer_manager[hostname].multiplexer
 
-            _LOGGER.debug("Start processing for hostname %", hostname)
+            _LOGGER.debug("Processing for hostname % started", hostname)
             await self._proxy_peer(multiplexer, client_hello, reader, writer)
 
         finally:
