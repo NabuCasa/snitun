@@ -59,7 +59,7 @@ async def test_read_data():
     assert isinstance(channel.uuid, UUID)
 
     message = MultiplexerMessage(channel.uuid, CHANNEL_FLOW_DATA, b"test")
-    await channel._input.put(message)
+    await channel.message_transport(message)
     data = await channel.read()
 
     assert data == b"test"
@@ -71,8 +71,7 @@ async def test_read_data_on_close():
     channel = MultiplexerChannel(output)
     assert isinstance(channel.uuid, UUID)
 
-    message = MultiplexerMessage(channel.uuid, CHANNEL_FLOW_CLOSE)
-    await channel._input.put(message)
+    await channel.message_transport(channel.init_close())
 
     with pytest.raises(MultiplexerTransportClose):
         data = await channel.read()
@@ -89,3 +88,13 @@ async def test_write_data_peer_error(raise_timeout):
 
     with pytest.raises(MultiplexerTransportError):
         await channel.write(b"test")
+
+
+async def test_message_transport_never_lock():
+    """Message transport should never lock down."""
+    output = asyncio.Queue(1)
+    channel = MultiplexerChannel(output)
+    assert isinstance(channel.uuid, UUID)
+
+    for _ in range(1, 20):
+        await channel.message_transport(channel.init_close())

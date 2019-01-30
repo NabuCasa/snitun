@@ -38,6 +38,19 @@ class Multiplexer:
         _LOGGER.debug("Cancel connection")
         self._processing_task.cancel()
 
+        await self._graceful_channel_shutdown()
+
+    async def _graceful_channel_shutdown(self):
+        """Graceful shutdown of channels."""
+        tasks = [
+            channel.message_transport(channel.init_close())
+            for channel in self._channels.values()
+        ]
+        self._channels.clear()
+
+        if tasks:
+            await asyncio.wait(tasks)
+
     def wait(self):
         """Block until the connection is closed.
 
@@ -94,8 +107,10 @@ class Multiplexer:
             if from_peer and not from_peer.done():
                 from_peer.cancel()
             if not transport.is_closing():
-                self._writer.close()
+                with suppress(OSError):
+                    self._writer.close()
 
+        await self._graceful_channel_shutdown()
         _LOGGER.debug("Multiplexer connection is closed")
 
     def _write_message(self, message: MultiplexerMessage) -> None:

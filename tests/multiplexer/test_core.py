@@ -3,8 +3,8 @@ import asyncio
 from unittest.mock import patch
 
 import pytest
-
-from snitun.exceptions import MultiplexerTransportError
+from snitun.exceptions import (MultiplexerTransportClose,
+                               MultiplexerTransportError)
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
 
@@ -167,3 +167,35 @@ async def test_multiplexer_data_channel(multiplexer_client, multiplexer_server):
     await asyncio.sleep(0.1)
     data = await channel_client.read()
     assert data == b"test 2"
+
+
+async def test_multiplexer_channel_shutdown(loop, multiplexer_client,
+                                            multiplexer_server):
+    """Test that new channels are created and graceful shutdown."""
+    assert not multiplexer_client._channels
+    assert not multiplexer_server._channels
+
+    channel_client = await multiplexer_client.create_channel()
+    await asyncio.sleep(0.1)
+
+    channel_server = multiplexer_server._channels.get(channel_client.uuid)
+
+    client_read = loop.create_task(channel_client.read())
+    server_read = loop.create_task(channel_server.read())
+
+    assert not client_read.done()
+    assert not server_read.done()
+
+    await multiplexer_client.shutdown()
+    await asyncio.sleep(0.1)
+    assert not multiplexer_client._channels
+    assert client_read.done()
+
+    with pytest.raises(MultiplexerTransportClose):
+        raise client_read.exception()
+
+    assert not multiplexer_server._channels
+    assert server_read.done()
+
+    with pytest.raises(MultiplexerTransportClose):
+        raise server_read.exception()
