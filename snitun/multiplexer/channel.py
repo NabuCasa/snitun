@@ -3,7 +3,9 @@ import asyncio
 import logging
 import uuid
 
-from ..exceptions import MultiplexerTransportClose
+import async_timeout
+
+from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from .message import (CHANNEL_FLOW_CLOSE, CHANNEL_FLOW_DATA, CHANNEL_FLOW_NEW,
                       MultiplexerMessage)
 
@@ -27,7 +29,13 @@ class MultiplexerChannel:
     async def write(self, data: bytes) -> None:
         """Send data to peer."""
         message = MultiplexerMessage(self._id, CHANNEL_FLOW_DATA, data)
-        await self._output.put(message)
+
+        try:
+            async with async_timeout.timeout(5):
+                await self._output.put(message)
+        except asyncio.TimeoutError:
+            _LOGGER.debug("Can't write to peer transport")
+            raise MultiplexerTransportError() from None
 
         _LOGGER.debug("Write message to channel %s", self._id)
 

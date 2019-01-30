@@ -7,7 +7,7 @@ import async_timeout
 
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from .message import (CHANNEL_FLOW_CLOSE, CHANNEL_FLOW_DATA, CHANNEL_FLOW_NEW,
-                      MultiplexerMessage)
+                      CHANNEL_FLOW_PING, MultiplexerMessage)
 from .channel import MultiplexerChannel
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,6 +36,18 @@ class Multiplexer:
 
         _LOGGER.debug("Cancel connection")
         self._processing_task.cancel()
+
+    def wait(self):
+        """Block until the connection is closed.
+
+        Return a awaitable object.
+        """
+        return self._processing_task
+
+    def ping(self):
+        """Send a ping flow message to hold the connection open."""
+        message = MultiplexerMessage(uuid.uuid4(), CHANNEL_FLOW_PING)
+        self._queue.put_nowait(message)
 
     async def _runner(self):
         """Runner task of processing stream."""

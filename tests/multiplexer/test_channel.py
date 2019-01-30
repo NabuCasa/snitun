@@ -4,7 +4,8 @@ from uuid import UUID
 
 import pytest
 
-from snitun.exceptions import MultiplexerTransportClose
+from snitun.exceptions import (MultiplexerTransportClose,
+                               MultiplexerTransportError)
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.message import (CHANNEL_FLOW_CLOSE, CHANNEL_FLOW_DATA,
                                         CHANNEL_FLOW_NEW, MultiplexerMessage)
@@ -75,3 +76,16 @@ async def test_read_data_on_close():
 
     with pytest.raises(MultiplexerTransportClose):
         data = await channel.read()
+
+
+async def test_write_data_peer_error(raise_timeout):
+    """Test send data over MultiplexerChannel but peer don't response."""
+    output = asyncio.Queue(1)
+    channel = MultiplexerChannel(output)
+    assert isinstance(channel.uuid, UUID)
+
+    # fill peer queue
+    output.put_nowait(None)
+
+    with pytest.raises(MultiplexerTransportError):
+        await channel.write(b"test")
