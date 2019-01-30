@@ -62,7 +62,7 @@ class Multiplexer:
                     from_peer = self._loop.create_task(self._reader.read(21))
 
                 if not to_peer:
-                    from_peer = self._loop.create_task(self._queue.get())
+                    to_peer = self._loop.create_task(self._queue.get())
 
                 # Wait until data need to be processed
                 await asyncio.wait([from_peer, to_peer],
@@ -98,7 +98,7 @@ class Multiplexer:
 
     def _write_message(self, message: MultiplexerMessage) -> None:
         """Write message to peer."""
-        data = message.channel_id.binary
+        data = message.channel_id.bytes
         data += message.flow_type.to_bytes(1, byteorder='big')
         data += len(message.data).to_bytes(4, byteorder='big')
         data += message.data
