@@ -52,6 +52,16 @@ async def test_write_data():
     assert message.data == b"test"
 
 
+async def test_write_data_empty():
+    """Test send data over MultiplexerChannel."""
+    output = asyncio.Queue()
+    channel = MultiplexerChannel(output)
+    assert isinstance(channel.uuid, UUID)
+
+    with pytest.raises(MultiplexerTransportError):
+        await channel.write(b"")
+
+
 async def test_read_data():
     """Test send data over MultiplexerChannel."""
     output = asyncio.Queue()

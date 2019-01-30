@@ -28,6 +28,10 @@ class MultiplexerChannel:
 
     async def write(self, data: bytes) -> None:
         """Send data to peer."""
+        if not data:
+            raise MultiplexerTransportError()
+
+        # Create message
         message = MultiplexerMessage(self._id, CHANNEL_FLOW_DATA, data)
 
         try:
