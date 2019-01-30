@@ -186,6 +186,6 @@ class Multiplexer:
             async with async_timeout.timeout(5):
                 await self._queue.put(message)
         except asyncio.TimeoutError:
-            self._channels[channel.uuid] = channel
+            raise MultiplexerTransportError() from None
         finally:
-            self._channels.pop(channel, None)
+            self._channels.pop(channel.uuid, None)

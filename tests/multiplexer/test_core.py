@@ -1,6 +1,10 @@
 """Tests for core multiplexer handler."""
 import asyncio
+from unittest.mock import patch
 
+import pytest
+
+from snitun.exceptions import MultiplexerTransportError
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
 
@@ -77,7 +81,7 @@ async def test_multiplexer_cant_init_channel(multiplexer_client,
 
 
 async def test_multiplexer_init_channel(multiplexer_client, multiplexer_server):
-    """Test that without new channel callback can't create new channels."""
+    """Test that new channels are created."""
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
 
@@ -89,3 +93,53 @@ async def test_multiplexer_init_channel(multiplexer_client, multiplexer_server):
 
     assert multiplexer_client._channels[channel.uuid]
     assert multiplexer_server._channels[channel.uuid]
+
+
+async def test_multiplexer_init_channel_full(multiplexer_client, raise_timeout):
+    """Test that new channels are created but peer error is available."""
+    assert not multiplexer_client._channels
+
+    with pytest.raises(MultiplexerTransportError):
+        channel = await multiplexer_client.create_channel()
+    await asyncio.sleep(0.1)
+
+    assert not multiplexer_client._channels
+
+
+async def test_multiplexer_close_channel(multiplexer_client,
+                                         multiplexer_server):
+    """Test that channels are nice removed."""
+    assert not multiplexer_client._channels
+    assert not multiplexer_server._channels
+
+    channel = await multiplexer_client.create_channel()
+    await asyncio.sleep(0.1)
+
+    assert multiplexer_client._channels
+    assert multiplexer_server._channels
+
+    assert multiplexer_client._channels[channel.uuid]
+    assert multiplexer_server._channels[channel.uuid]
+
+    await multiplexer_client.delete_channel(channel)
+    await asyncio.sleep(0.1)
+
+    assert not multiplexer_client._channels
+    assert not multiplexer_server._channels
+
+
+async def test_multiplexer_close_channel_full(multiplexer_client):
+    """Test that channels are nice removed but peer error is available."""
+    assert not multiplexer_client._channels
+
+    channel = await multiplexer_client.create_channel()
+    await asyncio.sleep(0.1)
+
+    assert multiplexer_client._channels
+
+    with patch('async_timeout.timeout', side_effect=asyncio.TimeoutError()):
+        with pytest.raises(MultiplexerTransportError):
+            channel = await multiplexer_client.delete_channel(channel)
+    await asyncio.sleep(0.1)
+
+    assert not multiplexer_client._channels
