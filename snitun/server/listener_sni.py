@@ -110,6 +110,6 @@ class SNIProxy:
 
         finally:
             if from_peer and not from_peer.done():
-                from_peer.close()
+                from_peer.cancel()
             if from_proxy and not from_proxy.done():
-                from_proxy.close()
+                from_proxy.cancel()
