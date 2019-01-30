@@ -14,7 +14,7 @@ async def test_proxy_up_down():
     await proxy.stop()
 
 
-async def test_sni_proxy_flow(multiplexer_client, sni_proxy, test_client_ssl):
+async def test_sni_proxy_flow(multiplexer_client, test_client_ssl):
     """Test a normal flow of connection and exchange data."""
     test_client_ssl.writer.write(TLS_1_2)
     await test_client_ssl.writer.drain()
