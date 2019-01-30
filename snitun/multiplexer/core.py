@@ -1,14 +1,15 @@
 """Multiplexer for SniTun."""
 import asyncio
+from contextlib import suppress
 import logging
 import uuid
 
 import async_timeout
 
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
+from .channel import MultiplexerChannel
 from .message import (CHANNEL_FLOW_CLOSE, CHANNEL_FLOW_DATA, CHANNEL_FLOW_NEW,
                       CHANNEL_FLOW_PING, MultiplexerMessage)
-from .channel import MultiplexerChannel
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -80,8 +81,9 @@ class Multiplexer:
 
         except asyncio.CancelledError:
             _LOGGER.debug("Receive canceling")
-            self._writer.write_eof()
-            await self._writer.drain()
+            with suppress(OSError):
+                self._writer.write_eof()
+                await self._writer.drain()
 
         except MultiplexerTransportClose:
             _LOGGER.debug("Transport was closed")

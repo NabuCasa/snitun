@@ -57,3 +57,16 @@ async def test_multiplexer_ping(test_server, multiplexer_client):
 
     data = await client.reader.read(60)
     assert data[16] == CHANNEL_FLOW_PING
+    assert int.from_bytes(data[17:21], 'big') == 0
+
+
+async def test_multiplexer_cant_init_channel(multiplexer_client,
+                                             multiplexer_server):
+    """Test that without new channel callback can't create new channels."""
+    assert not multiplexer_client._channels
+    assert not multiplexer_server._channels
+
+    await multiplexer_client.create_channel()
+
+    assert multiplexer_client._channels
+    assert not multiplexer_server._channels

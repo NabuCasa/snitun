@@ -75,7 +75,12 @@ async def multiplexer_server(test_server, test_client):
 @pytest.fixture
 async def multiplexer_client(test_client):
     """Create a multiplexer client from server."""
-    multiplexer = Multiplexer(test_client.reader, test_client.writer)
+
+    async def mock_new_channel(channel):
+        """Mock new channel."""
+
+    multiplexer = Multiplexer(test_client.reader, test_client.writer,
+                              mock_new_channel)
 
     yield multiplexer
 
