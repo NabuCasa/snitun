@@ -30,7 +30,7 @@ async def test_multiplexer_server_close(multiplexer_server, multiplexer_client):
     assert not multiplexer_client.wait().done()
 
     await multiplexer_server.shutdown()
-    await asyncio.sleep(0.2)
+    await asyncio.sleep(0.1)
 
     assert multiplexer_server.wait().done()
     assert multiplexer_client.wait().done()
@@ -42,7 +42,7 @@ async def test_multiplexer_client_close(multiplexer_server, multiplexer_client):
     assert not multiplexer_client.wait().done()
 
     await multiplexer_client.shutdown()
-    await asyncio.sleep(0.2)
+    await asyncio.sleep(0.1)
 
     assert multiplexer_server.wait().done()
     assert multiplexer_client.wait().done()
@@ -53,7 +53,7 @@ async def test_multiplexer_ping(test_server, multiplexer_client):
     client = test_server[0]
     multiplexer_client.ping()
 
-    await asyncio.sleep(0.2)
+    await asyncio.sleep(0.1)
 
     data = await client.reader.read(60)
     assert data[16] == CHANNEL_FLOW_PING
@@ -66,7 +66,26 @@ async def test_multiplexer_cant_init_channel(multiplexer_client,
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
 
+    # Disable new channels
+    multiplexer_server._new_connections = None
+
     await multiplexer_client.create_channel()
+    await asyncio.sleep(0.1)
 
     assert multiplexer_client._channels
     assert not multiplexer_server._channels
+
+
+async def test_multiplexer_init_channel(multiplexer_client, multiplexer_server):
+    """Test that without new channel callback can't create new channels."""
+    assert not multiplexer_client._channels
+    assert not multiplexer_server._channels
+
+    channel = await multiplexer_client.create_channel()
+    await asyncio.sleep(0.1)
+
+    assert multiplexer_client._channels
+    assert multiplexer_server._channels
+
+    assert multiplexer_client._channels[channel.uuid]
+    assert multiplexer_server._channels[channel.uuid]

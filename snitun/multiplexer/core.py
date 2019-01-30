@@ -113,9 +113,9 @@ class Multiplexer:
             raise MultiplexerTransportClose()
 
         try:
-            channel_id = header[0:15]
-            flow_type = int.from_bytes(header[16], byteorder='big')
-            data_size = int.from_bytes(header[17:21], byteorder='big')
+            channel_id = header[:16]
+            flow_type = header[16]
+            data_size = int.from_bytes(header[17:], byteorder='big')
         except IndexError:
             _LOGGER.waring("Wrong message header received")
             return
@@ -150,7 +150,7 @@ class Multiplexer:
                 _LOGGER.warning("Request new Channel is not allow")
                 return
 
-            channel = MultiplexerChannel(self._queue)
+            channel = MultiplexerChannel(self._queue, message.channel_id)
             self._channels[channel.uuid] = channel
             self._loop.create_task(self._new_connections(channel))
 

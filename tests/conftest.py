@@ -64,7 +64,11 @@ async def test_client(test_server):
 async def multiplexer_server(test_server, test_client):
     """Create a multiplexer client from server."""
     client = test_server[0]
-    multiplexer = Multiplexer(client.reader, client.writer)
+
+    async def mock_new_channel(channel):
+        """Mock new channel."""
+
+    multiplexer = Multiplexer(client.reader, client.writer, mock_new_channel)
 
     yield multiplexer
 

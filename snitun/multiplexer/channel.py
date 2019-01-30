@@ -15,11 +15,11 @@ _LOGGER = logging.getLogger(__name__)
 class MultiplexerChannel:
     """Represent a multiplexer channel."""
 
-    def __init__(self, output: asyncio.Queue) -> None:
+    def __init__(self, output: asyncio.Queue, channel_id=None) -> None:
         """Initialize Multiplexer Channel."""
         self._input = asyncio.Queue(2)
         self._output = output
-        self._id = uuid.uuid4()
+        self._id = channel_id or uuid.uuid4()
 
     @property
     def uuid(self) -> uuid.UUID:
