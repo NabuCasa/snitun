@@ -6,6 +6,7 @@ import attr
 import pytest
 
 from snitun.multiplexer.core import Multiplexer
+from snitun.server.listener_sni import SNIProxy
 
 # pylint: disable=redefined-outer-name
 
@@ -17,6 +18,13 @@ class Client:
     reader = attr.ib(type=asyncio.StreamReader)
     writer = attr.ib(type=asyncio.StreamWriter)
     close = attr.ib(type=asyncio.Event, default=asyncio.Event())
+
+
+@attr.s
+class Peer:
+    """Mock for peer manager."""
+
+    multiplexer = attr.ib(type=Multiplexer)
 
 
 @pytest.fixture
@@ -40,7 +48,6 @@ async def test_server(loop):
     server = await asyncio.start_server(
         process_data, host="127.0.0.1", port="8866")
 
-    loop.create_task(server.serve_forever())
     yield connections
 
     server.close()
@@ -89,3 +96,33 @@ async def multiplexer_client(test_client):
     yield multiplexer
 
     await multiplexer.shutdown()
+
+
+@pytest.fixture
+async def peer_manager(multiplexer_server):
+    """Create a localhost peer for tests."""
+    manager = {"localhost": Peer(multiplexer_server)}
+    yield manager
+
+
+@pytest.fixture
+async def sni_proxy(peer_manager):
+    """Create a SNI Proxy."""
+    proxy = SNIProxy(peer_manager, "127.0.0.1", "8863")
+    await proxy.start()
+
+    yield proxy
+    await proxy.stop()
+
+
+@pytest.fixture
+async def test_client_ssl(sni_proxy):
+    """Create a TCP test client."""
+
+    reader, writer = await asyncio.open_connection(
+        host="127.0.0.1", port="8863")
+
+    yield Client(reader, writer)
+
+    writer.close()
+    await writer.wait_closed()

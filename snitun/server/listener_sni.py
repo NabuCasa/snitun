@@ -26,8 +26,6 @@ class SNIProxy:
         self._server = await asyncio.start_server(
             self._handle_connection, host=self._host, port=self._port)
 
-        self._loop.create_task(self._server.serve_forever())
-
     async def stop(self):
         """Stop proxy server."""
         self._server.close()
@@ -37,12 +35,18 @@ class SNIProxy:
         """Internal handler for incoming requests."""
         client_hello = await reader.read(1024)
 
+        # Connection closed before data received
+        if not client_hello:
+            with suppress(OSError):
+                writer.close()
+            return
+
         try:
             # Read Hostname
             try:
                 hostname = parse_tls_sni(client_hello)
             except ParseSNIError:
-                _LOGGER.waring(
+                _LOGGER.warning(
                     "Receive invalid ClientHello on public Interface")
                 return
 
@@ -67,7 +71,7 @@ class SNIProxy:
 
         # Open multiplexer channel
         try:
-            channel = multiplexer.create_channel()
+            channel = await multiplexer.create_channel()
             await channel.write(client_hello)
         except MultiplexerTransportError:
             _LOGGER.error("Transport to peer fails")
@@ -87,8 +91,8 @@ class SNIProxy:
 
                 # From proxy
                 if from_proxy.done():
-                    if from_peer.exception():
-                        raise from_peer.exception()
+                    if from_proxy.exception():
+                        raise from_proxy.exception()
 
                     await channel.write(from_proxy.result())
                     from_proxy = None
