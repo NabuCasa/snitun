@@ -64,7 +64,6 @@ async def test_client(test_server):
     yield Client(reader, writer)
 
     writer.close()
-    await writer.wait_closed()
 
 
 @pytest.fixture
@@ -125,4 +124,3 @@ async def test_client_ssl(sni_proxy):
     yield Client(reader, writer)
 
     writer.close()
-    await writer.wait_closed()
