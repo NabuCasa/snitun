@@ -143,3 +143,27 @@ async def test_multiplexer_close_channel_full(multiplexer_client):
     await asyncio.sleep(0.1)
 
     assert not multiplexer_client._channels
+
+
+async def test_multiplexer_data_channel(multiplexer_client, multiplexer_server):
+    """Test that new channels are created."""
+    assert not multiplexer_client._channels
+    assert not multiplexer_server._channels
+
+    channel_client = await multiplexer_client.create_channel()
+    await asyncio.sleep(0.1)
+
+    channel_server = multiplexer_server._channels.get(channel_client.uuid)
+
+    assert channel_client
+    assert channel_server
+
+    await channel_client.write(b"test 1")
+    await asyncio.sleep(0.1)
+    data = await channel_server.read()
+    assert data == b"test 1"
+
+    await channel_server.write(b"test 2")
+    await asyncio.sleep(0.1)
+    data = await channel_client.read()
+    assert data == b"test 2"
