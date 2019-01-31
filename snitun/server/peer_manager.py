@@ -26,7 +26,7 @@ class PeerManager:
     def peer_available(self, hostname: str) -> bool:
         """Check if peer available and return True or False."""
         if hostname in self._peers:
-            return True
+            return self._peers[hostname].is_ready
         return False
 
     def get_peer(self, hostname: str) -> Peer:

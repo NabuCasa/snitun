@@ -47,6 +47,7 @@ async def test_init_peer_multiplexer(loop, test_client, test_server):
     await asyncio.sleep(0.1)
 
     assert not init_task.done()
+    assert not peer.is_ready
 
     token = await client.reader.readexactly(32)
     token = hashlib.sha256(crypto.decrypt(token)).digest()
@@ -56,6 +57,7 @@ async def test_init_peer_multiplexer(loop, test_client, test_server):
 
     assert init_task.exception() is None
     assert init_task.done()
+    assert peer.is_ready
     assert not peer.multiplexer.wait().done()
 
     client.writer.close()
@@ -82,6 +84,7 @@ async def test_init_peer_multiplexer_crypto(loop, test_client, test_server):
     await asyncio.sleep(0.1)
 
     assert not init_task.done()
+    assert not peer.is_ready
 
     token = await client.reader.readexactly(32)
     token = hashlib.sha256(crypto.decrypt(token)).digest()
@@ -91,6 +94,7 @@ async def test_init_peer_multiplexer_crypto(loop, test_client, test_server):
 
     assert init_task.exception() is None
     assert init_task.done()
+    assert peer.is_ready
     assert not peer.multiplexer.wait().done()
 
     peer.multiplexer.ping()

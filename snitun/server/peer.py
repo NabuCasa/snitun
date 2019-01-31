@@ -33,6 +33,17 @@ class Peer:
         """Return Multiplexer object."""
         return self._multiplexer
 
+    @property
+    def is_ready(self) -> bool:
+        """Return true if the Peer is ready to process data."""
+        if self._multiplexer is None:
+            return False
+
+        if self.multiplexer.wait().done():
+            return False
+
+        return True
+
     def policy_connection_whitelist(self, address):
         """Check if address is allow to connect and return boolean."""
         if not self._whitelist:

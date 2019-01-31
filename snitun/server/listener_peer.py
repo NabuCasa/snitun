@@ -16,7 +16,7 @@ class PeerListener:
         """Initialize SNI Proxy interface."""
         self._peer_manager = peer_manager
         self._host = host
-        self._port = port or 80
+        self._port = port or 8080
         self._server = None
 
     async def start(self):
