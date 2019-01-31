@@ -15,3 +15,7 @@ class MultiplexerTransportError(SniTunError):
 
 class MultiplexerTransportClose(SniTunError):
     """Raise if connection to peer is closed."""
+
+
+class MultiplexerTransportDecrypto(SniTunError):
+    """Raise if decryption of message fails."""

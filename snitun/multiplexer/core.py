@@ -1,13 +1,17 @@
 """Multiplexer for SniTun."""
 import asyncio
-from contextlib import suppress
 import logging
+import os
 import uuid
+from contextlib import suppress
 
 import async_timeout
 
-from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
+from ..exceptions import (MultiplexerTransportClose,
+                          MultiplexerTransportDecrypto,
+                          MultiplexerTransportError)
 from .channel import MultiplexerChannel
+from .crypto import CryptoTransport
 from .message import (CHANNEL_FLOW_CLOSE, CHANNEL_FLOW_DATA, CHANNEL_FLOW_NEW,
                       CHANNEL_FLOW_PING, MultiplexerMessage)
 
@@ -18,10 +22,12 @@ class Multiplexer:
     """Multiplexer Socket wrapper."""
 
     def __init__(self,
+                 crypto: CryptoTransport,
                  reader: asyncio.StreamReader,
                  writer: asyncio.StreamWriter,
                  new_connections=None):
         """Initialize Multiplexer."""
+        self._crypto = crypto
         self._reader = reader
         self._writer = writer
         self._loop = asyncio.get_event_loop()
@@ -73,7 +79,7 @@ class Multiplexer:
         try:
             while not transport.is_closing():
                 if not from_peer:
-                    from_peer = self._loop.create_task(self._reader.read(21))
+                    from_peer = self._loop.create_task(self._reader.read(32))
 
                 if not to_peer:
                     to_peer = self._loop.create_task(self._queue.get())
@@ -115,11 +121,12 @@ class Multiplexer:
 
     def _write_message(self, message: MultiplexerMessage) -> None:
         """Write message to peer."""
-        data = message.channel_id.bytes
-        data += message.flow_type.to_bytes(1, byteorder='big')
-        data += len(message.data).to_bytes(4, byteorder='big')
-        data += message.data
+        header = message.channel_id.bytes
+        header += message.flow_type.to_bytes(1, byteorder='big')
+        header += len(message.data).to_bytes(4, byteorder='big')
+        header += os.urandom(11)
 
+        data = self._crypto.encrypt(header) + message.data
         self._writer.write(data)
 
     async def _read_message(self, header: bytes) -> None:
@@ -128,10 +135,11 @@ class Multiplexer:
             raise MultiplexerTransportClose()
 
         try:
+            header = self._crypto.decrypt(header)
             channel_id = header[:16]
             flow_type = header[16]
-            data_size = int.from_bytes(header[17:], byteorder='big')
-        except IndexError:
+            data_size = int.from_bytes(header[17:21], byteorder='big')
+        except (IndexError, MultiplexerTransportDecrypt):
             _LOGGER.waring("Wrong message header received")
             return
 

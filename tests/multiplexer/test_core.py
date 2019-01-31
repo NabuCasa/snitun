@@ -9,20 +9,22 @@ from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
 
 
-async def test_init_multiplexer_server(test_server, test_client):
+async def test_init_multiplexer_server(test_server, test_client,
+                                       crypto_transport):
     """Test to create a new Multiplexer from server socket."""
     client = test_server[0]
 
-    multiplexer = Multiplexer(client.reader, client.writer)
+    multiplexer = Multiplexer(crypto_transport, client.reader, client.writer)
 
     assert not multiplexer.wait().done()
     await multiplexer.shutdown()
     client.close.set()
 
 
-async def test_init_multiplexer_client(test_client):
+async def test_init_multiplexer_client(test_client, crypto_transport):
     """Test to create a new Multiplexer from client socket."""
-    multiplexer = Multiplexer(test_client.reader, test_client.writer)
+    multiplexer = Multiplexer(crypto_transport, test_client.reader,
+                              test_client.writer)
 
     assert not multiplexer.wait().done()
     await multiplexer.shutdown()
@@ -60,6 +62,7 @@ async def test_multiplexer_ping(test_server, multiplexer_client):
     await asyncio.sleep(0.1)
 
     data = await client.reader.read(60)
+    data = multiplexer_client._crypto.decrypt(data)
     assert data[16] == CHANNEL_FLOW_PING
     assert int.from_bytes(data[17:21], 'big') == 0
 

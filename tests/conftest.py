@@ -1,11 +1,13 @@
 """Pytest fixtures for SniTun."""
 import asyncio
 from unittest.mock import patch
+import os
 
 import attr
 import pytest
 
 from snitun.multiplexer.core import Multiplexer
+from snitun.multiplexer.crypto import CryptoTransport
 from snitun.server.listener_sni import SNIProxy
 
 # pylint: disable=redefined-outer-name
@@ -67,14 +69,15 @@ async def test_client(test_server):
 
 
 @pytest.fixture
-async def multiplexer_server(test_server, test_client):
+async def multiplexer_server(test_server, test_client, crypto_transport):
     """Create a multiplexer client from server."""
     client = test_server[0]
 
     async def mock_new_channel(channel):
         """Mock new channel."""
 
-    multiplexer = Multiplexer(client.reader, client.writer, mock_new_channel)
+    multiplexer = Multiplexer(crypto_transport, client.reader, client.writer,
+                              mock_new_channel)
 
     yield multiplexer
 
@@ -83,14 +86,14 @@ async def multiplexer_server(test_server, test_client):
 
 
 @pytest.fixture
-async def multiplexer_client(test_client):
+async def multiplexer_client(test_client, crypto_transport):
     """Create a multiplexer client from server."""
 
     async def mock_new_channel(channel):
         """Mock new channel."""
 
-    multiplexer = Multiplexer(test_client.reader, test_client.writer,
-                              mock_new_channel)
+    multiplexer = Multiplexer(crypto_transport, test_client.reader,
+                              test_client.writer, mock_new_channel)
 
     yield multiplexer
 
@@ -124,3 +127,13 @@ async def test_client_ssl(sni_proxy):
     yield Client(reader, writer)
 
     writer.close()
+
+
+@pytest.fixture
+def crypto_transport():
+    """Create a CryptoTransport object."""
+    key = os.urandom(32)
+    iv = os.urandom(16)
+    crypto = CryptoTransport(key, iv)
+
+    yield crypto
