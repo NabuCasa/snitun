@@ -94,3 +94,15 @@ async def test_sni_proxy_flow_close_by_server(multiplexer_client,
 
     assert not multiplexer_client._channels
     assert client_read.done()
+
+
+async def test_sni_proxy_flow_peer_not(peer, multiplexer_client,
+                                       test_client_ssl):
+    """Test a normal flow of connection with peer is not ready."""
+    peer._multiplexer = None  # Fake peer state
+
+    test_client_ssl.writer.write(TLS_1_2)
+    await test_client_ssl.writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert not multiplexer_client._channels
