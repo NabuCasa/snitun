@@ -11,7 +11,7 @@ End-to-End encryption with SNI proxy on top of a TCP multiplexer
 
 
                                                                      <------------------------------------>
-[ CLIENT ] <-------------MULTIPLEXER---(AES/CBC)--------> [ SNITUN ] <----------EXTERNAL-CONECTION--------> [ DEVICE ]
+[ CLIENT ] <-------------MULTIPLEXER---(AES/CBC)--------> [ SNITUN ] <----------EXTERNAL-CONECTION--------> [ DEVICE ] (Trusted connection)
     |                                                                <------------------------------------>     |
     |                                                                                                           |
     | <-----------------------------------------------END-TO-END-SSL------------------------------------------->|
