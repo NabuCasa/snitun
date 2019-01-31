@@ -10,7 +10,10 @@ End-to-End encryption with SNI proxy on top of a TCP multiplexer
 [ CLIENT ] <--------CHALLENGE-RESPONSE-(AES/CBC)--------> [ SNITUN ]
 
 
+                                                                     <------------------------------------>
 [ CLIENT ] <-------------MULTIPLEXER---(AES/CBC)--------> [ SNITUN ] <----------EXTERNAL-CONECTION--------> [ DEVICE ]
+    |                                                                <------------------------------------>     |
+    |                                                                                                           |
     | <-----------------------------------------------END-TO-END-SSL------------------------------------------->|
 ```
 
