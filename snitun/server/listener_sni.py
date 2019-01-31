@@ -51,13 +51,22 @@ class SNIProxy:
                 return
 
             # Peer available?
-            if hostname not in self._peer_manager:
+            if not self._peer_manager.peer_available(hostname):
                 _LOGGER.warning("Hostname %s not connected", hostname)
                 return
-            multiplexer = self._peer_manager[hostname].multiplexer
+            peer = self._peer_manager.get_peer(hostname)
 
+            # Policy allow connection?
+            connection_address = writer.get_extra_info("peername")
+            if not peer.policy_connection_whitelist(connection_address):
+                _LOGGER.warning("Policy block connection from %s",
+                                connection_address)
+                return
+
+            # Proxy data over mutliplexer to client
             _LOGGER.debug("Processing for hostname % started", hostname)
-            await self._proxy_peer(multiplexer, client_hello, reader, writer)
+            await self._proxy_peer(peer.multiplexer, client_hello, reader,
+                                   writer)
 
         finally:
             with suppress(OSError):
