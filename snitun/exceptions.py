@@ -9,6 +9,10 @@ class SniTunChallengeError(SniTunError):
     """Raise if a challenge error is occure."""
 
 
+class SniTunInvalidPeer(SniTunError):
+    """Raise if peer config is invalid."""
+
+
 class ParseSNIError(SniTunError):
     """Invalid ClientHello data."""
 

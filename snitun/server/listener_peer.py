@@ -4,8 +4,7 @@ from contextlib import suppress
 import logging
 
 from ..multiplexer.core import Multiplexer
-from ..exceptions import (MultiplexerTransportClose, MultiplexerTransportError,
-                          ParseSNIError)
+from ..exceptions import SniTunChallengeError, SniTunInvalidPeer
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,3 +31,28 @@ class PeerListener:
 
     async def _handle_connection(self, reader, writer):
         """Internal handler for incoming requests."""
+        fernet_data = await reader.read(2048)
+        peer = None
+
+        try:
+            # Connection closed before data received
+            if not fernet_data:
+                return
+
+            peer = self._peer_manager.register_peer(fernet_data)
+
+            # Start multiplexer
+            await peer.init_multiplexer_challenge(reader, writer)
+            await peer.wait_disconnect()
+
+        except SniTunInvalidPeer:
+            _LOGGER.debug("Close because invalid fernet data")
+
+        except SniTunChallengeError:
+            _LOGGER.debug("Close because challenge was wrong")
+
+        finally:
+            if peer:
+                self._peer_manager.remove_peer(peer)
+            with suppress(OSError):
+                writer.close()
