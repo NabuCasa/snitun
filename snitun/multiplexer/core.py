@@ -8,7 +8,7 @@ from contextlib import suppress
 import async_timeout
 
 from ..exceptions import (MultiplexerTransportClose,
-                          MultiplexerTransportDecrypto,
+                          MultiplexerTransportDecrypt,
                           MultiplexerTransportError)
 from .channel import MultiplexerChannel
 from .crypto import CryptoTransport

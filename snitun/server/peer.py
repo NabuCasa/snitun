@@ -1,8 +1,15 @@
 """Represent a single Peer."""
+import asyncio
+import hashlib
+import logging
+import os
 from typing import List
 
+from ..exceptions import MultiplexerTransportDecrypt, SniTunChallengeError
 from ..multiplexer.core import Multiplexer
 from ..multiplexer.crypto import CryptoTransport
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class Peer:
@@ -33,8 +40,25 @@ class Peer:
 
         return address in self._whitelist
 
-    def init_multiplexer(self, reader, writer) -> None:
+    async def init_multiplexer_challenge(self, reader: asyncio.StreamReader,
+                                         writer: asyncio.StreamWriter) -> None:
         """Initialize multiplexer."""
+        try:
+            token = hashlib.sha256(os.urandom(40)).digest()
+            writer.write(self._crypto.encrypt(token))
+            await writer.drain()
+
+            data = await reader.readexactly(32)
+            data = self._crypto.decrypt(data)
+
+            # Check Token
+            assert hashlib.sha256(token).digest() == data
+
+        except (OSError, MultiplexerTransportDecrypt, AssertionError):
+            _LOGGER.warning("Wrong challenge from peer")
+            raise SniTunChallengeError()
+
+        # Start Multiplexer
         self._multiplexer = Multiplexer(self._crypto, reader, writer)
 
     async def wait_disconnect(self) -> None:

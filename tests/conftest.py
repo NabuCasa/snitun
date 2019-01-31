@@ -1,5 +1,6 @@
 """Pytest fixtures for SniTun."""
 import asyncio
+import hashlib
 from unittest.mock import patch
 import os
 
@@ -9,6 +10,7 @@ import pytest
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.server.listener_sni import SNIProxy
+from snitun.server.peer import Peer
 
 # pylint: disable=redefined-outer-name
 
@@ -22,11 +24,22 @@ class Client:
     close = attr.ib(type=asyncio.Event, default=asyncio.Event())
 
 
-@attr.s
-class Peer:
-    """Mock for peer manager."""
+class MockPeerManager:
+    """Mock peer Manager."""
 
-    multiplexer = attr.ib(type=Multiplexer)
+    _peer = None
+
+    def peer_available(self, hostname):
+        """Check if peer available."""
+        if self._peer.hostname == hostname:
+            return True
+        return False
+
+    def get_peer(self, hostname):
+        """Get peer."""
+        if self._peer.hostname == hostname:
+            return self._peer
+        return None
 
 
 @pytest.fixture
@@ -101,10 +114,11 @@ async def multiplexer_client(test_client, crypto_transport):
 
 
 @pytest.fixture
-async def peer_manager(multiplexer_server):
+async def peer_manager(multiplexer_server, peer):
     """Create a localhost peer for tests."""
-    manager = {"localhost": Peer(multiplexer_server)}
-    yield manager
+    mock_manager = MockPeerManager()
+    mock_manager._peer = peer
+    yield mock_manager
 
 
 @pytest.fixture
@@ -137,3 +151,13 @@ def crypto_transport():
     crypto = CryptoTransport(key, iv)
 
     yield crypto
+
+
+@pytest.fixture
+async def peer(loop, crypto_transport, multiplexer_server):
+    """Init a peer with transport."""
+    peer = Peer("localhost", [], os.urandom(32), os.urandom(16))
+    peer._crypto = crypto_transport
+    peer._multiplexer = multiplexer_server
+
+    yield peer

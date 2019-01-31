@@ -4,7 +4,6 @@ import os
 import pytest
 
 from snitun.multiplexer.crypto import CryptoTransport
-from snitun.exceptions import MultiplexerTransportDecrypto
 
 
 def test_setup_crypto_transport():

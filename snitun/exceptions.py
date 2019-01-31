@@ -5,6 +5,10 @@ class SniTunError(Exception):
     """Base Exception for SniTun exceptions."""
 
 
+class SniTunChallengeError(SniTunError):
+    """Raise if a challenge error is occure."""
+
+
 class ParseSNIError(SniTunError):
     """Invalid ClientHello data."""
 
@@ -17,5 +21,5 @@ class MultiplexerTransportClose(SniTunError):
     """Raise if connection to peer is closed."""
 
 
-class MultiplexerTransportDecrypto(SniTunError):
+class MultiplexerTransportDecrypt(SniTunError):
     """Raise if decryption of message fails."""

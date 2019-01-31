@@ -4,7 +4,7 @@ from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
-from ..exceptions import MultiplexerTransportDecrypto
+from ..exceptions import MultiplexerTransportDecrypt
 
 
 class CryptoTransport:
@@ -26,4 +26,4 @@ class CryptoTransport:
         try:
             return self._decryptor.update(data)
         except cryptography.exceptions.InvalidTag:
-            raise MultiplexerTransportDecrypto() from None
+            raise MultiplexerTransportDecrypt() from None
