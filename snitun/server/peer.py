@@ -44,7 +44,7 @@ class Peer:
 
         return True
 
-    def policy_connection_whitelist(self, address):
+    def policy_connection_whitelist(self, address: str) -> bool:
         """Check if address is allow to connect and return boolean."""
         if not self._whitelist:
             return True
