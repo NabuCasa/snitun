@@ -65,16 +65,20 @@ class Peer:
             # Check Token
             assert hashlib.sha256(token).digest() == data
 
-        except (OSError, MultiplexerTransportDecrypt, AssertionError):
+        except (asyncio.IncompleteReadError, MultiplexerTransportDecrypt,
+                AssertionError):
             _LOGGER.warning("Wrong challenge from peer")
             raise SniTunChallengeError()
 
         # Start Multiplexer
         self._multiplexer = Multiplexer(self._crypto, reader, writer)
 
-    async def wait_disconnect(self) -> None:
-        """Wait until peer is disconnected."""
+    def wait_disconnect(self) -> None:
+        """Wait until peer is disconnected.
+
+        Return awaitable object.
+        """
         if not self._multiplexer:
             raise RuntimeError("No Transport initialize for peer")
 
-        await self._multiplexer.wait()
+        return self._multiplexer.wait()

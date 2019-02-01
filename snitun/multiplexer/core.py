@@ -79,7 +79,8 @@ class Multiplexer:
         try:
             while not transport.is_closing():
                 if not from_peer:
-                    from_peer = self._loop.create_task(self._reader.read(32))
+                    from_peer = self._loop.create_task(
+                        self._reader.readexactly(32))
 
                 if not to_peer:
                     to_peer = self._loop.create_task(self._queue.get())
@@ -88,15 +89,19 @@ class Multiplexer:
                 await asyncio.wait([from_peer, to_peer],
                                    return_when=asyncio.FIRST_COMPLETED)
 
-                # To peer
-                if to_peer.done():
-                    self._write_message(to_peer.result())
-                    to_peer = None
-
                 # From peer
                 if from_peer.done():
+                    if from_peer.exception():
+                        raise from_peer.exception()
                     await self._read_message(from_peer.result())
                     from_peer = None
+
+                # To peer
+                if to_peer.done():
+                    if to_peer.exception():
+                        raise to_peer.exception()
+                    self._write_message(to_peer.result())
+                    to_peer = None
 
         except asyncio.CancelledError:
             _LOGGER.debug("Receive canceling")
@@ -104,7 +109,7 @@ class Multiplexer:
                 self._writer.write_eof()
                 await self._writer.drain()
 
-        except MultiplexerTransportClose:
+        except (MultiplexerTransportClose, asyncio.IncompleteReadError):
             _LOGGER.debug("Transport was closed")
 
         finally:
