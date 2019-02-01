@@ -16,7 +16,7 @@ async def test_init_multiplexer_server(test_server, test_client,
 
     multiplexer = Multiplexer(crypto_transport, client.reader, client.writer)
 
-    assert not multiplexer.wait().done()
+    assert multiplexer.is_connected
     await multiplexer.shutdown()
     client.close.set()
 
@@ -26,32 +26,32 @@ async def test_init_multiplexer_client(test_client, crypto_transport):
     multiplexer = Multiplexer(crypto_transport, test_client.reader,
                               test_client.writer)
 
-    assert not multiplexer.wait().done()
+    assert multiplexer.is_connected
     await multiplexer.shutdown()
 
 
 async def test_multiplexer_server_close(multiplexer_server, multiplexer_client):
     """Test a close from server peers."""
-    assert not multiplexer_server.wait().done()
-    assert not multiplexer_client.wait().done()
+    assert multiplexer_server.is_connected
+    assert multiplexer_client.is_connected
 
     await multiplexer_server.shutdown()
     await asyncio.sleep(0.1)
 
-    assert multiplexer_server.wait().done()
-    assert multiplexer_client.wait().done()
+    assert not multiplexer_server.is_connected
+    assert not multiplexer_client.is_connected
 
 
 async def test_multiplexer_client_close(multiplexer_server, multiplexer_client):
     """Test a close from client peers."""
-    assert not multiplexer_server.wait().done()
-    assert not multiplexer_client.wait().done()
+    assert multiplexer_server.is_connected
+    assert multiplexer_client.is_connected
 
     await multiplexer_client.shutdown()
     await asyncio.sleep(0.1)
 
-    assert multiplexer_server.wait().done()
-    assert multiplexer_client.wait().done()
+    assert not multiplexer_server.is_connected
+    assert not multiplexer_client.is_connected
 
 
 async def test_multiplexer_ping(test_server, multiplexer_client):

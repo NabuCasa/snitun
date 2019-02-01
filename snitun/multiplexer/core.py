@@ -36,6 +36,11 @@ class Multiplexer:
         self._channels = {}  # type: Dict[MultiplexerMessage]
         self._new_connections = new_connections
 
+    @property
+    def is_connected(self) -> bool:
+        """Return True is they is connected."""
+        return not self._processing_task.done()
+
     async def shutdown(self):
         """Shutdown connection."""
         if self._processing_task.done():

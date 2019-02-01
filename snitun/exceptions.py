@@ -27,3 +27,7 @@ class MultiplexerTransportClose(SniTunError):
 
 class MultiplexerTransportDecrypt(SniTunError):
     """Raise if decryption of message fails."""
+
+
+class SniTunConnectionError(SniTunError):
+    """Raise if SniTun client can't connect to server."""
