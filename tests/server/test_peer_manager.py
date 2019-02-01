@@ -4,9 +4,9 @@ import os
 
 import pytest
 
+from snitun.exceptions import SniTunInvalidPeer
 from snitun.server.peer import Peer
 from snitun.server.peer_manager import PeerManager
-from snitun.exceptions import SniTunInvalidPeer
 
 from .const_fernet import FERNET_TOKENS, create_peer_config
 
