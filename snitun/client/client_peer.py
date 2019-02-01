@@ -67,6 +67,9 @@ class ClientPeer:
     async def _handler(self):
         """Wait until connection is closed."""
         try:
-            await self._multiplexer.wait()
+            # Ping every 50sec to hold the tunnel open
+            while self._multiplexer.is_connected:
+                await asyncio.sleep(50)
+                self._multiplexer.ping()
         finally:
             self._multiplexer = None
