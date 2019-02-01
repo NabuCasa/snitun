@@ -88,3 +88,30 @@ def test_init_new_peer_invalid_fernet():
 
     with pytest.raises(SniTunInvalidPeer):
         manager.register_peer(os.urandom(100))
+
+
+def test_init_new_peer_with_removing():
+    """Init a new peer."""
+    manager = PeerManager(FERNET_TOKENS)
+
+    valid = datetime.utcnow() + timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    whitelist = []
+    hostname = "localhost"
+    fernet_token = create_peer_config(valid.timestamp(), hostname, whitelist,
+                                      aes_key, aes_iv)
+
+    peer = manager.register_peer(fernet_token)
+    assert peer.hostname == hostname
+    assert peer._whitelist == whitelist
+    assert not peer.is_ready
+
+    assert manager.get_peer(hostname)
+    assert not manager.peer_available(hostname)
+    assert hostname in manager._peers
+
+    manager.remove_peer(peer)
+    assert manager.get_peer(hostname) is None
+    assert not manager.peer_available(hostname)
+    assert not hostname in manager._peers
