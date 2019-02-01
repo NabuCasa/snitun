@@ -66,7 +66,7 @@ class Peer:
             assert hashlib.sha256(token).digest() == data
 
         except (asyncio.IncompleteReadError, MultiplexerTransportDecrypt,
-                AssertionError):
+                AssertionError, OSError):
             _LOGGER.warning("Wrong challenge from peer")
             raise SniTunChallengeError()
 

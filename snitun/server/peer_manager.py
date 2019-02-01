@@ -1,11 +1,15 @@
 """Manage peer connections."""
-from typing import List
+from datetime import datetime, timedelta
 import json
+import logging
+from typing import List
 
-from cryptography.fernet import Fernet, MultiFernet
+from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
-from .peer import Peer
 from ..exceptions import SniTunInvalidPeer
+from .peer import Peer
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class PeerManager:
@@ -18,6 +22,26 @@ class PeerManager:
 
     def register_peer(self, fernet_data: bytes) -> Peer:
         """Create a new peer from crypt config."""
+        try:
+            data = self._fernet.decrypt(fernet_data).decode()
+            config = json.loads(data)
+        except (InvalidToken, json.JSONDecodeError):
+            _LOGGER.warning("Invalid fernet token")
+            raise SniTunInvalidPeer()
+
+        # Check if token is valid
+        if datetime.utcfromtimestamp(config['valid']) > datetime.utcnow():
+            _LOGGER.info("Token was expired")
+            raise SniTunInvalidPeer()
+
+        hostname = config['hostname']
+        aes_key = bytes.fromhex(config['aes_key'])
+        aes_iv = bytes.fromhex(config['aes_iv'])
+        whitelist = config['whitelist']
+
+        peer = self._peers[hostname] = Peer(hostname, whitelist, aes_key,
+                                            aes_iv)
+        return peer
 
     def remove_peer(self, peer: Peer):
         """Remove peer from list."""
