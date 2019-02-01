@@ -72,7 +72,7 @@ async def multiplexer_server(test_server, test_client, crypto_transport):
     """Create a multiplexer client from server."""
     client = test_server[0]
 
-    async def mock_new_channel(channel):
+    async def mock_new_channel(multiplexer, channel):
         """Mock new channel."""
 
     multiplexer = Multiplexer(crypto_transport, client.reader, client.writer,
@@ -88,7 +88,7 @@ async def multiplexer_server(test_server, test_client, crypto_transport):
 async def multiplexer_client(test_client, crypto_transport):
     """Create a multiplexer client from server."""
 
-    async def mock_new_channel(channel):
+    async def mock_new_channel(multiplexer, channel):
         """Mock new channel."""
 
     multiplexer = Multiplexer(crypto_transport, test_client.reader,

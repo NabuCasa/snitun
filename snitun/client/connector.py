@@ -1,9 +1,13 @@
 """Connector to end resource."""
 from contextlib import suppress
 import asyncio
+import logging
 
 from ..multiplexer.channel import MultiplexerChannel
+from ..multiplexer.core import Multiplexer
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class Connector:
@@ -15,7 +19,8 @@ class Connector:
         self._end_host = end_host
         self._end_port = end_port or 443
 
-    async def handler(self, channel: MultiplexerChannel) -> None:
+    async def handler(self, multiplexer: Multiplexer,
+                      channel: MultiplexerChannel) -> None:
         """Handle new connection from SNIProxy."""
         from_endpoint = None
         from_peer = None
@@ -27,6 +32,7 @@ class Connector:
         except OSError:
             _LOGGER.error("Can't connect to endpoint %s:%s", self._end_host,
                           self._end_port)
+            await multiplexer.delete_channel(channel)
             return
 
         try:
@@ -59,6 +65,7 @@ class Connector:
 
         except MultiplexerTransportError:
             _LOGGER.debug("Multiplex Transport Error for %s", channel.uuid)
+            await multiplexer.delete_channel(channel)
 
         except MultiplexerTransportClose:
             _LOGGER.debug("Peer close connection for %s", channel.uuid)

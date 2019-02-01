@@ -38,7 +38,7 @@ async def test_server_full(peer_manager, peer_listener, test_client_peer,
 
     assert peer_manager.peer_available(hostname)
 
-    async def mock_new_channel(channel):
+    async def mock_new_channel(multiplexer, channel):
         """Mock new channel."""
         while True:
             message = await channel.read()

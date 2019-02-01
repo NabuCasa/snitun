@@ -185,7 +185,7 @@ class Multiplexer:
 
             channel = MultiplexerChannel(self._queue, message.channel_id)
             self._channels[channel.uuid] = channel
-            self._loop.create_task(self._new_connections(channel))
+            self._loop.create_task(self._new_connections(self, channel))
 
         # Close
         if message.flow_type == CHANNEL_FLOW_CLOSE:
