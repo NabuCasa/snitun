@@ -10,7 +10,11 @@ import pytest
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.server.listener_sni import SNIProxy
+from snitun.server.listener_peer import PeerListener
 from snitun.server.peer import Peer
+from snitun.server.peer_manager import PeerManager
+
+from .server.const_fernet import FERNET_TOKENS
 
 # pylint: disable=redefined-outer-name
 
@@ -22,24 +26,6 @@ class Client:
     reader = attr.ib(type=asyncio.StreamReader)
     writer = attr.ib(type=asyncio.StreamWriter)
     close = attr.ib(type=asyncio.Event, default=asyncio.Event())
-
-
-class MockPeerManager:
-    """Mock peer Manager."""
-
-    _peer = None
-
-    def peer_available(self, hostname):
-        """Check if peer available."""
-        if self._peer.hostname == hostname:
-            return True
-        return False
-
-    def get_peer(self, hostname):
-        """Get peer."""
-        if self._peer.hostname == hostname:
-            return self._peer
-        return None
 
 
 @pytest.fixture
@@ -116,9 +102,9 @@ async def multiplexer_client(test_client, crypto_transport):
 @pytest.fixture
 async def peer_manager(multiplexer_server, peer):
     """Create a localhost peer for tests."""
-    mock_manager = MockPeerManager()
-    mock_manager._peer = peer
-    yield mock_manager
+    manager = PeerManager(FERNET_TOKENS)
+    manager._peers[peer.hostname] = peer
+    yield manager
 
 
 @pytest.fixture
@@ -161,3 +147,28 @@ async def peer(loop, crypto_transport, multiplexer_server):
     peer._multiplexer = multiplexer_server
 
     yield peer
+
+
+@pytest.fixture
+async def peer_listener(peer_manager, peer):
+    """Create a Peer listener."""
+    listener = PeerListener(peer_manager, "127.0.0.1", "8893")
+    await listener.start()
+
+    # Cleanup mock peer
+    peer_manager.remove_peer(peer)
+
+    yield listener
+    await listener.stop()
+
+
+@pytest.fixture
+async def test_client_peer(peer_listener):
+    """Create a TCP test client."""
+
+    reader, writer = await asyncio.open_connection(
+        host="127.0.0.1", port="8893")
+
+    yield Client(reader, writer)
+
+    writer.close()
