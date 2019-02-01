@@ -115,7 +115,7 @@ class SNIProxy:
                     from_peer = None
 
         except MultiplexerTransportError:
-            _LOGGER.debug("Multiplex Transport Error for %s", channel.uuid)
+            _LOGGER.debug("Transport closed by Proxy for %s", channel.uuid)
             await multiplexer.delete_channel(channel)
 
         except MultiplexerTransportClose:
