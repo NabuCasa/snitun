@@ -25,7 +25,7 @@ class ClientPeer:
                     aes_key: bytes, aes_iv: bytes) -> None:
         """Connect an start ClientPeer."""
         if self._multiplexer:
-            raise RuntimeError("Connection available")
+            raise RuntimeError("SniTun connection available")
 
         # Connect to SniTun server
         try:
@@ -53,14 +53,17 @@ class ClientPeer:
             _LOGGER.error("Challenge/Response error with SniTun server")
             raise SniTunConnectionError()
 
+        # Run multiplexer
         self._multiplexer = Multiplexer(crypto, reader, writer,
                                         connector.handler)
+
+        # Task a process for pings/cleanups
         self._loop.create_task(self._handler())
 
     async def stop(self):
         """Stop connection to SniTun server."""
         if not self._multiplexer:
-            raise RuntimeError("Connection available")
+            raise RuntimeError("No SniTun connection available")
 
         await self._multiplexer.shutdown()
 
