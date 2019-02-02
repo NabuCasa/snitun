@@ -6,15 +6,16 @@ End-to-End encryption with SNI proxy on top of a TCP multiplexer
 ```
                    [ CLIENT ] --AUTH/CONFIG--> [ SESSION MASTER ] (Trusted connection)
                    [ CLIENT ] <--FERNET-TOKEN- [ SESSION MASTER ]
-                   [ CLIENT ] --------FERNET-TOKEN--------------------> [ SNITUN ] (Unsecure connection)
-                   [ CLIENT ] <-------CHALLENGE-RESPONSE-(AES/CBC)----> [ SNITUN ]
+                   [ CLIENT ] --------FERNET-TOKEN---------------------> [ SNITUN ] (Unsecure connection)
+                   [ CLIENT ] <-------CHALLENGE-RESPONSE-(AES/CBC)-----> [ SNITUN ]
 
 
              <--->                                                                  <------------------------------>
-[ ENDPOINT ] <---> [ CLIENT ] <---------MULTIPLEXER---(AES/CBC)--------> [ SNITUN ] <------EXTERNAL-CONECTIONS-----> [ DEVICE ] (Trusted connection)
+[ ENDPOINT ] <---> [ CLIENT ] <---------MULTIPLEXER---(AES/CBC)--------> [ SNITUN ] <------EXTERNAL-CONECTIONS-----> [ DEVICE ]
     |        <--->                                                                  <------------------------------>     |
     |                                                                                                                    |
     | <--------------------------------------------------END-TO-END-SSL------------------------------------------------->|
+                                                      (Trusted connection)
 ```
 
 ## Fernet token
