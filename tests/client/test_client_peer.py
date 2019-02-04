@@ -17,6 +17,7 @@ async def test_init_client_peer(peer_listener, peer_manager, test_endpoint):
     client = ClientPeer("127.0.0.1", "8893")
     connector = Connector("127.0.0.1", "8822")
 
+    assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
 
     valid = datetime.utcnow() + timedelta(days=1)
@@ -30,6 +31,7 @@ async def test_init_client_peer(peer_listener, peer_manager, test_endpoint):
     await client.start(connector, fernet_token, aes_key, aes_iv)
     await asyncio.sleep(0.1)
     assert peer_manager.peer_available("localhost")
+    assert client.is_connected
 
     await client.stop()
     await asyncio.sleep(0.1)

@@ -21,6 +21,11 @@ class ClientPeer:
         self._snitun_host = snitun_host
         self._snitun_port = snitun_port or 8080
 
+    @property
+    def is_connected(self):
+        """Return true, if a connection exists."""
+        return self._multiplexer is not None
+
     async def start(self, connector: Connector, fernet_token: bytes,
                     aes_key: bytes, aes_iv: bytes) -> None:
         """Connect an start ClientPeer."""
