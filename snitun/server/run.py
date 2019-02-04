@@ -8,6 +8,7 @@ from .listener_peer import PeerListener
 
 
 class SniTunServer:
+    """SniTunServer helper class."""
 
     def __init__(self,
                  fernet_keys: List[str],

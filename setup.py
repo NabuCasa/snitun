@@ -24,7 +24,10 @@ setup(
     keywords=["sni", "proxy", "multiplexer"],
     zip_safe=False,
     platforms="any",
-    packages=["snitun", "snitun.server", "snitun.client", "snitun.multiplexer"],
+    packages=[
+        "snitun", "snitun.server", "snitun.client", "snitun.multiplexer",
+        "snitun.utils"
+    ],
     install_requires=[
         "attrs==18.2.0", "async_timeout==3.0.1", "cryptography==2.5"
     ],

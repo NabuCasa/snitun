@@ -3,6 +3,7 @@ import asyncio
 from contextlib import suppress
 import logging
 
+from .peer_manager import PeerManager
 from ..exceptions import (MultiplexerTransportClose, MultiplexerTransportError,
                           ParseSNIError)
 from .sni import parse_tls_sni
@@ -13,7 +14,7 @@ _LOGGER = logging.getLogger(__name__)
 class SNIProxy:
     """SNI Proxy class."""
 
-    def __init__(self, peer_manager, host=None, port=None):
+    def __init__(self, peer_manager: PeerManager, host=None, port=None):
         """Initialize SNI Proxy interface."""
         self._peer_manager = peer_manager
         self._loop = asyncio.get_event_loop()

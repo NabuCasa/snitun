@@ -3,7 +3,7 @@ import asyncio
 from contextlib import suppress
 import logging
 
-from ..multiplexer.core import Multiplexer
+from .peer_manager import PeerManager
 from ..exceptions import SniTunChallengeError, SniTunInvalidPeer
 
 _LOGGER = logging.getLogger(__name__)
@@ -12,7 +12,7 @@ _LOGGER = logging.getLogger(__name__)
 class PeerListener:
     """Peer Listener class."""
 
-    def __init__(self, peer_manager, host=None, port=None):
+    def __init__(self, peer_manager: PeerManager, host=None, port=None):
         """Initialize SNI Proxy interface."""
         self._peer_manager = peer_manager
         self._host = host

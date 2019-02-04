@@ -25,5 +25,5 @@ class CryptoTransport:
         """Decrypt data from transport."""
         try:
             return self._decryptor.update(data)
-        except cryptography.exceptions.InvalidTag:
+        except InvalidTag:
             raise MultiplexerTransportDecrypt() from None

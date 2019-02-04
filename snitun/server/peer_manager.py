@@ -1,5 +1,5 @@
 """Manage peer connections."""
-from datetime import datetime, timedelta
+from datetime import datetime
 import json
 import logging
 from typing import List

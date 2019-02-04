@@ -3,8 +3,11 @@ import asyncio
 from datetime import datetime, timedelta
 import os
 
+import pytest
+
 from snitun.client.client_peer import ClientPeer
 from snitun.client.connector import Connector
+from snitun.exceptions import SniTunConnectionError
 
 from ..server.const_fernet import create_peer_config
 
@@ -29,6 +32,28 @@ async def test_init_client_peer(peer_listener, peer_manager, test_endpoint):
     assert peer_manager.peer_available("localhost")
 
     await client.stop()
+    await asyncio.sleep(0.1)
+    assert not peer_manager.peer_available("localhost")
+
+
+async def test_init_client_peer_invalid_token(peer_listener, peer_manager,
+                                              test_endpoint):
+    """Test setup of ClientPeer."""
+    client = ClientPeer("127.0.0.1", "8893")
+    connector = Connector("127.0.0.1", "8822")
+
+    assert not peer_manager.peer_available("localhost")
+
+    valid = datetime.utcnow() + timedelta(days=-1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    whitelist = []
+    hostname = "localhost"
+    fernet_token = create_peer_config(valid.timestamp(), hostname, whitelist,
+                                      aes_key, aes_iv)
+
+    with pytest.raises(SniTunConnectionError):
+        await client.start(connector, fernet_token, aes_key, aes_iv)
     await asyncio.sleep(0.1)
     assert not peer_manager.peer_available("localhost")
 
