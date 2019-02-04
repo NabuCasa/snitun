@@ -56,6 +56,26 @@ async def test_server(loop):
 
 
 @pytest.fixture
+async def test_endpoint(loop):
+    """Create a TCP test endpoint."""
+    connections = []
+
+    async def process_data(reader, writer):
+        """Read data from client."""
+        client = Client(reader, writer)
+        connections.append(client)
+        await client.close.wait()
+
+    server = await asyncio.start_server(
+        process_data, host="127.0.0.1", port="8822")
+
+    yield connections
+
+    server.close()
+    await server.wait_closed()
+
+
+@pytest.fixture
 async def test_client(test_server):
     """Create a TCP test client."""
 
