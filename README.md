@@ -27,8 +27,7 @@ The session master create a fernet token from client's config (aes/whitelist) an
     "valid": 1923841,
     "hostname": "myname.ui.nabu.casa",
     "aes_key": "hexstring",
-    "aes_iv": "hexstring",
-    "whitelist": []
+    "aes_iv": "hexstring"
 }
 ```
 
@@ -45,10 +44,12 @@ SniTun server create a SHA256 from a random 40bit value. They will be encrypted 
 The header is encrypted with AES / CBC. The Payload should be SSL!
 The UUID change for every TCP connection and is single for every connection. The Size is for the DATA Payload.
 
+Extra could be additional information like on NEW message it contain the caller IP address. Otherwise it's random bits.
+
 ```
 |________________________________________________________|
 |-----------------HEADER---------------------------------|______________________________________________|
-|-----UUID----|--FLAG--|--SIZE--|---------RANDOM---------|--------------------DATA----------------------|
+|-----UUID----|--FLAG--|--SIZE--|---------EXTRA ---------|--------------------DATA----------------------|
 |   16 bytes  | 1 byte | 4 bytes|       11 bytes         |                  variable                    |
 |--------------------------------------------------------|----------------------------------------------|
 ```

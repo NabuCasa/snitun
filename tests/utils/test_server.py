@@ -23,10 +23,9 @@ async def test_fernet_token(peer_listener, peer_manager, test_endpoint):
     valid = timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
-    whitelist = []
     hostname = "localhost"
     fernet_token = server.generate_client_token(FERNET_TOKENS, valid, hostname,
-                                                aes_key, aes_iv, whitelist)
+                                                aes_key, aes_iv)
 
     await client.start(connector, fernet_token, aes_key, aes_iv)
     await asyncio.sleep(0.1)
@@ -47,10 +46,9 @@ async def test_fernet_token_date(peer_listener, peer_manager, test_endpoint):
     valid = timedelta(days=-1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
-    whitelist = []
     hostname = "localhost"
     fernet_token = server.generate_client_token(FERNET_TOKENS, valid, hostname,
-                                                aes_key, aes_iv, whitelist)
+                                                aes_key, aes_iv)
 
     with pytest.raises(SniTunConnectionError):
         await client.start(connector, fernet_token, aes_key, aes_iv)

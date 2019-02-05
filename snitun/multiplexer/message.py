@@ -1,5 +1,4 @@
 """Multiplexer message handling."""
-
 import attr
 
 CHANNEL_FLOW_NEW = 0x01
@@ -20,3 +19,4 @@ class MultiplexerMessage:
     flow_type = attr.ib(
         type=int, validator=attr.validators.in_(CHANNEL_FLOW_ALL))
     data = attr.ib(type=bytes, default=b"")
+    extra = attr.ib(type=bytes, default=b"")

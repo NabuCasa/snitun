@@ -13,21 +13,10 @@ from snitun.exceptions import SniTunChallengeError
 
 def test_init_peer():
     """Test simple init of peer."""
-    peer = Peer("localhost", [], os.urandom(32), os.urandom(16))
+    peer = Peer("localhost", os.urandom(32), os.urandom(16))
 
     assert peer.hostname == "localhost"
     assert peer.multiplexer is None
-    assert peer.policy_connection_whitelist("8.8.8.8")
-
-
-def test_init_peer_policy():
-    """Test simple init of peer."""
-    peer_strict = Peer("localhost", ["8.8.1.1"], os.urandom(32), os.urandom(16))
-    peer_no_strict = Peer("localhost", [], os.urandom(32), os.urandom(16))
-
-    assert peer_no_strict.policy_connection_whitelist("8.8.8.8")
-    assert not peer_strict.policy_connection_whitelist("8.8.8.8")
-    assert peer_strict.policy_connection_whitelist("8.8.1.1")
 
 
 async def test_init_peer_multiplexer(loop, test_client, test_server):
@@ -36,7 +25,7 @@ async def test_init_peer_multiplexer(loop, test_client, test_server):
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
 
-    peer = Peer("localhost", [], aes_key, aes_iv)
+    peer = Peer("localhost", aes_key, aes_iv)
     crypto = CryptoTransport(aes_key, aes_iv)
 
     with pytest.raises(RuntimeError):
@@ -73,7 +62,7 @@ async def test_init_peer_multiplexer_crypto(loop, test_client, test_server):
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
 
-    peer = Peer("localhost", [], aes_key, aes_iv)
+    peer = Peer("localhost", aes_key, aes_iv)
     crypto = CryptoTransport(aes_key, aes_iv)
 
     with pytest.raises(RuntimeError):
@@ -119,7 +108,7 @@ async def test_init_peer_wrong_challenge(loop, test_client, test_server):
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
 
-    peer = Peer("localhost", [], aes_key, aes_iv)
+    peer = Peer("localhost", aes_key, aes_iv)
     crypto = CryptoTransport(aes_key, aes_iv)
 
     with pytest.raises(RuntimeError):

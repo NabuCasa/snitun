@@ -1,15 +1,17 @@
 """Multiplexer for SniTun."""
 import asyncio
+from contextlib import suppress
+import ipaddress
 import logging
 import os
 import uuid
-from contextlib import suppress
 
 import async_timeout
 
 from ..exceptions import (MultiplexerTransportClose,
                           MultiplexerTransportDecrypt,
                           MultiplexerTransportError)
+from ..utils.ipaddress import bytes_to_ip_address
 from .channel import MultiplexerChannel
 from .crypto import CryptoTransport
 from .message import (CHANNEL_FLOW_CLOSE, CHANNEL_FLOW_DATA, CHANNEL_FLOW_NEW,
@@ -134,7 +136,7 @@ class Multiplexer:
         header = message.channel_id.bytes
         header += message.flow_type.to_bytes(1, byteorder='big')
         header += len(message.data).to_bytes(4, byteorder='big')
-        header += os.urandom(11)
+        header += message.extra + os.urandom(11 - len(message.extra))
 
         data = self._crypto.encrypt(header) + message.data
         self._writer.write(data)
@@ -149,6 +151,7 @@ class Multiplexer:
             channel_id = header[:16]
             flow_type = header[16]
             data_size = int.from_bytes(header[17:21], byteorder='big')
+            extra = header[21:]
         except (IndexError, MultiplexerTransportDecrypt):
             _LOGGER.waring("Wrong message header received")
             return
@@ -160,7 +163,7 @@ class Multiplexer:
             data = b""
 
         message = MultiplexerMessage(
-            uuid.UUID(bytes=channel_id), flow_type, data)
+            uuid.UUID(bytes=channel_id), flow_type, data, extra)
 
         # Process message to queue
         await self._process_message(message)
@@ -177,18 +180,20 @@ class Multiplexer:
             await self._channels[message.channel_id].message_transport(message)
 
         # New
-        if message.flow_type == CHANNEL_FLOW_NEW:
+        elif message.flow_type == CHANNEL_FLOW_NEW:
             # Check if we would handle new connection
             if not self._new_connections:
                 _LOGGER.warning("Request new Channel is not allow")
                 return
 
-            channel = MultiplexerChannel(self._queue, message.channel_id)
+            ip_address = bytes_to_ip_address(message.extra[1:5])
+            channel = MultiplexerChannel(self._queue, ip_address,
+                                         message.channel_id)
             self._channels[channel.uuid] = channel
             self._loop.create_task(self._new_connections(self, channel))
 
         # Close
-        if message.flow_type == CHANNEL_FLOW_CLOSE:
+        elif message.flow_type == CHANNEL_FLOW_CLOSE:
             # check if message exists
             if message.channel_id not in self._channels:
                 _LOGGER.waring("Receive close from unknown channel")
@@ -196,9 +201,18 @@ class Multiplexer:
             channel = self._channels.pop(message.channel_id)
             await channel.message_transport(message)
 
-    async def create_channel(self) -> MultiplexerChannel:
+        # Ping
+        elif message.flow_type == CHANNEL_FLOW_PING:
+            _LOGGER.debug("Receive ping from peer")
+
+        else:
+            _LOGGER.warning("Receive unknown message. Abort connection")
+            self._loop.create_task(self.shutdown())
+
+    async def create_channel(
+            self, ip_address: ipaddress.IPv4Address) -> MultiplexerChannel:
         """Create a new channel for transport."""
-        channel = MultiplexerChannel(self._queue)
+        channel = MultiplexerChannel(self._queue, ip_address)
         message = channel.init_new()
 
         try:

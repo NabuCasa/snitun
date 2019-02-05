@@ -1,12 +1,16 @@
 """Tests for core multiplexer handler."""
 import asyncio
+import ipaddress
 from unittest.mock import patch
 
 import pytest
+
 from snitun.exceptions import (MultiplexerTransportClose,
                                MultiplexerTransportError)
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
+
+IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
 
 async def test_init_multiplexer_server(test_server, test_client,
@@ -76,7 +80,7 @@ async def test_multiplexer_cant_init_channel(multiplexer_client,
     # Disable new channels
     multiplexer_server._new_connections = None
 
-    await multiplexer_client.create_channel()
+    await multiplexer_client.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
     assert multiplexer_client._channels
@@ -88,7 +92,7 @@ async def test_multiplexer_init_channel(multiplexer_client, multiplexer_server):
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
 
-    channel = await multiplexer_client.create_channel()
+    channel = await multiplexer_client.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
     assert multiplexer_client._channels
@@ -96,6 +100,8 @@ async def test_multiplexer_init_channel(multiplexer_client, multiplexer_server):
 
     assert multiplexer_client._channels[channel.uuid]
     assert multiplexer_server._channels[channel.uuid]
+    assert multiplexer_client._channels[channel.uuid].ip_address == IP_ADDR
+    assert multiplexer_server._channels[channel.uuid].ip_address == IP_ADDR
 
 
 async def test_multiplexer_init_channel_full(multiplexer_client, raise_timeout):
@@ -103,7 +109,7 @@ async def test_multiplexer_init_channel_full(multiplexer_client, raise_timeout):
     assert not multiplexer_client._channels
 
     with pytest.raises(MultiplexerTransportError):
-        channel = await multiplexer_client.create_channel()
+        channel = await multiplexer_client.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
     assert not multiplexer_client._channels
@@ -115,7 +121,7 @@ async def test_multiplexer_close_channel(multiplexer_client,
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
 
-    channel = await multiplexer_client.create_channel()
+    channel = await multiplexer_client.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
     assert multiplexer_client._channels
@@ -123,6 +129,8 @@ async def test_multiplexer_close_channel(multiplexer_client,
 
     assert multiplexer_client._channels[channel.uuid]
     assert multiplexer_server._channels[channel.uuid]
+    assert multiplexer_client._channels[channel.uuid].ip_address == IP_ADDR
+    assert multiplexer_server._channels[channel.uuid].ip_address == IP_ADDR
 
     await multiplexer_client.delete_channel(channel)
     await asyncio.sleep(0.1)
@@ -135,7 +143,7 @@ async def test_multiplexer_close_channel_full(multiplexer_client):
     """Test that channels are nice removed but peer error is available."""
     assert not multiplexer_client._channels
 
-    channel = await multiplexer_client.create_channel()
+    channel = await multiplexer_client.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
     assert multiplexer_client._channels
@@ -153,7 +161,7 @@ async def test_multiplexer_data_channel(multiplexer_client, multiplexer_server):
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
 
-    channel_client = await multiplexer_client.create_channel()
+    channel_client = await multiplexer_client.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
     channel_server = multiplexer_server._channels.get(channel_client.uuid)
@@ -178,7 +186,7 @@ async def test_multiplexer_channel_shutdown(loop, multiplexer_client,
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
 
-    channel_client = await multiplexer_client.create_channel()
+    channel_client = await multiplexer_client.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
     channel_server = multiplexer_server._channels.get(channel_client.uuid)

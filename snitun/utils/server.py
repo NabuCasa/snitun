@@ -7,8 +7,7 @@ from cryptography.fernet import Fernet, MultiFernet
 
 
 def generate_client_token(tokens: List[str], valid_delta: timedelta,
-                          hostname: str, aes_key: bytes, aes_iv: bytes,
-                          whitelist: List[str]):
+                          hostname: str, aes_key: bytes, aes_iv: bytes):
     """Generate a token for client."""
     fernet = MultiFernet([Fernet(key) for key in tokens])
     valid = datetime.utcnow() + valid_delta
@@ -17,7 +16,6 @@ def generate_client_token(tokens: List[str], valid_delta: timedelta,
         json.dumps({
             "valid": valid.timestamp(),
             "hostname": hostname,
-            "whitelist": whitelist,
             "aes_key": aes_key.hex(),
             "aes_iv": aes_iv.hex(),
         }).encode())

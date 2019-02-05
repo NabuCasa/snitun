@@ -1,11 +1,12 @@
 """Public proxy interface with SNI."""
 import asyncio
 from contextlib import suppress
+import ipaddress
 import logging
 
-from .peer_manager import PeerManager
 from ..exceptions import (MultiplexerTransportClose, MultiplexerTransportError,
                           ParseSNIError)
+from .peer_manager import PeerManager
 from .sni import parse_tls_sni
 
 _LOGGER = logging.getLogger(__name__)
@@ -57,13 +58,6 @@ class SNIProxy:
                 return
             peer = self._peer_manager.get_peer(hostname)
 
-            # Policy allow connection?
-            connection_address = writer.get_extra_info("peername")
-            if not peer.policy_connection_whitelist(connection_address):
-                _LOGGER.warning("Policy block connection from %s",
-                                connection_address)
-                return
-
             # Proxy data over mutliplexer to client
             _LOGGER.debug("Processing for hostname % started", hostname)
             await self._proxy_peer(peer.multiplexer, client_hello, reader,
@@ -76,17 +70,18 @@ class SNIProxy:
     async def _proxy_peer(self, multiplexer, client_hello, reader, writer):
         """Proxy data between end points."""
         transport = writer.transport
-        from_proxy = None
-        from_peer = None
+        ip_address = ipaddress.ip_address(writer.get_extra_info("peername")[0])
 
         # Open multiplexer channel
         try:
-            channel = await multiplexer.create_channel()
+            channel = await multiplexer.create_channel(ip_address)
             await channel.write(client_hello)
         except MultiplexerTransportError:
             _LOGGER.error("Transport to peer fails")
             return
 
+        from_proxy = None
+        from_peer = None
         try:
             # Process stream into multiplexer
             while not transport.is_closing():

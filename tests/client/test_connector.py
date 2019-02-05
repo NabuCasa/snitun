@@ -1,10 +1,13 @@
 """Test client connector."""
 import asyncio
+import ipaddress
 
 import pytest
 
 from snitun.client.connector import Connector
 from snitun.exceptions import MultiplexerTransportClose
+
+IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
 
 async def test_init_connector(test_endpoint, multiplexer_client,
@@ -15,7 +18,7 @@ async def test_init_connector(test_endpoint, multiplexer_client,
     connector = Connector("127.0.0.1", "8822")
     multiplexer_client._new_connections = connector.handler
 
-    channel = await multiplexer_server.create_channel()
+    channel = await multiplexer_server.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
     assert test_endpoint
@@ -36,7 +39,7 @@ async def test_flow_connector(test_endpoint, multiplexer_client,
     connector = Connector("127.0.0.1", "8822")
     multiplexer_client._new_connections = connector.handler
 
-    channel = await multiplexer_server.create_channel()
+    channel = await multiplexer_server.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
     assert test_endpoint
@@ -63,7 +66,7 @@ async def test_close_connector_remote(test_endpoint, multiplexer_client,
     connector = Connector("127.0.0.1", "8822")
     multiplexer_client._new_connections = connector.handler
 
-    channel = await multiplexer_server.create_channel()
+    channel = await multiplexer_server.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
     assert test_endpoint
@@ -94,7 +97,7 @@ async def test_close_connector_local(test_endpoint, multiplexer_client,
     connector = Connector("127.0.0.1", "8822")
     multiplexer_client._new_connections = connector.handler
 
-    channel = await multiplexer_server.create_channel()
+    channel = await multiplexer_server.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
     assert test_endpoint

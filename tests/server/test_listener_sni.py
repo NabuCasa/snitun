@@ -1,9 +1,12 @@
 """Test for SSL SNI proxy."""
 import asyncio
+import ipaddress
 
 from snitun.server.listener_sni import SNIProxy
 
 from .const_tls import TLS_1_2
+
+IP_ADDR = ipaddress.ip_address("127.0.0.1")
 
 
 async def test_proxy_up_down():
@@ -22,6 +25,7 @@ async def test_sni_proxy_flow(multiplexer_client, test_client_ssl):
 
     assert multiplexer_client._channels
     channel = next(iter(multiplexer_client._channels.values()))
+    assert channel.ip_address == IP_ADDR
 
     client_hello = await channel.read()
     assert client_hello == TLS_1_2
@@ -46,6 +50,7 @@ async def test_sni_proxy_flow_close_by_client(multiplexer_client,
 
     assert multiplexer_client._channels
     channel = next(iter(multiplexer_client._channels.values()))
+    assert channel.ip_address == IP_ADDR
 
     client_hello = await channel.read()
     assert client_hello == TLS_1_2
@@ -75,6 +80,7 @@ async def test_sni_proxy_flow_close_by_server(multiplexer_client,
 
     assert multiplexer_client._channels
     channel = next(iter(multiplexer_client._channels.values()))
+    assert channel.ip_address == IP_ADDR
 
     client_hello = await channel.read()
     assert client_hello == TLS_1_2

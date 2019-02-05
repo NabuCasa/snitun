@@ -1,6 +1,7 @@
 """Test Client Peer connections."""
 import asyncio
 from datetime import datetime, timedelta
+import ipaddress
 import os
 
 import pytest
@@ -10,6 +11,8 @@ from snitun.client.connector import Connector
 from snitun.exceptions import SniTunConnectionError
 
 from ..server.const_fernet import create_peer_config
+
+IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
 
 async def test_init_client_peer(peer_listener, peer_manager, test_endpoint):
@@ -23,10 +26,9 @@ async def test_init_client_peer(peer_listener, peer_manager, test_endpoint):
     valid = datetime.utcnow() + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
-    whitelist = []
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, whitelist,
-                                      aes_key, aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
+                                      aes_iv)
 
     await client.start(connector, fernet_token, aes_key, aes_iv)
     await asyncio.sleep(0.1)
@@ -49,10 +51,9 @@ async def test_init_client_peer_invalid_token(peer_listener, peer_manager,
     valid = datetime.utcnow() + timedelta(days=-1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
-    whitelist = []
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, whitelist,
-                                      aes_key, aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
+                                      aes_iv)
 
     with pytest.raises(SniTunConnectionError):
         await client.start(connector, fernet_token, aes_key, aes_iv)
@@ -70,10 +71,9 @@ async def test_flow_client_peer(peer_listener, peer_manager, test_endpoint):
     valid = datetime.utcnow() + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
-    whitelist = []
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, whitelist,
-                                      aes_key, aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
+                                      aes_iv)
 
     await client.start(connector, fernet_token, aes_key, aes_iv)
     await asyncio.sleep(0.1)
@@ -81,7 +81,7 @@ async def test_flow_client_peer(peer_listener, peer_manager, test_endpoint):
 
     peer = peer_manager.get_peer("localhost")
 
-    channel = await peer.multiplexer.create_channel()
+    channel = await peer.multiplexer.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
     assert test_endpoint
@@ -90,6 +90,7 @@ async def test_flow_client_peer(peer_listener, peer_manager, test_endpoint):
     await channel.write(b"Hallo")
     data = await test_connection.reader.read(1024)
     assert data == b"Hallo"
+    assert channel.ip_address == IP_ADDR
 
     test_connection.writer.write(b"Hiro")
     await test_connection.writer.drain()
@@ -114,10 +115,9 @@ async def test_close_client_peer(peer_listener, peer_manager, test_endpoint):
     valid = datetime.utcnow() + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
-    whitelist = []
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, whitelist,
-                                      aes_key, aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
+                                      aes_iv)
 
     await client.start(connector, fernet_token, aes_key, aes_iv)
     await asyncio.sleep(0.1)
@@ -125,7 +125,7 @@ async def test_close_client_peer(peer_listener, peer_manager, test_endpoint):
 
     peer = peer_manager.get_peer("localhost")
 
-    channel = await peer.multiplexer.create_channel()
+    channel = await peer.multiplexer.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
     assert test_endpoint
@@ -134,6 +134,7 @@ async def test_close_client_peer(peer_listener, peer_manager, test_endpoint):
     await channel.write(b"Hallo")
     data = await test_connection.reader.read(1024)
     assert data == b"Hallo"
+    assert channel.ip_address == IP_ADDR
 
     test_connection.writer.write(b"Hiro")
     await test_connection.writer.drain()

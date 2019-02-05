@@ -26,10 +26,9 @@ async def test_peer_listener(peer_manager, peer_listener, test_client_peer):
     valid = datetime.utcnow() + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
-    whitelist = []
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, whitelist,
-                                      aes_key, aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
+                                      aes_iv)
 
     crypto = CryptoTransport(aes_key, aes_iv)
 
@@ -52,10 +51,9 @@ async def test_peer_listener_disconnect(peer_manager, peer_listener,
     valid = datetime.utcnow() + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
-    whitelist = []
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, whitelist,
-                                      aes_key, aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
+                                      aes_iv)
 
     crypto = CryptoTransport(aes_key, aes_iv)
 

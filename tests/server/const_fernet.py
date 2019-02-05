@@ -1,6 +1,5 @@
 """Const value for Fernet tests."""
 import json
-from typing import List
 
 from cryptography.fernet import Fernet, MultiFernet
 
@@ -10,8 +9,8 @@ FERNET_TOKENS = [
 ]
 
 
-def create_peer_config(valid: int, hostname: str, whitelist: List[str],
-                       aes_key: bytes, aes_iv: bytes) -> bytes:
+def create_peer_config(valid: int, hostname: str, aes_key: bytes,
+                       aes_iv: bytes) -> bytes:
     """Create a fernet token."""
     fernet = MultiFernet([Fernet(key) for key in FERNET_TOKENS])
 
@@ -19,7 +18,6 @@ def create_peer_config(valid: int, hostname: str, whitelist: List[str],
         json.dumps({
             "valid": valid,
             "hostname": hostname,
-            "whitelist": whitelist,
             "aes_key": aes_key.hex(),
             "aes_iv": aes_iv.hex(),
         }).encode())

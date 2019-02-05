@@ -38,10 +38,8 @@ class PeerManager:
         hostname = config['hostname']
         aes_key = bytes.fromhex(config['aes_key'])
         aes_iv = bytes.fromhex(config['aes_iv'])
-        whitelist = config['whitelist']
 
-        peer = self._peers[hostname] = Peer(hostname, whitelist, aes_key,
-                                            aes_iv)
+        peer = self._peers[hostname] = Peer(hostname, aes_key, aes_iv)
         return peer
 
     def remove_peer(self, peer: Peer):

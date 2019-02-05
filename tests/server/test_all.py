@@ -2,27 +2,30 @@
 import asyncio
 from datetime import datetime, timedelta
 import hashlib
+import ipaddress
 import os
 
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
-from snitun.server.listener_peer import PeerListener
 
 from .const_fernet import create_peer_config
 from .const_tls import TLS_1_2
+
+IP_ADDR = ipaddress.ip_address("127.0.0.1")
 
 
 async def test_server_full(peer_manager, peer_listener, test_client_peer,
                            sni_proxy, test_client_ssl):
     """Run a full flow of with a peer after that disconnect."""
     peer_messages = []
+    peer_address = []
+
     valid = datetime.utcnow() + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
-    whitelist = []
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, whitelist,
-                                      aes_key, aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
+                                      aes_iv)
 
     crypto = CryptoTransport(aes_key, aes_iv)
 
@@ -43,6 +46,7 @@ async def test_server_full(peer_manager, peer_listener, test_client_peer,
         while True:
             message = await channel.read()
             peer_messages.append(message)
+            peer_address.append(channel.ip_address)
 
     multiplexer = Multiplexer(crypto, test_client_peer.reader,
                               test_client_peer.writer, mock_new_channel)
@@ -53,6 +57,8 @@ async def test_server_full(peer_manager, peer_listener, test_client_peer,
 
     assert peer_messages
     assert peer_messages[0] == TLS_1_2
+    assert peer_address
+    assert peer_address[0] == IP_ADDR
 
     await multiplexer.shutdown()
     await multiplexer.wait()

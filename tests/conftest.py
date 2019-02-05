@@ -162,7 +162,7 @@ def crypto_transport():
 @pytest.fixture
 async def peer(loop, crypto_transport, multiplexer_server):
     """Init a peer with transport."""
-    peer = Peer("localhost", [], os.urandom(32), os.urandom(16))
+    peer = Peer("localhost", os.urandom(32), os.urandom(16))
     peer._crypto = crypto_transport
     peer._multiplexer = multiplexer_server
 
