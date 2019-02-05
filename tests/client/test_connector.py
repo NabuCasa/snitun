@@ -8,6 +8,7 @@ from snitun.client.connector import Connector
 from snitun.exceptions import MultiplexerTransportClose
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
+BAD_ADDR = ipaddress.ip_address("8.8.1.1")
 
 
 async def test_init_connector(test_endpoint, multiplexer_client,
@@ -119,3 +120,43 @@ async def test_close_connector_local(test_endpoint, multiplexer_client,
 
     with pytest.raises(MultiplexerTransportClose):
         await channel.read()
+
+
+async def test_init_connector_whitelist(test_endpoint, multiplexer_client,
+                                        multiplexer_server):
+    """Test and init a connector with whitelist."""
+    assert not test_endpoint
+
+    connector = Connector("127.0.0.1", "8822", True)
+    multiplexer_client._new_connections = connector.handler
+
+    connector.whitelist.add(IP_ADDR)
+    assert IP_ADDR in connector.whitelist
+    channel = await multiplexer_server.create_channel(IP_ADDR)
+    await asyncio.sleep(0.1)
+
+    assert test_endpoint
+    test_connection = test_endpoint[0]
+
+    await channel.write(b"Hallo")
+    data = await test_connection.reader.read(1024)
+    assert data == b"Hallo"
+
+    test_connection.close.set()
+
+
+async def test_init_connector_whitelist_bad(test_endpoint, multiplexer_client,
+                                            multiplexer_server):
+    """Test and init a connector with whitelist bad requests."""
+    assert not test_endpoint
+
+    connector = Connector("127.0.0.1", "8822", True)
+    multiplexer_client._new_connections = connector.handler
+
+    connector.whitelist.add(IP_ADDR)
+    assert IP_ADDR in connector.whitelist
+    assert BAD_ADDR not in connector.whitelist
+    channel = await multiplexer_server.create_channel(BAD_ADDR)
+    await asyncio.sleep(0.1)
+
+    assert not test_endpoint

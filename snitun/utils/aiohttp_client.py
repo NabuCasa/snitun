@@ -26,12 +26,19 @@ class SniTunClientAioHttp:
         self._socket.bind(("127.0.0.1", None))
         self._site = SockSite(runner, self._socket, ssl_context=context)
 
-    async def start(self):
+    @property
+    def whitelist(self):
+        """Return whitelist from connector."""
+        if self._connector:
+            return self._connector.whitelist
+        return set()
+
+    async def start(self, whitelist=False):
         """Start internal server."""
         await self._site.start()
 
         host, port = self._socket.getsockname()[:2]
-        self._connector = Connector(host, port)
+        self._connector = Connector(host, port, whitelist)
 
     async def stop(self):
         """Stop internal server."""

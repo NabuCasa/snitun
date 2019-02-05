@@ -2,6 +2,7 @@
 from contextlib import suppress
 import asyncio
 import logging
+import ipaddress
 
 from ..multiplexer.channel import MultiplexerChannel
 from ..multiplexer.core import Multiplexer
@@ -13,17 +14,40 @@ _LOGGER = logging.getLogger(__name__)
 class Connector:
     """Connector to end resource."""
 
-    def __init__(self, end_host: str, end_port=None):
+    def __init__(self, end_host: str, end_port=None, whitelist=False):
         """Initialize Connector."""
         self._loop = asyncio.get_event_loop()
         self._end_host = end_host
         self._end_port = end_port or 443
+        self._whitelist = set()
+        self._whitelist_enabled = whitelist
+
+    @property
+    def whitelist(self):
+        """Allow to block requests per IP Return None or access to a set."""
+        return self._whitelist
+
+    def _whitelist_policy(self, ip_address: ipaddress.IPv4Address):
+        """Return True if the ip address can access to endpoint."""
+        if self._whitelist_enabled:
+            return ip_address in self._whitelist
+        return True
 
     async def handler(self, multiplexer: Multiplexer,
                       channel: MultiplexerChannel) -> None:
         """Handle new connection from SNIProxy."""
         from_endpoint = None
         from_peer = None
+
+        _LOGGER.debug("Receive from %s a request for %s", channel.ip_address,
+                      self._end_host)
+
+        # Check policy
+        if not self._whitelist_policy(channel.ip_address):
+            _LOGGER.waring("Block request from %s per policy",
+                           channel.ip_address)
+            await multiplexer.delete_channel(channel)
+            return
 
         # Open connection to endpoint
         try:
