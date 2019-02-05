@@ -9,7 +9,7 @@ setup(
     author="Nabu Casa, Inc.",
     author_email="opensource@nabucasa.com",
     url="https://www.nabucasa.com/",
-    download_url="https://github.com/nabucasa/snitun/tarball/{}".format(
+    download_url="https://github.com/NabuCasa/snitun/tarball/{}".format(
         VERSION),
     description=("SNI proxy with TCP multiplexer"),
     long_description=(""),
