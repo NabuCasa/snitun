@@ -23,11 +23,11 @@ class Connector:
         self._whitelist_enabled = whitelist
 
     @property
-    def whitelist(self):
+    def whitelist(self) -> set:
         """Allow to block requests per IP Return None or access to a set."""
         return self._whitelist
 
-    def _whitelist_policy(self, ip_address: ipaddress.IPv4Address):
+    def _whitelist_policy(self, ip_address: ipaddress.IPv4Address) -> bool:
         """Return True if the ip address can access to endpoint."""
         if self._whitelist_enabled:
             return ip_address in self._whitelist
