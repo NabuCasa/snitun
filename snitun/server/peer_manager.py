@@ -20,6 +20,11 @@ class PeerManager:
         self._fernet = MultiFernet([Fernet(key) for key in fernet_tokens])
         self._peers = {}
 
+    @property
+    def connections(self):
+        """Return count of connected devices."""
+        return len(self._peers)
+
     def register_peer(self, fernet_data: bytes) -> Peer:
         """Create a new peer from crypt config."""
         try:

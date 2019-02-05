@@ -17,10 +17,15 @@ class SniTunServer:
                  peer_port=None,
                  peer_host=None):
         """Initialize SniTun Server."""
-        peers = PeerManager(fernet_keys)
-        self._list_sni = SNIProxy(peers, host=sni_host, port=sni_port)
-        self._list_peer = PeerListener(peers, host=peer_host, port=peer_port)
-        self._peers = peers
+        self._peers = PeerManager(fernet_keys)
+        self._list_sni = SNIProxy(self._peers, host=sni_host, port=sni_port)
+        self._list_peer = PeerListener(
+            self._peers, host=peer_host, port=peer_port)
+
+    @property
+    def peers(self) -> PeerManager:
+        """Return peer manager."""
+        return self._peers
 
     def start(self):
         """Run server.

@@ -44,8 +44,8 @@ class Connector:
 
         # Check policy
         if not self._whitelist_policy(channel.ip_address):
-            _LOGGER.waring("Block request from %s per policy",
-                           channel.ip_address)
+            _LOGGER.warning("Block request from %s per policy",
+                            channel.ip_address)
             await multiplexer.delete_channel(channel)
             return
 

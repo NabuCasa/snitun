@@ -160,3 +160,6 @@ async def test_init_connector_whitelist_bad(test_endpoint, multiplexer_client,
     await asyncio.sleep(0.1)
 
     assert not test_endpoint
+
+    with pytest.raises(MultiplexerTransportClose):
+        await channel.read()

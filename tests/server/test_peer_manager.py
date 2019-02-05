@@ -37,6 +37,7 @@ def test_init_new_peer():
     assert manager.get_peer(hostname)
     assert not manager.peer_available(hostname)
     assert hostname in manager._peers
+    assert manager.connections == 1
 
 
 def test_init_new_peer_not_valid_time():
@@ -80,6 +81,7 @@ def test_init_new_peer_with_removing():
     assert manager.get_peer(hostname)
     assert not manager.peer_available(hostname)
     assert hostname in manager._peers
+    assert manager.connections == 1
 
     manager.remove_peer(peer)
     assert manager.get_peer(hostname) is None
