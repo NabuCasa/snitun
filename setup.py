@@ -1,9 +1,9 @@
 from setuptools import setup
 
-VERSION = "0.1"
+VERSION = "0.2"
 
 setup(
-    name="SniTun",
+    name="snitun",
     version=VERSION,
     license="GPL v3",
     author="Nabu Casa, Inc.",
