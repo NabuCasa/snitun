@@ -16,13 +16,13 @@ setup(
     classifiers=[
         "Intended Audience :: End Users/Desktop",
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: Apache Software License",
+        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
-        "Topic :: Home Automation"
+        "Topic :: Internet :: Proxy Servers",
         "Topic :: Software Development :: Libraries :: Python Modules",
-        "Topic :: Scientific/Engineering :: Atmospheric Science",
         "Development Status :: 5 - Production/Stable",
-        "Intended Audience :: Developers",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
     ],
     keywords=["sni", "proxy", "multiplexer", "tls"],
