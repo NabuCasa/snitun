@@ -2,9 +2,10 @@
 import asyncio
 from contextlib import suppress
 import logging
+from typing import Optional
 
-from .peer_manager import PeerManager
 from ..exceptions import SniTunChallengeError, SniTunInvalidPeer
+from .peer_manager import PeerManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,18 +23,24 @@ class PeerListener:
     async def start(self):
         """Start peer server."""
         self._server = await asyncio.start_server(
-            self._handle_connection, host=self._host, port=self._port)
+            self.handle_connection, host=self._host, port=self._port)
 
     async def stop(self):
         """Stop peer server."""
         self._server.close()
         await self._server.wait_closed()
 
-    async def _handle_connection(self, reader, writer):
+    async def handle_connection(self,
+                                reader: asyncio.StreamReader,
+                                writer: asyncio.StreamWriter,
+                                data: Optional[bytes] = None):
         """Internal handler for incoming requests."""
-        fernet_data = await reader.read(2048)
-        peer = None
+        if not data:
+            fernet_data = await reader.read(2048)
+        else:
+            fernet_data = data
 
+        peer = None
         try:
             # Connection closed before data received
             if not fernet_data:
