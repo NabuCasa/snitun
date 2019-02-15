@@ -1,11 +1,13 @@
 """Public proxy interface with SNI."""
 import asyncio
-from contextlib import suppress
 import ipaddress
 import logging
+from contextlib import suppress
+from typing import Optional
 
 from ..exceptions import (MultiplexerTransportClose, MultiplexerTransportError,
                           ParseSNIError)
+from ..multiplexer.core import Multiplexer
 from .peer_manager import PeerManager
 from .sni import parse_tls_sni
 
@@ -26,16 +28,22 @@ class SNIProxy:
     async def start(self):
         """Start Proxy server."""
         self._server = await asyncio.start_server(
-            self._handle_connection, host=self._host, port=self._port)
+            self.handle_connection, host=self._host, port=self._port)
 
     async def stop(self):
         """Stop proxy server."""
         self._server.close()
         await self._server.wait_closed()
 
-    async def _handle_connection(self, reader, writer):
+    async def handle_connection(self,
+                                reader: asyncio.StreamReader,
+                                writer: asyncio.StreamWriter,
+                                data: Optional[bytes] = None):
         """Internal handler for incoming requests."""
-        client_hello = await reader.read(1024)
+        if not data:
+            client_hello = await reader.read(1024)
+        else:
+            client_hello = data
 
         # Connection closed before data received
         if not client_hello:
@@ -67,7 +75,9 @@ class SNIProxy:
             with suppress(OSError):
                 writer.close()
 
-    async def _proxy_peer(self, multiplexer, client_hello, reader, writer):
+    async def _proxy_peer(self, multiplexer: Multiplexer, client_hello: bytes,
+                          reader: asyncio.StreamReader,
+                          writer: asyncio.StreamWriter):
         """Proxy data between end points."""
         transport = writer.transport
         ip_address = ipaddress.ip_address(writer.get_extra_info("peername")[0])
