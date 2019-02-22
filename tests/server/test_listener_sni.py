@@ -112,3 +112,13 @@ async def test_sni_proxy_flow_peer_not(peer, multiplexer_client,
     await asyncio.sleep(0.1)
 
     assert not multiplexer_client._channels
+
+
+async def test_sni_proxy_timeout(multiplexer_client, test_client_ssl,
+                                 raise_timeout):
+    """Test a normal flow of connection and exchange data."""
+    test_client_ssl.writer.write(TLS_1_2)
+    await test_client_ssl.writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert not multiplexer_client._channels

@@ -5,6 +5,8 @@ import hashlib
 import ipaddress
 import os
 
+import pytest
+
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.server.run import SniTunServer, SniTunServerSingle
@@ -87,3 +89,37 @@ async def test_snitun_single_runner():
     assert not server.peers.peer_available(hostname)
 
     await server.stop()
+
+
+async def test_snitun_single_runner_timeout(raise_timeout):
+    """Test SniTunSingle Server runner object."""
+    peer_messages = []
+    peer_address = []
+
+    server = SniTunServerSingle(FERNET_TOKENS, host="127.0.0.1")
+    await server.start()
+
+    reader_peer, writer_peer = await asyncio.open_connection(
+        host="127.0.0.1", port="443")
+
+    valid = datetime.utcnow() + timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    hostname = "localhost"
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
+                                      aes_iv)
+
+    crypto = CryptoTransport(aes_key, aes_iv)
+
+    writer_peer.write(fernet_token)
+    await writer_peer.drain()
+
+    with pytest.raises(ConnectionResetError):
+        token = await reader_peer.readexactly(32)
+        token = hashlib.sha256(crypto.decrypt(token)).digest()
+        writer_peer.write(crypto.encrypt(token))
+
+        await writer_peer.drain()
+        await asyncio.sleep(0.1)
+
+    assert not server.peers.peer_available(hostname)
