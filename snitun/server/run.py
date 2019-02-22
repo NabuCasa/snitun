@@ -1,10 +1,15 @@
 """SniTun reference implementation."""
 import asyncio
+import logging
 from typing import List
 
-from .peer_manager import PeerManager
-from .listener_sni import SNIProxy
+import async_timeout
+
 from .listener_peer import PeerListener
+from .listener_sni import SNIProxy
+from .peer_manager import PeerManager
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class SniTunServer:
@@ -73,7 +78,13 @@ class SniTunServerSingle:
     async def _handler(self, reader: asyncio.StreamReader,
                        writer: asyncio.StreamWriter):
         """Handle incoming connection."""
-        data = await reader.read(2048)
+        try:
+            async with async_timeout.timeout(2):
+                data = await reader.read(2048)
+        except asyncio.TimeoutError:
+            _LOGGER.warning("Close handshake because timeout")
+            writer.close()
+            return
 
         # Connection closed / healty check
         if not data:

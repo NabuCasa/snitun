@@ -5,6 +5,8 @@ import logging
 from contextlib import suppress
 from typing import Optional
 
+import async_timeout
+
 from ..exceptions import (MultiplexerTransportClose, MultiplexerTransportError,
                           ParseSNIError)
 from ..multiplexer.core import Multiplexer
@@ -41,7 +43,13 @@ class SNIProxy:
                                 data: Optional[bytes] = None):
         """Internal handler for incoming requests."""
         if not data:
-            client_hello = await reader.read(1024)
+            try:
+                async with async_timeout.timeout(2):
+                    client_hello = await reader.read(1024)
+            except asyncio.TimeoutError:
+                _LOGGER.warning("Close SNI handshake because timeout")
+                writer.close()
+                return
         else:
             client_hello = data
 

@@ -4,6 +4,8 @@ from contextlib import suppress
 import logging
 from typing import Optional
 
+import async_timeout
+
 from ..exceptions import SniTunChallengeError, SniTunInvalidPeer
 from .peer_manager import PeerManager
 
@@ -36,7 +38,13 @@ class PeerListener:
                                 data: Optional[bytes] = None):
         """Internal handler for incoming requests."""
         if not data:
-            fernet_data = await reader.read(2048)
+            try:
+                async with async_timeout.timeout(2):
+                    fernet_data = await reader.read(2048)
+            except asyncio.TimeoutError:
+                _LOGGER.warning("Close peer handshake because timeout")
+                writer.close()
+                return
         else:
             fernet_data = data
 
