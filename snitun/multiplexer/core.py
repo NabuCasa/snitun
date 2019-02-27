@@ -35,7 +35,7 @@ class Multiplexer:
         self._loop = asyncio.get_event_loop()
         self._queue = asyncio.Queue(10)
         self._processing_task = self._loop.create_task(self._runner())
-        self._channels = {}  # type: Dict[MultiplexerMessage]
+        self._channels = {}
         self._new_connections = new_connections
 
     @property
