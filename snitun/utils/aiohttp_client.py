@@ -23,7 +23,7 @@ class SniTunClientAioHttp:
 
         # Init interface
         self._socket.setblocking(False)
-        self._socket.bind(("127.0.0.1", None))
+        self._socket.bind(("127.0.0.1", 0))
         self._site = SockSite(runner, self._socket, ssl_context=context)
 
     @property
