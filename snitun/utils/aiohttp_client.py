@@ -1,4 +1,5 @@
 """Helper for handle aiohttp internal server."""
+from contextlib import suppress
 import socket
 import ssl
 
@@ -27,6 +28,11 @@ class SniTunClientAioHttp:
         self._site = SockSite(runner, self._socket, ssl_context=context)
 
     @property
+    def is_connected(self) -> bool:
+        """Return True if we are connected to snitun."""
+        return self._client.is_connected
+
+    @property
     def whitelist(self):
         """Return whitelist from connector."""
         if self._connector:
@@ -43,7 +49,9 @@ class SniTunClientAioHttp:
     async def stop(self):
         """Stop internal server."""
         await self.disconnect()
-        await self._site.start()
+
+        with suppress(OSError):
+            self._socket.close()
 
     async def connect(self, fernet_key, aes_key, aes_iv):
         """Connect to SniTun server."""
