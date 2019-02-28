@@ -1,5 +1,4 @@
 """Helper for handle aiohttp internal server."""
-from contextlib import suppress
 import socket
 import ssl
 import logging
@@ -55,9 +54,7 @@ class SniTunClientAioHttp:
     async def stop(self):
         """Stop internal server."""
         await self.disconnect()
-        with suppress(OSError):
-            self._socket.close()
-
+        # We don't need close the socket because they is done by aiohttp
         _LOGGER.info("AioHTTP snitun client closed")
 
     async def connect(self, fernet_key, aes_key, aes_iv):
