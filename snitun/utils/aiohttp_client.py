@@ -24,7 +24,7 @@ class SniTunClientAioHttp:
         self._connector = None
         self._client = ClientPeer(snitun_server, snitun_port)
         self._socket = socket.socket()
-        self._server_name = snitun_server
+        self._server_name = "{}:{}".format(snitun_server, snitun_port)
 
         # Init interface
         self._socket.setblocking(False)
