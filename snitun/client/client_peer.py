@@ -3,6 +3,8 @@ import asyncio
 import hashlib
 import logging
 
+import async_timeout
+
 from .connector import Connector
 from ..multiplexer.crypto import CryptoTransport
 from ..multiplexer.core import Multiplexer
@@ -22,9 +24,15 @@ class ClientPeer:
         self._snitun_port = snitun_port or 8080
 
     @property
-    def is_connected(self):
+    def is_connected(self) -> bool:
         """Return true, if a connection exists."""
         return self._multiplexer is not None
+
+    def wait(self) -> asyncio.Task:
+        """Block until connection to peer is closed."""
+        if not self._multiplexer:
+            raise RuntimeError("No SniTun connection available")
+        return self._multiplexer.wait()
 
     async def start(self, connector: Connector, fernet_token: bytes,
                     aes_key: bytes, aes_iv: bytes) -> None:
@@ -65,19 +73,20 @@ class ClientPeer:
         # Task a process for pings/cleanups
         self._loop.create_task(self._handler())
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop connection to SniTun server."""
         if not self._multiplexer:
             raise RuntimeError("No SniTun connection available")
-
         await self._multiplexer.shutdown()
 
-    async def _handler(self):
+    async def _handler(self) -> None:
         """Wait until connection is closed."""
         try:
-            # Ping every 50sec to hold the tunnel open
             while self._multiplexer.is_connected:
-                await asyncio.sleep(50)
-                self._multiplexer.ping()
+                try:
+                    async with async_timeout.timeout(50):
+                        await self._multiplexer.wait()
+                except asyncio.TimeoutError:
+                    self._multiplexer.ping()
         finally:
             self._multiplexer = None
