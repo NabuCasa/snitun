@@ -22,7 +22,7 @@ class MultiplexerChannel:
                  ip_address: IPv4Address,
                  channel_id=None) -> None:
         """Initialize Multiplexer Channel."""
-        self._input = asyncio.Queue(2)
+        self._input = asyncio.Queue(5)
         self._output = output
         self._id = channel_id or uuid.uuid4()
         self._ip_address = ip_address
@@ -52,14 +52,11 @@ class MultiplexerChannel:
             _LOGGER.debug("Can't write to peer transport")
             raise MultiplexerTransportError() from None
 
-        _LOGGER.debug("Write message to channel %s", self._id)
-
     async def read(self) -> MultiplexerMessage:
         """Read data from peer."""
         message = await self._input.get()
 
         if message.flow_type == CHANNEL_FLOW_DATA:
-            _LOGGER.debug("Read message to channel %s", self._id)
             return message.data
 
         _LOGGER.debug("Read a close message for channel %s", self._id)
