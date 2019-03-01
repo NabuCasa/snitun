@@ -33,7 +33,7 @@ class Multiplexer:
         self._reader = reader
         self._writer = writer
         self._loop = asyncio.get_event_loop()
-        self._queue = asyncio.Queue(10)
+        self._queue = asyncio.Queue(20)
         self._processing_task = self._loop.create_task(self._runner())
         self._channels = {}
         self._new_connections = new_connections
@@ -153,7 +153,7 @@ class Multiplexer:
             data_size = int.from_bytes(header[17:21], byteorder='big')
             extra = header[21:]
         except (IndexError, MultiplexerTransportDecrypt):
-            _LOGGER.waring("Wrong message header received")
+            _LOGGER.warning("Wrong message header received")
             return
 
         # Read message data
@@ -175,7 +175,7 @@ class Multiplexer:
         if message.flow_type == CHANNEL_FLOW_DATA:
             # check if message exists
             if message.channel_id not in self._channels:
-                _LOGGER.waring("Receive data from unknown channel")
+                _LOGGER.warning("Receive data from unknown channel")
                 return
             await self._channels[message.channel_id].message_transport(message)
 
@@ -196,7 +196,7 @@ class Multiplexer:
         elif message.flow_type == CHANNEL_FLOW_CLOSE:
             # check if message exists
             if message.channel_id not in self._channels:
-                _LOGGER.waring("Receive close from unknown channel")
+                _LOGGER.warning("Receive close from unknown channel")
                 return
             channel = self._channels.pop(message.channel_id)
             await channel.message_transport(message)
