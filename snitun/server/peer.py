@@ -36,7 +36,7 @@ class Peer:
         if self._multiplexer is None:
             return False
 
-        if self.multiplexer.wait().done():
+        if not self.multiplexer.is_connected:
             return False
 
         return True
@@ -63,7 +63,7 @@ class Peer:
         # Start Multiplexer
         self._multiplexer = Multiplexer(self._crypto, reader, writer)
 
-    def wait_disconnect(self) -> None:
+    def wait_disconnect(self) -> asyncio.Task:
         """Wait until peer is disconnected.
 
         Return awaitable object.
