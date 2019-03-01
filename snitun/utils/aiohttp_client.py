@@ -58,6 +58,8 @@ class SniTunClientAioHttp:
         with suppress(OSError):
             self._socket.close()
 
+        # pylint: disable=protected-access
+        self._site._runner._unreg_site(self._site)
         _LOGGER.info("AioHTTP snitun client closed")
 
     async def connect(self, fernet_key, aes_key, aes_iv):
