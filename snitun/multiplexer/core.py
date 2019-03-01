@@ -43,6 +43,13 @@ class Multiplexer:
         """Return True is they is connected."""
         return not self._processing_task.done()
 
+    def wait(self) -> asyncio.Task:
+        """Block until the connection is closed.
+
+        Return a awaitable object.
+        """
+        return self._processing_task
+
     async def shutdown(self):
         """Shutdown connection."""
         if self._processing_task.done():
@@ -63,13 +70,6 @@ class Multiplexer:
 
         if tasks:
             await asyncio.wait(tasks)
-
-    def wait(self):
-        """Block until the connection is closed.
-
-        Return a awaitable object.
-        """
-        return self._processing_task
 
     def ping(self):
         """Send a ping flow message to hold the connection open."""

@@ -1,4 +1,5 @@
 """Helper for handle aiohttp internal server."""
+import asyncio
 from contextlib import suppress
 import socket
 import ssl
@@ -42,6 +43,10 @@ class SniTunClientAioHttp:
         if self._connector:
             return self._connector.whitelist
         return set()
+
+    def wait(self) -> asyncio.Task:
+        """Block until connection to snitun is closed."""
+        return self._client.wait()
 
     async def start(self, whitelist=False):
         """Start internal server."""

@@ -47,13 +47,13 @@ async def test_init_peer_multiplexer(loop, test_client, test_server):
     assert init_task.exception() is None
     assert init_task.done()
     assert peer.is_ready
-    assert not peer.multiplexer.wait().done()
+    assert peer.multiplexer.is_connected
 
     client.writer.close()
     client.close.set()
 
     await asyncio.sleep(0.1)
-    assert peer.multiplexer.wait().done()
+    assert not peer.multiplexer.is_connected
 
 
 async def test_init_peer_multiplexer_crypto(loop, test_client, test_server):
@@ -84,7 +84,7 @@ async def test_init_peer_multiplexer_crypto(loop, test_client, test_server):
     assert init_task.exception() is None
     assert init_task.done()
     assert peer.is_ready
-    assert not peer.multiplexer.wait().done()
+    assert peer.multiplexer.is_connected
 
     peer.multiplexer.ping()
     await asyncio.sleep(0.1)
