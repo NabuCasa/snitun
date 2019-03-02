@@ -1,8 +1,10 @@
 """Represent a single Peer."""
 import asyncio
+from datetime import datetime
 import hashlib
 import logging
 import os
+from typing import Optional
 
 from ..exceptions import MultiplexerTransportDecrypt, SniTunChallengeError
 from ..multiplexer.core import Multiplexer
@@ -14,9 +16,10 @@ _LOGGER = logging.getLogger(__name__)
 class Peer:
     """Representation of a Peer."""
 
-    def __init__(self, hostname: str, aes_key: bytes, aes_iv: bytes):
+    def __init__(self, hostname: str, valid: datetime, aes_key: bytes, aes_iv: bytes):
         """Initialize a Peer."""
         self._hostname = hostname
+        self._valid = valid
         self._multiplexer = None
         self._crypto = CryptoTransport(aes_key, aes_iv)
 
@@ -26,23 +29,27 @@ class Peer:
         return self._hostname
 
     @property
-    def multiplexer(self) -> Multiplexer:
+    def is_valid(self) -> datetime:
+        """Return True if the peer is valid."""
+        return self._valid > datetime.utcnow()
+
+    @property
+    def multiplexer(self) -> Optional[Multiplexer]:
         """Return Multiplexer object."""
         return self._multiplexer
 
     @property
     def is_ready(self) -> bool:
         """Return true if the Peer is ready to process data."""
-        if self._multiplexer is None:
+        if self.multiplexer is None:
             return False
-
         if not self.multiplexer.is_connected:
             return False
-
         return True
 
-    async def init_multiplexer_challenge(self, reader: asyncio.StreamReader,
-                                         writer: asyncio.StreamWriter) -> None:
+    async def init_multiplexer_challenge(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
         """Initialize multiplexer."""
         try:
             token = hashlib.sha256(os.urandom(40)).digest()
@@ -55,8 +62,12 @@ class Peer:
             # Check Token
             assert hashlib.sha256(token).digest() == data
 
-        except (asyncio.IncompleteReadError, MultiplexerTransportDecrypt,
-                AssertionError, OSError):
+        except (
+            asyncio.IncompleteReadError,
+            MultiplexerTransportDecrypt,
+            AssertionError,
+            OSError,
+        ):
             _LOGGER.warning("Wrong challenge from peer")
             raise SniTunChallengeError()
 
