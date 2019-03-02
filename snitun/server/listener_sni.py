@@ -128,15 +128,12 @@ class SNIProxy:
                     writer.write(from_peer.result())
                     from_peer = None
 
-        except MultiplexerTransportError:
+        except (MultiplexerTransportError, OSError):
             _LOGGER.debug("Transport closed by Proxy for %s", channel.uuid)
             await multiplexer.delete_channel(channel)
 
         except MultiplexerTransportClose:
             _LOGGER.debug("Peer close connection for %s", channel.uuid)
-
-        except OSError:
-            pass
 
         finally:
             if from_peer and not from_peer.done():
