@@ -11,6 +11,8 @@ from .peer_manager import PeerManager
 
 _LOGGER = logging.getLogger(__name__)
 
+CHECK_VALID_EXPIRE = 14400
+
 
 class PeerListener:
     """Peer Listener class."""
@@ -64,7 +66,7 @@ class PeerListener:
 
             while peer.is_connected:
                 try:
-                    async with async_timeout.timeout(14400):
+                    async with async_timeout.timeout(CHECK_VALID_EXPIRE):
                         await peer.wait_disconnect()
                 except asyncio.TimeoutError:
                     if not peer.is_valid:
