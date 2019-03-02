@@ -42,6 +42,7 @@ async def test_init_peer_multiplexer(loop, test_client, test_server):
 
     assert not init_task.done()
     assert not peer.is_ready
+    assert not peer.is_connected
 
     token = await client.reader.readexactly(32)
     token = hashlib.sha256(crypto.decrypt(token)).digest()
@@ -81,6 +82,7 @@ async def test_init_peer_multiplexer_crypto(loop, test_client, test_server):
 
     assert not init_task.done()
     assert not peer.is_ready
+    assert not peer.is_connected
 
     token = await client.reader.readexactly(32)
     token = hashlib.sha256(crypto.decrypt(token)).digest()

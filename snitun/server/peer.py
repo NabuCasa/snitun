@@ -32,11 +32,11 @@ class Peer:
     def is_connected(self) -> bool:
         """Return True if we are connected to peer."""
         if not self._multiplexer:
-            raise RuntimeError("No Transport initialize for peer")
+            return False
         return self._multiplexer.is_connected
 
     @property
-    def is_valid(self) -> datetime:
+    def is_valid(self) -> bool:
         """Return True if the peer is valid."""
         return self._valid > datetime.utcnow()
 
