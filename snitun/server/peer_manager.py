@@ -35,16 +35,17 @@ class PeerManager:
             raise SniTunInvalidPeer()
 
         # Check if token is valid
-        if datetime.utcfromtimestamp(config['valid']) < datetime.utcnow():
-            _LOGGER.info("Token was expired")
+        valid = datetime.utcfromtimestamp(config["valid"])
+        if valid < datetime.utcnow():
+            _LOGGER.warning("Token was expired")
             raise SniTunInvalidPeer()
 
         # Extract configuration
-        hostname = config['hostname']
-        aes_key = bytes.fromhex(config['aes_key'])
-        aes_iv = bytes.fromhex(config['aes_iv'])
+        hostname = config["hostname"]
+        aes_key = bytes.fromhex(config["aes_key"])
+        aes_iv = bytes.fromhex(config["aes_iv"])
 
-        peer = self._peers[hostname] = Peer(hostname, aes_key, aes_iv)
+        peer = self._peers[hostname] = Peer(hostname, valid, aes_key, aes_iv)
         return peer
 
     def remove_peer(self, peer: Peer):

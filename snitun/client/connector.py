@@ -87,7 +87,7 @@ class Connector:
                     writer.write(from_peer.result())
                     from_peer = None
 
-        except MultiplexerTransportError:
+        except (MultiplexerTransportError, OSError):
             _LOGGER.debug("Transport closed by endpoint for %s", channel.uuid)
             await multiplexer.delete_channel(channel)
 
@@ -95,9 +95,18 @@ class Connector:
             _LOGGER.debug("Peer close connection for %s", channel.uuid)
 
         finally:
-            if from_peer and not from_peer.done():
-                from_peer.cancel()
+            # Cleanup peer reader
+            if from_peer:
+                if not from_peer.done():
+                    from_peer.cancel()
+                else:
+                    # Avoid exception was never retrieved
+                    from_peer.exception()
+
+            # Cleanup endpoint reader
             if from_endpoint and not from_endpoint.done():
                 from_endpoint.cancel()
+
+            # Close Transport
             with suppress(OSError):
                 writer.close()

@@ -11,6 +11,8 @@ from .peer_manager import PeerManager
 
 _LOGGER = logging.getLogger(__name__)
 
+CHECK_VALID_EXPIRE = 14400
+
 
 class PeerListener:
     """Peer Listener class."""
@@ -25,17 +27,20 @@ class PeerListener:
     async def start(self):
         """Start peer server."""
         self._server = await asyncio.start_server(
-            self.handle_connection, host=self._host, port=self._port)
+            self.handle_connection, host=self._host, port=self._port
+        )
 
     async def stop(self):
         """Stop peer server."""
         self._server.close()
         await self._server.wait_closed()
 
-    async def handle_connection(self,
-                                reader: asyncio.StreamReader,
-                                writer: asyncio.StreamWriter,
-                                data: Optional[bytes] = None):
+    async def handle_connection(
+        self,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        data: Optional[bytes] = None,
+    ):
         """Internal handler for incoming requests."""
         if not data:
             try:
@@ -58,7 +63,14 @@ class PeerListener:
 
             # Start multiplexer
             await peer.init_multiplexer_challenge(reader, writer)
-            await peer.wait_disconnect()
+
+            while peer.is_connected:
+                try:
+                    async with async_timeout.timeout(CHECK_VALID_EXPIRE):
+                        await peer.wait_disconnect()
+                except asyncio.TimeoutError:
+                    if not peer.is_valid:
+                        break
 
         except SniTunInvalidPeer:
             _LOGGER.debug("Close because invalid fernet data")
