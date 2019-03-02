@@ -135,6 +135,9 @@ class SNIProxy:
         except MultiplexerTransportClose:
             _LOGGER.debug("Peer close connection for %s", channel.uuid)
 
+        except OSError:
+            pass
+
         finally:
             if from_peer and not from_peer.done():
                 from_peer.cancel()
