@@ -20,7 +20,7 @@ def generate_client_token(
     return fernet.encrypt(
         json.dumps(
             {
-                "valid": valid.utctimestamp(),
+                "valid": valid.timestamp(),
                 "hostname": hostname,
                 "aes_key": aes_key.hex(),
                 "aes_iv": aes_iv.hex(),

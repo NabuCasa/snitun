@@ -1,4 +1,5 @@
 """Test a Peer object."""
+from datetime import datetime, timedelta
 import asyncio
 import hashlib
 import os
@@ -13,8 +14,10 @@ from snitun.exceptions import SniTunChallengeError
 
 def test_init_peer():
     """Test simple init of peer."""
-    peer = Peer("localhost", os.urandom(32), os.urandom(16))
+    valid = datetime.utcnow() + timedelta(days=1)
+    peer = Peer("localhost", valid, os.urandom(32), os.urandom(16))
 
+    assert peer.is_valid
     assert peer.hostname == "localhost"
     assert peer.multiplexer is None
 
@@ -24,15 +27,17 @@ async def test_init_peer_multiplexer(loop, test_client, test_server):
     client = test_server[0]
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
+    valid = datetime.utcnow() + timedelta(days=1)
 
-    peer = Peer("localhost", aes_key, aes_iv)
+    peer = Peer("localhost", valid, aes_key, aes_iv)
     crypto = CryptoTransport(aes_key, aes_iv)
 
     with pytest.raises(RuntimeError):
         await peer.wait_disconnect()
 
     init_task = loop.create_task(
-        peer.init_multiplexer_challenge(test_client.reader, test_client.writer))
+        peer.init_multiplexer_challenge(test_client.reader, test_client.writer)
+    )
     await asyncio.sleep(0.1)
 
     assert not init_task.done()
@@ -47,7 +52,7 @@ async def test_init_peer_multiplexer(loop, test_client, test_server):
     assert init_task.exception() is None
     assert init_task.done()
     assert peer.is_ready
-    assert peer.multiplexer.is_connected
+    assert peer.is_connected
 
     client.writer.close()
     client.close.set()
@@ -61,15 +66,17 @@ async def test_init_peer_multiplexer_crypto(loop, test_client, test_server):
     client = test_server[0]
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
+    valid = datetime.utcnow() + timedelta(days=1)
 
-    peer = Peer("localhost", aes_key, aes_iv)
+    peer = Peer("localhost", valid, aes_key, aes_iv)
     crypto = CryptoTransport(aes_key, aes_iv)
 
     with pytest.raises(RuntimeError):
         await peer.wait_disconnect()
 
     init_task = loop.create_task(
-        peer.init_multiplexer_challenge(test_client.reader, test_client.writer))
+        peer.init_multiplexer_challenge(test_client.reader, test_client.writer)
+    )
     await asyncio.sleep(0.1)
 
     assert not init_task.done()
@@ -84,7 +91,7 @@ async def test_init_peer_multiplexer_crypto(loop, test_client, test_server):
     assert init_task.exception() is None
     assert init_task.done()
     assert peer.is_ready
-    assert peer.multiplexer.is_connected
+    assert peer.is_connected
 
     peer.multiplexer.ping()
     await asyncio.sleep(0.1)
@@ -93,7 +100,7 @@ async def test_init_peer_multiplexer_crypto(loop, test_client, test_server):
     ping = crypto.decrypt(ping_data)
 
     assert ping[16] == CHANNEL_FLOW_PING
-    assert int.from_bytes(ping[17:21], 'big') == 0
+    assert int.from_bytes(ping[17:21], "big") == 0
 
     client.writer.close()
     client.close.set()
@@ -107,15 +114,17 @@ async def test_init_peer_wrong_challenge(loop, test_client, test_server):
     client = test_server[0]
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
+    valid = datetime.utcnow() + timedelta(days=1)
 
-    peer = Peer("localhost", aes_key, aes_iv)
+    peer = Peer("localhost", valid, aes_key, aes_iv)
     crypto = CryptoTransport(aes_key, aes_iv)
 
     with pytest.raises(RuntimeError):
         await peer.wait_disconnect()
 
     init_task = loop.create_task(
-        peer.init_multiplexer_challenge(test_client.reader, test_client.writer))
+        peer.init_multiplexer_challenge(test_client.reader, test_client.writer)
+    )
     await asyncio.sleep(0.1)
 
     assert not init_task.done()
@@ -131,3 +140,13 @@ async def test_init_peer_wrong_challenge(loop, test_client, test_server):
 
     client.writer.close()
     client.close.set()
+
+
+def test_init_peer_invalid():
+    """Test simple init of peer with invalid date."""
+    valid = datetime.utcnow() - timedelta(days=1)
+    peer = Peer("localhost", valid, os.urandom(32), os.urandom(16))
+
+    assert not peer.is_valid
+    assert peer.hostname == "localhost"
+    assert peer.multiplexer is None
