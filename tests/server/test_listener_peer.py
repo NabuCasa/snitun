@@ -29,8 +29,7 @@ async def test_peer_listener(peer_manager, peer_listener, test_client_peer):
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
-                                      aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
     crypto = CryptoTransport(aes_key, aes_iv)
 
@@ -47,15 +46,30 @@ async def test_peer_listener(peer_manager, peer_listener, test_client_peer):
     assert peer_manager.peer_available(hostname)
 
 
-async def test_peer_listener_disconnect(peer_manager, peer_listener,
-                                        test_client_peer):
+async def test_peer_listener_invalid(peer_manager, peer_listener, test_client_peer):
+    """Run a full flow of with a peer."""
+    valid = datetime.utcnow() - timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    hostname = "localhost"
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
+
+    crypto = CryptoTransport(aes_key, aes_iv)
+
+    test_client_peer.writer.write(fernet_token)
+    await test_client_peer.writer.drain()
+
+    with pytest.raises(asyncio.IncompleteReadError):
+        token = await test_client_peer.reader.readexactly(32)
+
+
+async def test_peer_listener_disconnect(peer_manager, peer_listener, test_client_peer):
     """Run a full flow of with a peer after that disconnect."""
     valid = datetime.utcnow() + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
-                                      aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
     crypto = CryptoTransport(aes_key, aes_iv)
 
@@ -77,15 +91,15 @@ async def test_peer_listener_disconnect(peer_manager, peer_listener,
     assert not peer_manager.peer_available(hostname)
 
 
-async def test_peer_listener_timeout(raise_timeout, peer_manager, peer_listener,
-                                     test_client_peer):
+async def test_peer_listener_timeout(
+    raise_timeout, peer_manager, peer_listener, test_client_peer
+):
     """Run a full flow of with a peer."""
     valid = datetime.utcnow() + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
-                                      aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
     crypto = CryptoTransport(aes_key, aes_iv)
 
@@ -100,4 +114,34 @@ async def test_peer_listener_timeout(raise_timeout, peer_manager, peer_listener,
         await test_client_peer.writer.drain()
         await asyncio.sleep(0.1)
 
+    assert not peer_manager.peer_available(hostname)
+
+
+async def test_peer_listener_expire(peer_manager, peer_listener, test_client_peer):
+    """Run a full flow of with a peer."""
+    from snitun.server import listener_peer
+
+    listener_peer.CHECK_VALID_EXPIRE = 0.1
+
+    valid = datetime.utcnow() + timedelta(seconds=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    hostname = "localhost"
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
+
+    crypto = CryptoTransport(aes_key, aes_iv)
+
+    test_client_peer.writer.write(fernet_token)
+    await test_client_peer.writer.drain()
+
+    token = await test_client_peer.reader.readexactly(32)
+    token = hashlib.sha256(crypto.decrypt(token)).digest()
+    test_client_peer.writer.write(crypto.encrypt(token))
+
+    await test_client_peer.writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert peer_manager.peer_available(hostname)
+
+    await asyncio.sleep(1)
     assert not peer_manager.peer_available(hostname)
