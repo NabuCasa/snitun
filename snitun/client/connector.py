@@ -87,7 +87,7 @@ class Connector:
                     writer.write(from_peer.result())
                     from_peer = None
 
-        except MultiplexerTransportError:
+        except (MultiplexerTransportError, OSError):
             _LOGGER.debug("Transport closed by endpoint for %s", channel.uuid)
             await multiplexer.delete_channel(channel)
 
