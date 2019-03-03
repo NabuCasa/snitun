@@ -138,6 +138,7 @@ class Multiplexer:
                 if not from_peer.done():
                     from_peer.cancel()
                 else:
+                    # Avoid exception was never retrieved
                     from_peer.exception()
 
             # Cleanup transport
