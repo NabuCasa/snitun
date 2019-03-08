@@ -7,8 +7,11 @@ from typing import Optional
 
 import async_timeout
 
-from ..exceptions import (MultiplexerTransportClose, MultiplexerTransportError,
-                          ParseSNIError)
+from ..exceptions import (
+    MultiplexerTransportClose,
+    MultiplexerTransportError,
+    ParseSNIError,
+)
 from ..multiplexer.core import Multiplexer
 from .peer_manager import PeerManager
 from .sni import parse_tls_sni
@@ -30,25 +33,30 @@ class SNIProxy:
     async def start(self):
         """Start Proxy server."""
         self._server = await asyncio.start_server(
-            self.handle_connection, host=self._host, port=self._port)
+            self.handle_connection, host=self._host, port=self._port
+        )
 
     async def stop(self):
         """Stop proxy server."""
         self._server.close()
         await self._server.wait_closed()
 
-    async def handle_connection(self,
-                                reader: asyncio.StreamReader,
-                                writer: asyncio.StreamWriter,
-                                data: Optional[bytes] = None):
+    async def handle_connection(
+        self,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        data: Optional[bytes] = None,
+    ):
         """Internal handler for incoming requests."""
         if not data:
             try:
                 async with async_timeout.timeout(2):
                     client_hello = await reader.read(1024)
             except asyncio.TimeoutError:
-                _LOGGER.warning("Close SNI handshake because timeout")
+                _LOGGER.warning("Abort SNI handshake")
                 writer.close()
+                return
+            except OSError:
                 return
         else:
             client_hello = data
@@ -64,8 +72,7 @@ class SNIProxy:
             try:
                 hostname = parse_tls_sni(client_hello)
             except ParseSNIError:
-                _LOGGER.warning(
-                    "Receive invalid ClientHello on public Interface")
+                _LOGGER.warning("Receive invalid ClientHello on public Interface")
                 return
 
             # Peer available?
@@ -76,16 +83,19 @@ class SNIProxy:
 
             # Proxy data over mutliplexer to client
             _LOGGER.debug("Processing for hostname % started", hostname)
-            await self._proxy_peer(peer.multiplexer, client_hello, reader,
-                                   writer)
+            await self._proxy_peer(peer.multiplexer, client_hello, reader, writer)
 
         finally:
             with suppress(OSError):
                 writer.close()
 
-    async def _proxy_peer(self, multiplexer: Multiplexer, client_hello: bytes,
-                          reader: asyncio.StreamReader,
-                          writer: asyncio.StreamWriter):
+    async def _proxy_peer(
+        self,
+        multiplexer: Multiplexer,
+        client_hello: bytes,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+    ):
         """Proxy data between end points."""
         transport = writer.transport
         ip_address = ipaddress.ip_address(writer.get_extra_info("peername")[0])
@@ -109,8 +119,9 @@ class SNIProxy:
                     from_peer = self._loop.create_task(channel.read())
 
                 # Wait until data need to be processed
-                await asyncio.wait([from_proxy, from_peer],
-                                   return_when=asyncio.FIRST_COMPLETED)
+                await asyncio.wait(
+                    [from_proxy, from_peer], return_when=asyncio.FIRST_COMPLETED
+                )
 
                 # From proxy
                 if from_proxy.done():
