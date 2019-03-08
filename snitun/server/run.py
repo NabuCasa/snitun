@@ -15,17 +15,18 @@ _LOGGER = logging.getLogger(__name__)
 class SniTunServer:
     """SniTunServer helper class."""
 
-    def __init__(self,
-                 fernet_keys: List[str],
-                 sni_port=None,
-                 sni_host=None,
-                 peer_port=None,
-                 peer_host=None):
+    def __init__(
+        self,
+        fernet_keys: List[str],
+        sni_port=None,
+        sni_host=None,
+        peer_port=None,
+        peer_host=None,
+    ):
         """Initialize SniTun Server."""
         self._peers = PeerManager(fernet_keys)
         self._list_sni = SNIProxy(self._peers, host=sni_host, port=sni_port)
-        self._list_peer = PeerListener(
-            self._peers, host=peer_host, port=peer_port)
+        self._list_peer = PeerListener(self._peers, host=peer_host, port=peer_port)
 
     @property
     def peers(self) -> PeerManager:
@@ -68,22 +69,26 @@ class SniTunServerSingle:
     async def start(self):
         """Run server."""
         self._server = await asyncio.start_server(
-            self._handler, host=self._host, port=self._port)
+            self._handler, host=self._host, port=self._port
+        )
 
     async def stop(self):
         """Stop server."""
         self._server.close()
         await self._server.wait_closed()
 
-    async def _handler(self, reader: asyncio.StreamReader,
-                       writer: asyncio.StreamWriter):
+    async def _handler(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ):
         """Handle incoming connection."""
         try:
             async with async_timeout.timeout(2):
                 data = await reader.read(2048)
         except asyncio.TimeoutError:
-            _LOGGER.warning("Close handshake because timeout")
+            _LOGGER.warning("Abort connection initializing")
             writer.close()
+            return
+        except OSError:
             return
 
         # Connection closed / healty check
@@ -94,7 +99,9 @@ class SniTunServerSingle:
         # Select the correct handler for process data
         if data[0] == 0x16:
             self._loop.create_task(
-                self._list_sni.handle_connection(reader, writer, data))
+                self._list_sni.handle_connection(reader, writer, data)
+            )
         else:
             self._loop.create_task(
-                self._list_peer.handle_connection(reader, writer, data))
+                self._list_peer.handle_connection(reader, writer, data)
+            )
