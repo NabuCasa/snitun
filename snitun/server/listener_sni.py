@@ -18,6 +18,8 @@ from .sni import parse_tls_sni
 
 _LOGGER = logging.getLogger(__name__)
 
+TCP_SESSION_TIMEOUT = 60
+
 
 class SNIProxy:
     """SNI Proxy class."""
@@ -86,8 +88,9 @@ class SNIProxy:
             await self._proxy_peer(peer.multiplexer, client_hello, reader, writer)
 
         finally:
-            with suppress(OSError):
-                writer.close()
+            if not writer.transport.is_closing():
+                with suppress(OSError):
+                    writer.close()
 
     async def _proxy_peer(
         self,
@@ -119,9 +122,10 @@ class SNIProxy:
                     from_peer = self._loop.create_task(channel.read())
 
                 # Wait until data need to be processed
-                await asyncio.wait(
-                    [from_proxy, from_peer], return_when=asyncio.FIRST_COMPLETED
-                )
+                async with async_timeout.timeout(TCP_SESSION_TIMEOUT):
+                    await asyncio.wait(
+                        [from_proxy, from_peer], return_when=asyncio.FIRST_COMPLETED
+                    )
 
                 # From proxy
                 if from_proxy.done():
@@ -139,8 +143,12 @@ class SNIProxy:
                     writer.write(from_peer.result())
                     from_peer = None
 
-        except (MultiplexerTransportError, OSError):
+        except (MultiplexerTransportError, OSError, RuntimeError):
             _LOGGER.debug("Transport closed by Proxy for %s", channel.uuid)
+            await multiplexer.delete_channel(channel)
+
+        except asyncio.TimeoutError:
+            _LOGGER.warning("Close TCP session after timeout for %s", channel.uuid)
             await multiplexer.delete_channel(channel)
 
         except MultiplexerTransportClose:

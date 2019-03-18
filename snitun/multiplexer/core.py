@@ -157,7 +157,10 @@ class Multiplexer:
         header += message.extra + os.urandom(11 - len(message.extra))
 
         data = self._crypto.encrypt(header) + message.data
-        self._writer.write(data)
+        try:
+            self._writer.write(data)
+        except RuntimeError:
+            raise MultiplexerTransportClose() from None
 
     async def _read_message(self, header: bytes) -> None:
         """Read message from peer."""
