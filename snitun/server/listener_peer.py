@@ -83,5 +83,8 @@ class PeerListener:
         finally:
             if peer:
                 self._peer_manager.remove_peer(peer)
-            with suppress(OSError):
-                writer.close()
+
+            # Cleanup transport
+            if not writer.transport.is_closing():
+                with suppress(OSError):
+                    writer.close()

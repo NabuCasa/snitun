@@ -33,29 +33,32 @@ class Connector:
             return ip_address in self._whitelist
         return True
 
-    async def handler(self, multiplexer: Multiplexer,
-                      channel: MultiplexerChannel) -> None:
+    async def handler(
+        self, multiplexer: Multiplexer, channel: MultiplexerChannel
+    ) -> None:
         """Handle new connection from SNIProxy."""
         from_endpoint = None
         from_peer = None
 
-        _LOGGER.debug("Receive from %s a request for %s", channel.ip_address,
-                      self._end_host)
+        _LOGGER.debug(
+            "Receive from %s a request for %s", channel.ip_address, self._end_host
+        )
 
         # Check policy
         if not self._whitelist_policy(channel.ip_address):
-            _LOGGER.warning("Block request from %s per policy",
-                            channel.ip_address)
+            _LOGGER.warning("Block request from %s per policy", channel.ip_address)
             await multiplexer.delete_channel(channel)
             return
 
         # Open connection to endpoint
         try:
             reader, writer = await asyncio.open_connection(
-                host=self._end_host, port=self._end_port)
+                host=self._end_host, port=self._end_port
+            )
         except OSError:
-            _LOGGER.error("Can't connect to endpoint %s:%s", self._end_host,
-                          self._end_port)
+            _LOGGER.error(
+                "Can't connect to endpoint %s:%s", self._end_host, self._end_port
+            )
             await multiplexer.delete_channel(channel)
             return
 
@@ -68,8 +71,9 @@ class Connector:
                     from_peer = self._loop.create_task(channel.read())
 
                 # Wait until data need to be processed
-                await asyncio.wait([from_endpoint, from_peer],
-                                   return_when=asyncio.FIRST_COMPLETED)
+                await asyncio.wait(
+                    [from_endpoint, from_peer], return_when=asyncio.FIRST_COMPLETED
+                )
 
                 # From proxy
                 if from_endpoint.done():
@@ -87,7 +91,7 @@ class Connector:
                     writer.write(from_peer.result())
                     from_peer = None
 
-        except (MultiplexerTransportError, OSError):
+        except (MultiplexerTransportError, OSError, RuntimeError):
             _LOGGER.debug("Transport closed by endpoint for %s", channel.uuid)
             await multiplexer.delete_channel(channel)
 
@@ -108,5 +112,6 @@ class Connector:
                 from_endpoint.cancel()
 
             # Close Transport
-            with suppress(OSError):
-                writer.close()
+            if not writer.transport.is_closing():
+                with suppress(OSError):
+                    writer.close()

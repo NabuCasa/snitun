@@ -86,8 +86,9 @@ class SNIProxy:
             await self._proxy_peer(peer.multiplexer, client_hello, reader, writer)
 
         finally:
-            with suppress(OSError):
-                writer.close()
+            if not writer.transport.is_closing():
+                with suppress(OSError):
+                    writer.close()
 
     async def _proxy_peer(
         self,
@@ -139,7 +140,7 @@ class SNIProxy:
                     writer.write(from_peer.result())
                     from_peer = None
 
-        except (MultiplexerTransportError, OSError):
+        except (MultiplexerTransportError, OSError, RuntimeError):
             _LOGGER.debug("Transport closed by Proxy for %s", channel.uuid)
             await multiplexer.delete_channel(channel)
 
