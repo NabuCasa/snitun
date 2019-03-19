@@ -6,16 +6,19 @@ from uuid import UUID
 import pytest
 
 from snitun.utils.ipaddress import ip_address_to_bytes
-from snitun.exceptions import (MultiplexerTransportClose,
-                               MultiplexerTransportError)
+from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer.channel import MultiplexerChannel
-from snitun.multiplexer.message import (CHANNEL_FLOW_CLOSE, CHANNEL_FLOW_DATA,
-                                        CHANNEL_FLOW_NEW, MultiplexerMessage)
+from snitun.multiplexer.message import (
+    CHANNEL_FLOW_CLOSE,
+    CHANNEL_FLOW_DATA,
+    CHANNEL_FLOW_NEW,
+    MultiplexerMessage,
+)
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
 
-async def test_initial_channel():
+async def test_initial_channel_msg():
     """Test new MultiplexerChannel with UUID."""
     output = asyncio.Queue()
     channel = MultiplexerChannel(output, IP_ADDR)
@@ -29,7 +32,7 @@ async def test_initial_channel():
     assert message.extra == b"4" + ip_address_to_bytes(IP_ADDR)
 
 
-async def test_close_channel():
+async def test_close_channel_msg():
     """Test close MultiplexerChannel."""
     output = asyncio.Queue()
     channel = MultiplexerChannel(output, IP_ADDR)
@@ -57,6 +60,18 @@ async def test_write_data():
     assert message.data == b"test"
 
 
+async def test_write_data_after_close():
+    """Test send data over MultiplexerChannel."""
+    output = asyncio.Queue()
+    channel = MultiplexerChannel(output, IP_ADDR)
+    assert isinstance(channel.uuid, UUID)
+
+    channel.close()
+
+    with pytest.raises(MultiplexerTransportClose):
+        await channel.write(b"test")
+
+
 async def test_write_data_empty():
     """Test send data over MultiplexerChannel."""
     output = asyncio.Queue()
@@ -74,7 +89,7 @@ async def test_read_data():
     assert isinstance(channel.uuid, UUID)
 
     message = MultiplexerMessage(channel.uuid, CHANNEL_FLOW_DATA, b"test")
-    await channel.message_transport(message)
+    channel.message_transport(message)
     data = await channel.read()
 
     assert data == b"test"
@@ -86,8 +101,7 @@ async def test_read_data_on_close():
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.uuid, UUID)
 
-    await channel.message_transport(channel.init_close())
-
+    channel.close()
     with pytest.raises(MultiplexerTransportClose):
         data = await channel.read()
 
@@ -112,4 +126,6 @@ async def test_message_transport_never_lock():
     assert isinstance(channel.uuid, UUID)
 
     for _ in range(1, 20):
-        await channel.message_transport(channel.init_close())
+        channel.message_transport(channel.init_close())
+
+    assert channel.error
