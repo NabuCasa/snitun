@@ -79,7 +79,7 @@ class SNIProxy:
 
             # Peer available?
             if not self._peer_manager.peer_available(hostname):
-                _LOGGER.warning("Hostname %s not connected", hostname)
+                _LOGGER.debug("Hostname %s not connected", hostname)
                 return
             peer = self._peer_manager.get_peer(hostname)
 
