@@ -2,7 +2,7 @@
 from datetime import datetime
 import json
 import logging
-from typing import List
+from typing import List, Optional
 
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
@@ -15,9 +15,10 @@ _LOGGER = logging.getLogger(__name__)
 class PeerManager:
     """Manage Peer connections."""
 
-    def __init__(self, fernet_tokens: List[str]):
+    def __init__(self, fernet_tokens: List[str], throttling: Optional[int] = None):
         """Initialize Peer Manager."""
         self._fernet = MultiFernet([Fernet(key) for key in fernet_tokens])
+        self._throttling = throttling
         self._peers = {}
 
     @property
@@ -45,7 +46,9 @@ class PeerManager:
         aes_key = bytes.fromhex(config["aes_key"])
         aes_iv = bytes.fromhex(config["aes_iv"])
 
-        peer = self._peers[hostname] = Peer(hostname, valid, aes_key, aes_iv)
+        peer = self._peers[hostname] = Peer(
+            hostname, valid, aes_key, aes_iv, throttling=self._throttling
+        )
         return peer
 
     def remove_peer(self, peer: Peer):

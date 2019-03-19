@@ -27,13 +27,13 @@ async def test_init_client_peer(peer_listener, peer_manager, test_endpoint):
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
-                                      aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
     await client.start(connector, fernet_token, aes_key, aes_iv)
     await asyncio.sleep(0.1)
     assert peer_manager.peer_available("localhost")
     assert client.is_connected
+    assert client._multiplexer._throttling is None
 
     await client.stop()
     await asyncio.sleep(0.1)
@@ -41,8 +41,9 @@ async def test_init_client_peer(peer_listener, peer_manager, test_endpoint):
     assert not peer_manager.peer_available("localhost")
 
 
-async def test_init_client_peer_invalid_token(peer_listener, peer_manager,
-                                              test_endpoint):
+async def test_init_client_peer_invalid_token(
+    peer_listener, peer_manager, test_endpoint
+):
     """Test setup of ClientPeer."""
     client = ClientPeer("127.0.0.1", "8893")
     connector = Connector("127.0.0.1", "8822")
@@ -53,8 +54,7 @@ async def test_init_client_peer_invalid_token(peer_listener, peer_manager,
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
-                                      aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
     with pytest.raises(SniTunConnectionError):
         await client.start(connector, fernet_token, aes_key, aes_iv)
@@ -73,8 +73,7 @@ async def test_flow_client_peer(peer_listener, peer_manager, test_endpoint):
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
-                                      aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
     await client.start(connector, fernet_token, aes_key, aes_iv)
     await asyncio.sleep(0.1)
@@ -118,8 +117,7 @@ async def test_close_client_peer(peer_listener, peer_manager, test_endpoint):
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
-                                      aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
     await client.start(connector, fernet_token, aes_key, aes_iv)
     await asyncio.sleep(0.1)
@@ -155,8 +153,7 @@ async def test_close_client_peer(peer_listener, peer_manager, test_endpoint):
     test_connection.close.set()
 
 
-async def test_init_client_peer_wait(peer_listener, peer_manager,
-                                     test_endpoint):
+async def test_init_client_peer_wait(peer_listener, peer_manager, test_endpoint):
     """Test setup of ClientPeer."""
     client = ClientPeer("127.0.0.1", "8893")
     connector = Connector("127.0.0.1", "8822")
@@ -168,8 +165,7 @@ async def test_init_client_peer_wait(peer_listener, peer_manager,
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
-                                      aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
     await client.start(connector, fernet_token, aes_key, aes_iv)
     await asyncio.sleep(0.1)
@@ -185,3 +181,29 @@ async def test_init_client_peer_wait(peer_listener, peer_manager,
 
     with pytest.raises(RuntimeError):
         assert client.wait().done()
+
+
+async def test_init_client_peer_throttling(peer_listener, peer_manager, test_endpoint):
+    """Test setup of ClientPeer."""
+    client = ClientPeer("127.0.0.1", "8893")
+    connector = Connector("127.0.0.1", "8822")
+
+    assert not client.is_connected
+    assert not peer_manager.peer_available("localhost")
+
+    valid = datetime.utcnow() + timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    hostname = "localhost"
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
+
+    await client.start(connector, fernet_token, aes_key, aes_iv, throttling=500)
+    await asyncio.sleep(0.1)
+    assert peer_manager.peer_available("localhost")
+    assert client.is_connected
+    assert client._multiplexer._throttling == 0.002
+
+    await client.stop()
+    await asyncio.sleep(0.1)
+    assert not client.is_connected
+    assert not peer_manager.peer_available("localhost")

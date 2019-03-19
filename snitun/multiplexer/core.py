@@ -4,6 +4,7 @@ from contextlib import suppress
 import ipaddress
 import logging
 import os
+from typing import Optional
 import uuid
 
 import async_timeout
@@ -36,14 +37,14 @@ class Multiplexer:
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
         new_connections=None,
-        throttling: int = None,
+        throttling: Optional[int] = None,
     ):
         """Initialize Multiplexer."""
         self._crypto = crypto
         self._reader = reader
         self._writer = writer
         self._loop = asyncio.get_event_loop()
-        self._queue = asyncio.Queue(20)
+        self._queue = asyncio.Queue(30)
         self._processing_task = self._loop.create_task(self._runner())
         self._channels = {}
         self._new_connections = new_connections
