@@ -2,13 +2,14 @@
 import asyncio
 import hashlib
 import logging
+from typing import Optional
 
 import async_timeout
 
-from .connector import Connector
-from ..multiplexer.crypto import CryptoTransport
-from ..multiplexer.core import Multiplexer
 from ..exceptions import MultiplexerTransportDecrypt, SniTunConnectionError
+from ..multiplexer.core import Multiplexer
+from ..multiplexer.crypto import CryptoTransport
+from .connector import Connector
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,8 +35,14 @@ class ClientPeer:
             raise RuntimeError("No SniTun connection available")
         return self._multiplexer.wait()
 
-    async def start(self, connector: Connector, fernet_token: bytes,
-                    aes_key: bytes, aes_iv: bytes) -> None:
+    async def start(
+        self,
+        connector: Connector,
+        fernet_token: bytes,
+        aes_key: bytes,
+        aes_iv: bytes,
+        throttling: Optional[int] = None,
+    ) -> None:
         """Connect an start ClientPeer."""
         if self._multiplexer:
             raise RuntimeError("SniTun connection available")
@@ -43,10 +50,14 @@ class ClientPeer:
         # Connect to SniTun server
         try:
             reader, writer = await asyncio.open_connection(
-                host=self._snitun_host, port=self._snitun_port)
+                host=self._snitun_host, port=self._snitun_port
+            )
         except OSError:
-            _LOGGER.error("Can't connect to SniTun server %s:%s",
-                          self._snitun_host, self._snitun_port)
+            _LOGGER.error(
+                "Can't connect to SniTun server %s:%s",
+                self._snitun_host,
+                self._snitun_port,
+            )
             raise SniTunConnectionError()
 
         # Send fernet token
@@ -61,14 +72,18 @@ class ClientPeer:
 
             writer.write(crypto.encrypt(answer))
             await writer.drain()
-        except (MultiplexerTransportDecrypt, asyncio.IncompleteReadError,
-                OSError):
+        except (MultiplexerTransportDecrypt, asyncio.IncompleteReadError, OSError):
             _LOGGER.error("Challenge/Response error with SniTun server")
             raise SniTunConnectionError()
 
         # Run multiplexer
-        self._multiplexer = Multiplexer(crypto, reader, writer,
-                                        connector.handler)
+        self._multiplexer = Multiplexer(
+            crypto,
+            reader,
+            writer,
+            new_connections=connector.handler,
+            throttling=throttling,
+        )
 
         # Task a process for pings/cleanups
         self._loop.create_task(self._handler())

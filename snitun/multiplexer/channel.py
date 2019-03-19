@@ -25,7 +25,7 @@ class MultiplexerChannel:
         self, output: asyncio.Queue, ip_address: IPv4Address, channel_id=None
     ) -> None:
         """Initialize Multiplexer Channel."""
-        self._input = asyncio.Queue(5)
+        self._input = asyncio.Queue(10)
         self._output = output
         self._id = channel_id or uuid.uuid4()
         self._ip_address = ip_address

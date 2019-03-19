@@ -16,10 +16,18 @@ _LOGGER = logging.getLogger(__name__)
 class Peer:
     """Representation of a Peer."""
 
-    def __init__(self, hostname: str, valid: datetime, aes_key: bytes, aes_iv: bytes):
+    def __init__(
+        self,
+        hostname: str,
+        valid: datetime,
+        aes_key: bytes,
+        aes_iv: bytes,
+        throttling: Optional[int] = None,
+    ):
         """Initialize a Peer."""
         self._hostname = hostname
         self._valid = valid
+        self._throttling = throttling
         self._multiplexer = None
         self._crypto = CryptoTransport(aes_key, aes_iv)
 
@@ -79,7 +87,9 @@ class Peer:
             raise SniTunChallengeError()
 
         # Start Multiplexer
-        self._multiplexer = Multiplexer(self._crypto, reader, writer)
+        self._multiplexer = Multiplexer(
+            self._crypto, reader, writer, throttling=self._throttling
+        )
 
     def wait_disconnect(self) -> asyncio.Task:
         """Wait until peer is disconnected.

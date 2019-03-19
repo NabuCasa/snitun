@@ -1,7 +1,7 @@
 """SniTun reference implementation."""
 import asyncio
 import logging
-from typing import List
+from typing import List, Optional
 
 import async_timeout
 
@@ -22,9 +22,10 @@ class SniTunServer:
         sni_host=None,
         peer_port=None,
         peer_host=None,
+        throttling: Optional[int] = None,
     ):
         """Initialize SniTun Server."""
-        self._peers = PeerManager(fernet_keys)
+        self._peers = PeerManager(fernet_keys, throttling=throttling)
         self._list_sni = SNIProxy(self._peers, host=sni_host, port=sni_port)
         self._list_peer = PeerListener(self._peers, host=peer_host, port=peer_port)
 
@@ -51,10 +52,16 @@ class SniTunServer:
 class SniTunServerSingle:
     """SniTunServer helper class."""
 
-    def __init__(self, fernet_keys: List[str], host=None, port=None):
+    def __init__(
+        self,
+        fernet_keys: List[str],
+        host=None,
+        port=None,
+        throttling: Optional[int] = None,
+    ):
         """Initialize SniTun Server."""
         self._loop = asyncio.get_event_loop()
-        self._peers = PeerManager(fernet_keys)
+        self._peers = PeerManager(fernet_keys, throttling=throttling)
         self._list_sni = SNIProxy(self._peers, host=host)
         self._list_peer = PeerListener(self._peers, host=host)
         self._host = host
