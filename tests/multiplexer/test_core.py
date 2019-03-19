@@ -5,32 +5,52 @@ from unittest.mock import patch
 
 import pytest
 
-from snitun.exceptions import (MultiplexerTransportClose,
-                               MultiplexerTransportError)
+from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
 
-async def test_init_multiplexer_server(test_server, test_client,
-                                       crypto_transport):
+async def test_init_multiplexer_server(test_server, test_client, crypto_transport):
     """Test to create a new Multiplexer from server socket."""
     client = test_server[0]
 
     multiplexer = Multiplexer(crypto_transport, client.reader, client.writer)
 
     assert multiplexer.is_connected
+    assert multiplexer._throttling is None
     await multiplexer.shutdown()
     client.close.set()
 
 
 async def test_init_multiplexer_client(test_client, crypto_transport):
     """Test to create a new Multiplexer from client socket."""
-    multiplexer = Multiplexer(crypto_transport, test_client.reader,
-                              test_client.writer)
+    multiplexer = Multiplexer(crypto_transport, test_client.reader, test_client.writer)
 
     assert multiplexer.is_connected
+    assert multiplexer._throttling is None
+    await multiplexer.shutdown()
+
+
+async def test_init_multiplexer_server_throttling(test_server, test_client, crypto_transport):
+    """Test to create a new Multiplexer from server socket."""
+    client = test_server[0]
+
+    multiplexer = Multiplexer(crypto_transport, client.reader, client.writer, throttling=500)
+
+    assert multiplexer.is_connected
+    assert multiplexer._throttling == 0.002
+    await multiplexer.shutdown()
+    client.close.set()
+
+
+async def test_init_multiplexer_client_throttling(test_client, crypto_transport):
+    """Test to create a new Multiplexer from client socket."""
+    multiplexer = Multiplexer(crypto_transport, test_client.reader, test_client.writer, throttling=500)
+
+    assert multiplexer.is_connected
+    assert multiplexer._throttling == 0.002
     await multiplexer.shutdown()
 
 
@@ -68,11 +88,10 @@ async def test_multiplexer_ping(test_server, multiplexer_client):
     data = await client.reader.read(60)
     data = multiplexer_client._crypto.decrypt(data)
     assert data[16] == CHANNEL_FLOW_PING
-    assert int.from_bytes(data[17:21], 'big') == 0
+    assert int.from_bytes(data[17:21], "big") == 0
 
 
-async def test_multiplexer_cant_init_channel(multiplexer_client,
-                                             multiplexer_server):
+async def test_multiplexer_cant_init_channel(multiplexer_client, multiplexer_server):
     """Test that without new channel callback can't create new channels."""
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
@@ -115,8 +134,7 @@ async def test_multiplexer_init_channel_full(multiplexer_client, raise_timeout):
     assert not multiplexer_client._channels
 
 
-async def test_multiplexer_close_channel(multiplexer_client,
-                                         multiplexer_server):
+async def test_multiplexer_close_channel(multiplexer_client, multiplexer_server):
     """Test that channels are nice removed."""
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
@@ -148,7 +166,7 @@ async def test_multiplexer_close_channel_full(multiplexer_client):
 
     assert multiplexer_client._channels
 
-    with patch('async_timeout.timeout', side_effect=asyncio.TimeoutError()):
+    with patch("async_timeout.timeout", side_effect=asyncio.TimeoutError()):
         with pytest.raises(MultiplexerTransportError):
             channel = await multiplexer_client.delete_channel(channel)
     await asyncio.sleep(0.1)
@@ -180,8 +198,9 @@ async def test_multiplexer_data_channel(multiplexer_client, multiplexer_server):
     assert data == b"test 2"
 
 
-async def test_multiplexer_channel_shutdown(loop, multiplexer_client,
-                                            multiplexer_server):
+async def test_multiplexer_channel_shutdown(
+    loop, multiplexer_client, multiplexer_server
+):
     """Test that new channels are created and graceful shutdown."""
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
@@ -210,3 +229,67 @@ async def test_multiplexer_channel_shutdown(loop, multiplexer_client,
 
     with pytest.raises(MultiplexerTransportClose):
         raise server_read.exception()
+
+
+async def test_multiplexer_data_channel_abort_full(
+    multiplexer_client, multiplexer_server
+):
+    """Test that new channels are created."""
+    assert not multiplexer_client._channels
+    assert not multiplexer_server._channels
+
+    channel_client = await multiplexer_client.create_channel(IP_ADDR)
+    await asyncio.sleep(0.1)
+
+    channel_server = multiplexer_server._channels.get(channel_client.uuid)
+
+    assert channel_client
+    assert channel_server
+
+    with pytest.raises(MultiplexerTransportClose):
+        for count in range(1, 100):
+            await channel_client.write(b"test xxxx")
+
+    with pytest.raises(MultiplexerTransportClose):
+        for count in range(1, 100):
+            data = await channel_server.read()
+
+    await asyncio.sleep(0.1)
+    assert not multiplexer_client._channels
+    assert not multiplexer_server._channels
+
+
+async def test_multiplexer_throttling(loop, multiplexer_client, multiplexer_server):
+    """Test that new channels are created and graceful shutdown."""
+    assert not multiplexer_client._channels
+    assert not multiplexer_server._channels
+    data_in = []
+
+    channel_client = await multiplexer_client.create_channel(IP_ADDR)
+    await asyncio.sleep(0.1)
+
+    channel_server = multiplexer_server._channels.get(channel_client.uuid)
+    multiplexer_server._throttling = 0.1
+    multiplexer_client._throttling = 0.1
+
+    async def _sender():
+        """Send data much as possible."""
+        for count in range(1, 5000):
+            await channel_client.write(b"data")
+
+    async def _receiver():
+        """Receive data much as possible."""
+        for count in range(1, 5000):
+            data = await channel_server.read()
+            data_in.append(data)
+
+    receiver = loop.create_task(_receiver())
+    sender = loop.create_task(_sender())
+    await asyncio.sleep(0.8)
+
+    assert not receiver.done()
+    assert not sender.done()
+    assert len(data_in) == 8
+
+    receiver.cancel()
+    sender.cancel()

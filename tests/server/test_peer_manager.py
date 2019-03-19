@@ -17,6 +17,7 @@ def test_simple_init_peer_manager():
 
     assert manager._fernet
     assert not manager._peers
+    assert manager._throttling is None
 
 
 def test_init_new_peer():
@@ -27,8 +28,7 @@ def test_init_new_peer():
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
-                                      aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
     peer = manager.register_peer(fernet_token)
     assert peer.hostname == hostname
@@ -48,8 +48,7 @@ def test_init_new_peer_not_valid_time():
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
-                                      aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
     with pytest.raises(SniTunInvalidPeer):
         manager.register_peer(fernet_token)
@@ -71,8 +70,7 @@ def test_init_new_peer_with_removing():
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
-                                      aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
     peer = manager.register_peer(fernet_token)
     assert peer.hostname == hostname
@@ -87,3 +85,24 @@ def test_init_new_peer_with_removing():
     assert manager.get_peer(hostname) is None
     assert not manager.peer_available(hostname)
     assert not hostname in manager._peers
+
+
+def test_init_new_peer_throttling():
+    """Init a new peer."""
+    manager = PeerManager(FERNET_TOKENS, throttling=500)
+
+    valid = datetime.utcnow() + timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    hostname = "localhost"
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
+
+    peer = manager.register_peer(fernet_token)
+    assert peer.hostname == hostname
+    assert not peer.is_ready
+    assert peer._throttling == 500
+
+    assert manager.get_peer(hostname)
+    assert not manager.peer_available(hostname)
+    assert hostname in manager._peers
+    assert manager.connections == 1

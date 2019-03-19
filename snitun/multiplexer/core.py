@@ -4,6 +4,7 @@ from contextlib import suppress
 import ipaddress
 import logging
 import os
+from typing import Optional
 import uuid
 
 import async_timeout
@@ -36,16 +37,18 @@ class Multiplexer:
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
         new_connections=None,
+        throttling: Optional[int] = None,
     ):
         """Initialize Multiplexer."""
         self._crypto = crypto
         self._reader = reader
         self._writer = writer
         self._loop = asyncio.get_event_loop()
-        self._queue = asyncio.Queue(20)
+        self._queue = asyncio.Queue(30)
         self._processing_task = self._loop.create_task(self._runner())
         self._channels = {}
         self._new_connections = new_connections
+        self._throttling = 1 / throttling if throttling else None
 
     @property
     def is_connected(self) -> bool:
@@ -67,18 +70,13 @@ class Multiplexer:
         _LOGGER.debug("Cancel connection")
         self._processing_task.cancel()
 
-        await self._graceful_channel_shutdown()
+        self._graceful_channel_shutdown()
 
-    async def _graceful_channel_shutdown(self):
+    def _graceful_channel_shutdown(self):
         """Graceful shutdown of channels."""
-        tasks = [
-            channel.message_transport(channel.init_close())
-            for channel in self._channels.values()
-        ]
+        for channel in self._channels.values():
+            channel.close()
         self._channels.clear()
-
-        if tasks:
-            await asyncio.wait(tasks)
 
     def ping(self):
         """Send a ping flow message to hold the connection open."""
@@ -119,6 +117,11 @@ class Multiplexer:
                     self._write_message(to_peer.result())
                     to_peer = None
 
+                # throttling
+                if not self._throttling:
+                    continue
+                await asyncio.sleep(self._throttling)
+
         except asyncio.CancelledError:
             _LOGGER.debug("Receive canceling")
             with suppress(OSError):
@@ -146,8 +149,8 @@ class Multiplexer:
                 with suppress(OSError):
                     self._writer.close()
 
-        await self._graceful_channel_shutdown()
-        _LOGGER.debug("Multiplexer connection is closed")
+            self._graceful_channel_shutdown()
+            _LOGGER.debug("Multiplexer connection is closed")
 
     def _write_message(self, message: MultiplexerMessage) -> None:
         """Write message to peer."""
@@ -199,7 +202,16 @@ class Multiplexer:
             if message.channel_id not in self._channels:
                 _LOGGER.debug("Receive data from unknown channel")
                 return
-            await self._channels[message.channel_id].message_transport(message)
+
+            channel = self._channels[message.channel_id]
+            if channel.closing:
+                pass
+            elif channel.error:
+                _LOGGER.warning("Abort connection, error on channel detected")
+                channel.close()
+                self._loop.create_task(self.delete_channel(channel))
+            else:
+                channel.message_transport(message)
 
         # New
         elif message.flow_type == CHANNEL_FLOW_NEW:
@@ -220,7 +232,7 @@ class Multiplexer:
                 _LOGGER.debug("Receive close from unknown channel")
                 return
             channel = self._channels.pop(message.channel_id)
-            await channel.message_transport(message)
+            channel.close()
 
         # Ping
         elif message.flow_type == CHANNEL_FLOW_PING:
