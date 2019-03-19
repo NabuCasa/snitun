@@ -36,6 +36,7 @@ class Multiplexer:
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
         new_connections=None,
+        throttling: int = None,
     ):
         """Initialize Multiplexer."""
         self._crypto = crypto
@@ -46,6 +47,7 @@ class Multiplexer:
         self._processing_task = self._loop.create_task(self._runner())
         self._channels = {}
         self._new_connections = new_connections
+        self._throttling = 1 / throttling if throttling else None
 
     @property
     def is_connected(self) -> bool:
@@ -113,6 +115,11 @@ class Multiplexer:
                         raise to_peer.exception()
                     self._write_message(to_peer.result())
                     to_peer = None
+
+                # throttling
+                if not self._throttling:
+                    continue
+                await asyncio.sleep(self._throttling)
 
         except asyncio.CancelledError:
             _LOGGER.debug("Receive canceling")
