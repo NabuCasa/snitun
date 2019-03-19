@@ -60,16 +60,30 @@ async def test_write_data():
     assert message.data == b"test"
 
 
-async def test_write_data_after_close():
+async def test_closing():
     """Test send data over MultiplexerChannel."""
     output = asyncio.Queue()
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.uuid, UUID)
 
+    assert not channel.closing
+    channel.close()
+    assert channel.closing
+
+
+async def test_write_data_after_close():
+    """Test send data over MultiplexerChannel."""
+    output = asyncio.Queue()
+    channel = MultiplexerChannel(output, IP_ADDR)
+    assert isinstance(channel.uuid, UUID)
+    assert not channel.closing
+
     channel.close()
 
     with pytest.raises(MultiplexerTransportClose):
         await channel.write(b"test")
+
+    assert channel.closing
 
 
 async def test_write_data_empty():
@@ -100,10 +114,13 @@ async def test_read_data_on_close():
     output = asyncio.Queue()
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.uuid, UUID)
+    assert not channel.closing
 
     channel.close()
     with pytest.raises(MultiplexerTransportClose):
         data = await channel.read()
+
+    assert channel.closing
 
 
 async def test_write_data_peer_error(raise_timeout):

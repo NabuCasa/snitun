@@ -196,7 +196,9 @@ class Multiplexer:
                 return
 
             channel = self._channels[message.channel_id]
-            if channel.error:
+            if channel.closing:
+                pass
+            elif channel.error:
                 _LOGGER.warning("Abort connection, error on channel detected")
                 channel.close()
                 self._loop.create_task(self.delete_channel(channel))

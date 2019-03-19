@@ -46,6 +46,11 @@ class MultiplexerChannel:
         """Return True if a error is occurse."""
         return self._input.full()
 
+    @property
+    def closing(self) -> bool:
+        """Return True if channel is in closing state."""
+        return self._closing
+
     def close(self) -> None:
         """Close channel on next run."""
         self._closing = True
@@ -98,6 +103,9 @@ class MultiplexerChannel:
 
     def message_transport(self, message: MultiplexerMessage) -> None:
         """Only for internal ussage of core transport."""
+        if self._closing:
+            return
+
         try:
             self._input.put_nowait(message)
         except asyncio.QueueFull:
