@@ -81,7 +81,8 @@ class Multiplexer:
     def ping(self):
         """Send a ping flow message to hold the connection open."""
         message = MultiplexerMessage(uuid.uuid4(), CHANNEL_FLOW_PING)
-        self._queue.put_nowait(message)
+        with supress(asyncio.QueueFull):
+            self._queue.put_nowait(message)
 
     async def _runner(self):
         """Runner task of processing stream."""
