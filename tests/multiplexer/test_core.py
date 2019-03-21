@@ -247,11 +247,11 @@ async def test_multiplexer_data_channel_abort_full(
     assert channel_server
 
     with pytest.raises(MultiplexerTransportClose):
-        for count in range(1, 5000):
+        for count in range(1, 50000):
             await channel_client.write(b"test xxxx")
 
     with pytest.raises(MultiplexerTransportClose):
-        for count in range(1, 5000):
+        for count in range(1, 50000):
             data = await channel_server.read()
 
     await asyncio.sleep(0.1)
@@ -274,12 +274,12 @@ async def test_multiplexer_throttling(loop, multiplexer_client, multiplexer_serv
 
     async def _sender():
         """Send data much as possible."""
-        for count in range(1, 5000):
+        for count in range(1, 50000):
             await channel_client.write(b"data")
 
     async def _receiver():
         """Receive data much as possible."""
-        for count in range(1, 5000):
+        for count in range(1, 50000):
             data = await channel_server.read()
             data_in.append(data)
 
@@ -289,7 +289,7 @@ async def test_multiplexer_throttling(loop, multiplexer_client, multiplexer_serv
 
     assert not receiver.done()
     assert not sender.done()
-    assert len(data_in) == 8
+    assert len(data_in) <= 8
 
     receiver.cancel()
     sender.cancel()

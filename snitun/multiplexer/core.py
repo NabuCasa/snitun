@@ -46,7 +46,7 @@ class Multiplexer:
         self._reader = reader
         self._writer = writer
         self._loop = asyncio.get_event_loop()
-        self._queue = asyncio.Queue(2400)
+        self._queue = asyncio.Queue(12000)
         self._processing_task = self._loop.create_task(self._runner())
         self._channels = {}
         self._new_connections = new_connections
