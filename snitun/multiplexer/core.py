@@ -46,7 +46,7 @@ class Multiplexer:
         self._reader = reader
         self._writer = writer
         self._loop = asyncio.get_event_loop()
-        self._queue = asyncio.Queue(30)
+        self._queue = asyncio.Queue(2400)
         self._processing_task = self._loop.create_task(self._runner())
         self._channels = {}
         self._new_connections = new_connections
@@ -120,6 +120,9 @@ class Multiplexer:
                         raise to_peer.exception()
                     self._write_message(to_peer.result())
                     to_peer = None
+
+                    # Flush buffer
+                    await self._writer.drain()
 
                 # throttling
                 if not self._throttling:
