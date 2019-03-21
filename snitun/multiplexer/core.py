@@ -27,6 +27,8 @@ from .message import (
 
 _LOGGER = logging.getLogger(__name__)
 
+PEER_TCP_TIMEOUT = 90
+
 
 class Multiplexer:
     """Multiplexer Socket wrapper."""
@@ -81,7 +83,8 @@ class Multiplexer:
     def ping(self):
         """Send a ping flow message to hold the connection open."""
         message = MultiplexerMessage(uuid.uuid4(), CHANNEL_FLOW_PING)
-        self._queue.put_nowait(message)
+        with suppress(asyncio.QueueFull):
+            self._queue.put_nowait(message)
 
     async def _runner(self):
         """Runner task of processing stream."""
@@ -99,9 +102,10 @@ class Multiplexer:
                     to_peer = self._loop.create_task(self._queue.get())
 
                 # Wait until data need to be processed
-                await asyncio.wait(
-                    [from_peer, to_peer], return_when=asyncio.FIRST_COMPLETED
-                )
+                async with async_timeout.timeout(PEER_TCP_TIMEOUT):
+                    await asyncio.wait(
+                        [from_peer, to_peer], return_when=asyncio.FIRST_COMPLETED
+                    )
 
                 # From peer
                 if from_peer.done():
@@ -122,7 +126,7 @@ class Multiplexer:
                     continue
                 await asyncio.sleep(self._throttling)
 
-        except asyncio.CancelledError:
+        except (asyncio.CancelledError, asyncio.TimeoutError):
             _LOGGER.debug("Receive canceling")
             with suppress(OSError):
                 self._writer.write_eof()

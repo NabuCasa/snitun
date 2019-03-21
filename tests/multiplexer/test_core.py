@@ -293,3 +293,40 @@ async def test_multiplexer_throttling(loop, multiplexer_client, multiplexer_serv
 
     receiver.cancel()
     sender.cancel()
+
+
+async def test_multiplexer_core_peer_timeout(
+    loop, multiplexer_client, multiplexer_server
+):
+    """Test that new channels are created and graceful shutdown."""
+    from snitun.multiplexer import core as multi_core
+
+    multi_core.PEER_TCP_TIMEOUT = 0.2
+
+    assert not multiplexer_client._channels
+    assert not multiplexer_server._channels
+
+    channel_client = await multiplexer_client.create_channel(IP_ADDR)
+    await asyncio.sleep(0.1)
+
+    channel_server = multiplexer_server._channels.get(channel_client.uuid)
+
+    client_read = loop.create_task(channel_client.read())
+    server_read = loop.create_task(channel_server.read())
+
+    assert not client_read.done()
+    assert not server_read.done()
+
+    multiplexer_client.ping()
+    await asyncio.sleep(0.3)
+
+    assert not multiplexer_client._channels
+    assert not multiplexer_server._channels
+    assert server_read.done()
+    assert client_read.done()
+
+    with pytest.raises(MultiplexerTransportClose):
+        raise server_read.exception()
+
+    with pytest.raises(MultiplexerTransportClose):
+        raise client_read.exception()
