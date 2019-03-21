@@ -1,12 +1,12 @@
 """Connector to end resource."""
-from contextlib import suppress
 import asyncio
-import logging
+from contextlib import suppress
 import ipaddress
+import logging
 
+from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from ..multiplexer.channel import MultiplexerChannel
 from ..multiplexer.core import Multiplexer
-from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -93,7 +93,8 @@ class Connector:
 
         except (MultiplexerTransportError, OSError, RuntimeError):
             _LOGGER.debug("Transport closed by endpoint for %s", channel.uuid)
-            await multiplexer.delete_channel(channel)
+            with suppress(MultiplexerTransportError):
+                await multiplexer.delete_channel(channel)
 
         except MultiplexerTransportClose:
             _LOGGER.debug("Peer close connection for %s", channel.uuid)

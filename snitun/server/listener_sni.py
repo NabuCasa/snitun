@@ -1,8 +1,8 @@
 """Public proxy interface with SNI."""
 import asyncio
+from contextlib import suppress
 import ipaddress
 import logging
-from contextlib import suppress
 from typing import Optional
 
 import async_timeout
@@ -106,14 +106,15 @@ class SNIProxy:
         # Open multiplexer channel
         try:
             channel = await multiplexer.create_channel(ip_address)
-            await channel.write(client_hello)
         except MultiplexerTransportError:
-            _LOGGER.error("Transport to peer fails")
+            _LOGGER.error("New transport channel to peer fails")
             return
 
         from_proxy = None
         from_peer = None
         try:
+            await channel.write(client_hello)
+
             # Process stream into multiplexer
             while not transport.is_closing():
                 if not from_proxy:
@@ -145,11 +146,13 @@ class SNIProxy:
 
         except (MultiplexerTransportError, OSError, RuntimeError):
             _LOGGER.debug("Transport closed by Proxy for %s", channel.uuid)
-            await multiplexer.delete_channel(channel)
+            with suppress(MultiplexerTransportError):
+                await multiplexer.delete_channel(channel)
 
         except asyncio.TimeoutError:
             _LOGGER.warning("Close TCP session after timeout for %s", channel.uuid)
-            await multiplexer.delete_channel(channel)
+            with suppress(MultiplexerTransportError):
+                await multiplexer.delete_channel(channel)
 
         except MultiplexerTransportClose:
             _LOGGER.debug("Peer close connection for %s", channel.uuid)
