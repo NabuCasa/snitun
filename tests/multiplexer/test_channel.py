@@ -142,7 +142,7 @@ async def test_message_transport_never_lock():
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.uuid, UUID)
 
-    for _ in range(1, 20):
+    for _ in range(1, 10000):
         channel.message_transport(channel.init_close())
 
     assert channel.error

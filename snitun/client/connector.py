@@ -91,6 +91,9 @@ class Connector:
                     writer.write(from_peer.result())
                     from_peer = None
 
+                    # Flush buffer
+                    await writer.drain()
+
         except (MultiplexerTransportError, OSError, RuntimeError):
             _LOGGER.debug("Transport closed by endpoint for %s", channel.uuid)
             with suppress(MultiplexerTransportError):
