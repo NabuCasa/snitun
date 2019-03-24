@@ -106,7 +106,7 @@ class ClientPeer:
                     async with async_timeout.timeout(50):
                         await self._multiplexer.wait()
                 except asyncio.TimeoutError:
-                    self._multiplexer.ping()
+                    await self._multiplexer.ping()
 
         except MultiplexerTransportError:
             pass

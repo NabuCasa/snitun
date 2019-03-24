@@ -81,7 +81,7 @@ async def test_multiplexer_client_close(multiplexer_server, multiplexer_client):
 async def test_multiplexer_ping(test_server, multiplexer_client):
     """Test a ping between peers."""
     client = test_server[0]
-    multiplexer_client.ping()
+    await multiplexer_client.ping()
 
     await asyncio.sleep(0.1)
 
@@ -317,7 +317,7 @@ async def test_multiplexer_core_peer_timeout(
     assert not client_read.done()
     assert not server_read.done()
 
-    multiplexer_client.ping()
+    await multiplexer_client.ping()
     await asyncio.sleep(0.3)
 
     assert not multiplexer_client._channels
