@@ -6,7 +6,11 @@ from typing import Optional
 
 import async_timeout
 
-from ..exceptions import MultiplexerTransportDecrypt, SniTunConnectionError
+from ..exceptions import (
+    MultiplexerTransportDecrypt,
+    MultiplexerTransportError,
+    SniTunConnectionError,
+)
 from ..multiplexer.core import Multiplexer
 from ..multiplexer.crypto import CryptoTransport
 from .connector import Connector
@@ -103,5 +107,9 @@ class ClientPeer:
                         await self._multiplexer.wait()
                 except asyncio.TimeoutError:
                     self._multiplexer.ping()
+
+        except MultiplexerTransportError:
+            pass
+
         finally:
             self._multiplexer = None
