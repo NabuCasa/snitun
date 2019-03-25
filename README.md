@@ -55,7 +55,8 @@ Extra could be additional information like on NEW message it contain the caller 
 ```
 
 Message Flags/Types:
- - 0x01: New
- - 0x02: DATA
- - 0x04: Close
- - 0x05: Ping
+
+ - `0x01`: New | Extra data include first byte a ASCII value as `4` or `6` follow by the caller IP in bytes
+ - `0x02`: DATA
+ - `0x04`: Close
+ - `0x05`: Ping | Extra data are `ping` or `pong` as response of a ping.

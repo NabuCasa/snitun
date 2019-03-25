@@ -96,7 +96,7 @@ async def test_init_peer_multiplexer_crypto(loop, test_client, test_server):
     assert peer.is_ready
     assert peer.is_connected
 
-    peer.multiplexer.ping()
+    ping_task = loop.create_task(peer.multiplexer.ping())
     await asyncio.sleep(0.1)
 
     ping_data = await client.reader.read(1024)
@@ -104,7 +104,9 @@ async def test_init_peer_multiplexer_crypto(loop, test_client, test_server):
 
     assert ping[16] == CHANNEL_FLOW_PING
     assert int.from_bytes(ping[17:21], "big") == 0
+    assert ping[21:25] == b"ping"
 
+    ping_task.cancel()
     client.writer.close()
     client.close.set()
 

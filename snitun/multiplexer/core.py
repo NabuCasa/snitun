@@ -47,6 +47,7 @@ class Multiplexer:
         self._writer = writer
         self._loop = asyncio.get_event_loop()
         self._queue = asyncio.Queue(12000)
+        self._healthy = asyncio.Event()
         self._processing_task = self._loop.create_task(self._runner())
         self._channels = {}
         self._new_connections = new_connections
@@ -80,11 +81,22 @@ class Multiplexer:
             channel.close()
         self._channels.clear()
 
-    def ping(self):
+    async def ping(self):
         """Send a ping flow message to hold the connection open."""
-        message = MultiplexerMessage(uuid.uuid4(), CHANNEL_FLOW_PING)
-        with suppress(asyncio.QueueFull):
-            self._queue.put_nowait(message)
+        self._healthy.clear()
+        try:
+            self._write_message(
+                MultiplexerMessage(uuid.uuid4(), CHANNEL_FLOW_PING, b"", b"ping")
+            )
+
+            # Wait until pong is received
+            async with async_timeout.timeout(PEER_TCP_TIMEOUT):
+                await self._healthy.wait()
+
+        except (OSError, asyncio.TimeoutError):
+            _LOGGER.error("Ping fails, no response from peer")
+            self._loop.create_task(self.shutdown())
+            raise MultiplexerTransportError() from None
 
     async def _runner(self):
         """Runner task of processing stream."""
@@ -93,6 +105,7 @@ class Multiplexer:
         to_peer = None
 
         # Process stream
+        self._healthy.set()
         try:
             while not transport.is_closing():
                 if not from_peer:
@@ -213,8 +226,8 @@ class Multiplexer:
             channel = self._channels[message.channel_id]
             if channel.closing:
                 pass
-            elif channel.error:
-                _LOGGER.warning("Abort connection, error on channel detected")
+            elif channel.healthy:
+                _LOGGER.warning("Abort connection, channel is not healthy")
                 channel.close()
                 self._loop.create_task(self.delete_channel(channel))
             else:
@@ -243,11 +256,19 @@ class Multiplexer:
 
         # Ping
         elif message.flow_type == CHANNEL_FLOW_PING:
-            _LOGGER.debug("Receive ping from peer")
+            if message.extra.startswith(b"pong"):
+                _LOGGER.debug("Receive pong from peer / reset healthy")
+                self._healthy.set()
+            else:
+                _LOGGER.debug("Receive ping from peer / send pong")
+                self._write_message(
+                    MultiplexerMessage(
+                        message.channel_id, CHANNEL_FLOW_PING, b"", b"pong"
+                    )
+                )
 
         else:
-            _LOGGER.warning("Receive unknown message. Abort connection")
-            self._loop.create_task(self.shutdown())
+            _LOGGER.warning("Receive unknown message type")
 
     async def create_channel(
         self, ip_address: ipaddress.IPv4Address

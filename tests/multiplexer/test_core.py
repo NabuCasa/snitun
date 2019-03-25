@@ -33,11 +33,15 @@ async def test_init_multiplexer_client(test_client, crypto_transport):
     await multiplexer.shutdown()
 
 
-async def test_init_multiplexer_server_throttling(test_server, test_client, crypto_transport):
+async def test_init_multiplexer_server_throttling(
+    test_server, test_client, crypto_transport
+):
     """Test to create a new Multiplexer from server socket."""
     client = test_server[0]
 
-    multiplexer = Multiplexer(crypto_transport, client.reader, client.writer, throttling=500)
+    multiplexer = Multiplexer(
+        crypto_transport, client.reader, client.writer, throttling=500
+    )
 
     assert multiplexer.is_connected
     assert multiplexer._throttling == 0.002
@@ -47,7 +51,9 @@ async def test_init_multiplexer_server_throttling(test_server, test_client, cryp
 
 async def test_init_multiplexer_client_throttling(test_client, crypto_transport):
     """Test to create a new Multiplexer from client socket."""
-    multiplexer = Multiplexer(crypto_transport, test_client.reader, test_client.writer, throttling=500)
+    multiplexer = Multiplexer(
+        crypto_transport, test_client.reader, test_client.writer, throttling=500
+    )
 
     assert multiplexer.is_connected
     assert multiplexer._throttling == 0.002
@@ -78,10 +84,10 @@ async def test_multiplexer_client_close(multiplexer_server, multiplexer_client):
     assert not multiplexer_client.is_connected
 
 
-async def test_multiplexer_ping(test_server, multiplexer_client):
+async def test_multiplexer_ping(loop, test_server, multiplexer_client):
     """Test a ping between peers."""
     client = test_server[0]
-    multiplexer_client.ping()
+    ping_task = loop.create_task(multiplexer_client.ping())
 
     await asyncio.sleep(0.1)
 
@@ -89,6 +95,53 @@ async def test_multiplexer_ping(test_server, multiplexer_client):
     data = multiplexer_client._crypto.decrypt(data)
     assert data[16] == CHANNEL_FLOW_PING
     assert int.from_bytes(data[17:21], "big") == 0
+    assert data[21:25] == b"ping"
+
+    ping_task.cancel()
+
+
+async def test_multiplexer_ping_error(loop, test_server, multiplexer_client):
+    """Test a ping between peers."""
+    from snitun.multiplexer import core as multi_core
+
+    multi_core.PEER_TCP_TIMEOUT = 0.2
+
+    client = test_server[0]
+    ping_task = loop.create_task(multiplexer_client.ping())
+
+    await asyncio.sleep(0.3)
+
+    data = await client.reader.read(60)
+    data = multiplexer_client._crypto.decrypt(data)
+    assert data[16] == CHANNEL_FLOW_PING
+    assert int.from_bytes(data[17:21], "big") == 0
+    assert data[21:25] == b"ping"
+
+    assert ping_task.done()
+
+    with pytest.raises(MultiplexerTransportError):
+        raise ping_task.exception()
+
+    multi_core.PEER_TCP_TIMEOUT = 90
+
+
+async def test_multiplexer_ping_pong(multiplexer_client, multiplexer_server):
+    """Test that without new channel callback can't create new channels."""
+    messages = []
+    org_client_msg = multiplexer_client._process_message
+
+    async def mock_read_msg(message):
+        """Mock process message."""
+        messages.append(message)
+        await org_client_msg(message)
+
+    multiplexer_client._process_message = mock_read_msg
+    await multiplexer_client.ping()
+
+    assert messages
+    pong = messages[-1]
+    assert pong.flow_type == CHANNEL_FLOW_PING
+    assert pong.extra.startswith(b"pong")
 
 
 async def test_multiplexer_cant_init_channel(multiplexer_client, multiplexer_server):
@@ -274,12 +327,12 @@ async def test_multiplexer_throttling(loop, multiplexer_client, multiplexer_serv
 
     async def _sender():
         """Send data much as possible."""
-        for count in range(1, 50000):
+        for count in range(1, 100000):
             await channel_client.write(b"data")
 
     async def _receiver():
         """Receive data much as possible."""
-        for count in range(1, 50000):
+        for count in range(1, 100000):
             data = await channel_server.read()
             data_in.append(data)
 
@@ -287,8 +340,8 @@ async def test_multiplexer_throttling(loop, multiplexer_client, multiplexer_serv
     sender = loop.create_task(_sender())
     await asyncio.sleep(0.8)
 
-    assert not receiver.done()
     assert not sender.done()
+    assert not receiver.done()
     assert len(data_in) <= 8
 
     receiver.cancel()
@@ -317,7 +370,7 @@ async def test_multiplexer_core_peer_timeout(
     assert not client_read.done()
     assert not server_read.done()
 
-    multiplexer_client.ping()
+    await multiplexer_client.ping()
     await asyncio.sleep(0.3)
 
     assert not multiplexer_client._channels
@@ -330,3 +383,5 @@ async def test_multiplexer_core_peer_timeout(
 
     with pytest.raises(MultiplexerTransportClose):
         raise client_read.exception()
+
+    multi_core.PEER_TCP_TIMEOUT = 90
