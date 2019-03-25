@@ -241,7 +241,9 @@ class Multiplexer:
                 return
 
             ip_address = bytes_to_ip_address(message.extra[1:5])
-            channel = MultiplexerChannel(self._queue, ip_address, message.channel_id)
+            channel = MultiplexerChannel(
+                self._queue, ip_address, channel_id=message.channel_id, throttling=self._throttling
+            )
             self._channels[channel.uuid] = channel
             self._loop.create_task(self._new_connections(self, channel))
 
@@ -274,7 +276,9 @@ class Multiplexer:
         self, ip_address: ipaddress.IPv4Address
     ) -> MultiplexerChannel:
         """Create a new channel for transport."""
-        channel = MultiplexerChannel(self._queue, ip_address)
+        channel = MultiplexerChannel(
+            self._queue, ip_address, throttling=self._throttling
+        )
         message = channel.init_new()
 
         try:
