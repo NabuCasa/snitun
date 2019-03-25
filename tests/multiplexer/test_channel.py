@@ -145,4 +145,4 @@ async def test_message_transport_never_lock():
     for _ in range(1, 10000):
         channel.message_transport(channel.init_close())
 
-    assert channel.error
+    assert channel.healthy

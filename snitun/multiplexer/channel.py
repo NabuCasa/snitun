@@ -42,7 +42,7 @@ class MultiplexerChannel:
         return self._ip_address
 
     @property
-    def error(self) -> bool:
+    def healthy(self) -> bool:
         """Return True if a error is occurse."""
         return self._input.full()
 
