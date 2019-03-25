@@ -145,4 +145,24 @@ async def test_message_transport_never_lock():
     for _ in range(1, 10000):
         channel.message_transport(channel.init_close())
 
-    assert channel.error
+    assert channel.healthy
+
+
+async def test_write_throttling(loop):
+    """Message transport should never lock down."""
+    output = asyncio.Queue(500)
+    channel = MultiplexerChannel(output, IP_ADDR, throttling=0.1)
+    assert isinstance(channel.uuid, UUID)
+
+    async def _write_background():
+        """Write message in background."""
+        for _ in range(1, 10000):
+            await channel.write(b"test")
+
+    background_task = loop.create_task(_write_background())
+
+    await asyncio.sleep(0.3)
+    assert not background_task.done()
+    assert output.qsize() <= 4
+
+    background_task.cancel()

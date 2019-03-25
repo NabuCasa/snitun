@@ -145,3 +145,5 @@ async def test_peer_listener_expire(peer_manager, peer_listener, test_client_pee
 
     await asyncio.sleep(1)
     assert not peer_manager.peer_available(hostname)
+
+    listener_peer.CHECK_VALID_EXPIRE = 3600
