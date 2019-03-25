@@ -1,13 +1,14 @@
 """Multiplexer channel."""
 import asyncio
-import logging
 from ipaddress import IPv4Address
+import logging
+from typing import Optional
 import uuid
 
 import async_timeout
 
-from ..utils.ipaddress import ip_address_to_bytes
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
+from ..utils.ipaddress import ip_address_to_bytes
 from .message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
@@ -22,13 +23,18 @@ class MultiplexerChannel:
     """Represent a multiplexer channel."""
 
     def __init__(
-        self, output: asyncio.Queue, ip_address: IPv4Address, channel_id=None
+        self,
+        output: asyncio.Queue,
+        ip_address: IPv4Address,
+        channel_id: Optional[uuid.UUID] = None,
+        throttling: Optional[float] = None,
     ) -> None:
         """Initialize Multiplexer Channel."""
         self._input = asyncio.Queue(8000)
         self._output = output
         self._id = channel_id or uuid.uuid4()
         self._ip_address = ip_address
+        self._throttling = throttling
         self._closing = False
 
     @property
@@ -75,6 +81,10 @@ class MultiplexerChannel:
         except asyncio.TimeoutError:
             _LOGGER.debug("Can't write to peer transport")
             raise MultiplexerTransportError() from None
+
+        if not self._throttling:
+            return
+        await asyncio.sleep(self._throttling)
 
     async def read(self) -> MultiplexerMessage:
         """Read data from peer."""
