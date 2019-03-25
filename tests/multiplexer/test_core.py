@@ -122,6 +122,8 @@ async def test_multiplexer_ping_error(loop, test_server, multiplexer_client):
     with pytest.raises(MultiplexerTransportError):
         raise ping_task.exception()
 
+    multi_core.PEER_TCP_TIMEOUT = 90
+
 
 async def test_multiplexer_ping_pong(multiplexer_client, multiplexer_server):
     """Test that without new channel callback can't create new channels."""
@@ -297,7 +299,7 @@ async def test_multiplexer_data_channel_abort_full(
     assert channel_client
     assert channel_server
 
-    with pytest.raises(MultiplexerTransportError):
+    with pytest.raises(MultiplexerTransportClose):
         for count in range(1, 50000):
             await channel_client.write(b"test xxxx")
 
@@ -381,3 +383,5 @@ async def test_multiplexer_core_peer_timeout(
 
     with pytest.raises(MultiplexerTransportClose):
         raise client_read.exception()
+
+    multi_core.PEER_TCP_TIMEOUT = 90

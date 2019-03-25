@@ -2,12 +2,12 @@
 import asyncio
 from datetime import datetime, timedelta
 import hashlib
+import logging
 import os
 from unittest.mock import patch
 
 import attr
 import pytest
-
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.server.listener_peer import PeerListener
@@ -16,6 +16,8 @@ from snitun.server.peer import Peer
 from snitun.server.peer_manager import PeerManager
 
 from .server.const_fernet import FERNET_TOKENS
+
+logging.basicConfig(level=logging.DEBUG)
 
 # pylint: disable=redefined-outer-name
 
