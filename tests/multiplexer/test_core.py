@@ -20,7 +20,7 @@ async def test_init_multiplexer_server(test_server, test_client, crypto_transpor
 
     assert multiplexer.is_connected
     assert multiplexer._throttling is None
-    await multiplexer.shutdown()
+    multiplexer.shutdown()
     client.close.set()
 
 
@@ -30,7 +30,7 @@ async def test_init_multiplexer_client(test_client, crypto_transport):
 
     assert multiplexer.is_connected
     assert multiplexer._throttling is None
-    await multiplexer.shutdown()
+    multiplexer.shutdown()
 
 
 async def test_init_multiplexer_server_throttling(
@@ -45,7 +45,7 @@ async def test_init_multiplexer_server_throttling(
 
     assert multiplexer.is_connected
     assert multiplexer._throttling == 0.002
-    await multiplexer.shutdown()
+    multiplexer.shutdown()
     client.close.set()
 
 
@@ -57,7 +57,7 @@ async def test_init_multiplexer_client_throttling(test_client, crypto_transport)
 
     assert multiplexer.is_connected
     assert multiplexer._throttling == 0.002
-    await multiplexer.shutdown()
+    multiplexer.shutdown()
 
 
 async def test_multiplexer_server_close(multiplexer_server, multiplexer_client):
@@ -65,7 +65,7 @@ async def test_multiplexer_server_close(multiplexer_server, multiplexer_client):
     assert multiplexer_server.is_connected
     assert multiplexer_client.is_connected
 
-    await multiplexer_server.shutdown()
+    multiplexer_server.shutdown()
     await asyncio.sleep(0.1)
 
     assert not multiplexer_server.is_connected
@@ -77,7 +77,7 @@ async def test_multiplexer_client_close(multiplexer_server, multiplexer_client):
     assert multiplexer_server.is_connected
     assert multiplexer_client.is_connected
 
-    await multiplexer_client.shutdown()
+    multiplexer_client.shutdown()
     await asyncio.sleep(0.1)
 
     assert not multiplexer_server.is_connected
@@ -269,7 +269,7 @@ async def test_multiplexer_channel_shutdown(
     assert not client_read.done()
     assert not server_read.done()
 
-    await multiplexer_client.shutdown()
+    multiplexer_client.shutdown()
     await asyncio.sleep(0.1)
     assert not multiplexer_client._channels
     assert client_read.done()

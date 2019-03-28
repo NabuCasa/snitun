@@ -101,7 +101,7 @@ async def multiplexer_server(test_server, test_client, crypto_transport):
 
     yield multiplexer
 
-    await multiplexer.shutdown()
+    multiplexer.shutdown()
     client.close.set()
 
 
@@ -118,7 +118,7 @@ async def multiplexer_client(test_client, crypto_transport):
 
     yield multiplexer
 
-    await multiplexer.shutdown()
+    multiplexer.shutdown()
 
 
 @pytest.fixture
