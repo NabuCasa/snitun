@@ -60,7 +60,7 @@ async def test_server_full(peer_manager, peer_listener, test_client_peer,
     assert peer_address
     assert peer_address[0] == IP_ADDR
 
-    await multiplexer.shutdown()
+    multiplexer.shutdown()
     await multiplexer.wait()
     await asyncio.sleep(0.1)
 

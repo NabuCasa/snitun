@@ -80,7 +80,7 @@ async def test_snitun_single_runner():
     assert peer_address
     assert peer_address[0] == IP_ADDR
 
-    await multiplexer.shutdown()
+    multiplexer.shutdown()
     await multiplexer.wait()
     await asyncio.sleep(0.1)
 
@@ -179,7 +179,7 @@ async def test_snitun_single_runner_throttling():
     peer = server.peers.get_peer(hostname)
     assert peer._multiplexer._throttling == 0.002
 
-    await multiplexer.shutdown()
+    multiplexer.shutdown()
     await multiplexer.wait()
     await asyncio.sleep(0.1)
 

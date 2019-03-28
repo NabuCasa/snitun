@@ -96,7 +96,8 @@ class ClientPeer:
         """Stop connection to SniTun server."""
         if not self._multiplexer:
             raise RuntimeError("No SniTun connection available")
-        await self._multiplexer.shutdown()
+        self._multiplexer.shutdown()
+        await self._multiplexer.wait()
 
     async def _handler(self) -> None:
         """Wait until connection is closed."""

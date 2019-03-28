@@ -60,12 +60,12 @@ class PeerListener:
             # Connection closed before data received
             if not fernet_data:
                 return
-
-            peer = self._peer_manager.register_peer(fernet_data)
+            peer = self._peer_manager.create_peer(fernet_data)
 
             # Start multiplexer
             await peer.init_multiplexer_challenge(reader, writer)
 
+            self._peer_manager.add_peer(peer)
             while peer.is_connected:
                 try:
                     async with async_timeout.timeout(CHECK_VALID_EXPIRE):

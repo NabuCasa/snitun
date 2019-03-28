@@ -65,14 +65,13 @@ class Multiplexer:
         """
         return asyncio.shield(self._processing_task)
 
-    async def shutdown(self):
+    def shutdown(self):
         """Shutdown connection."""
         if self._processing_task.done():
             return
 
         _LOGGER.debug("Cancel connection")
         self._processing_task.cancel()
-
         self._graceful_channel_shutdown()
 
     def _graceful_channel_shutdown(self):
@@ -95,7 +94,7 @@ class Multiplexer:
 
         except (OSError, asyncio.TimeoutError):
             _LOGGER.error("Ping fails, no response from peer")
-            self._loop.create_task(self.shutdown())
+            self._loop.call_soon(self.shutdown)
             raise MultiplexerTransportError() from None
 
     async def _runner(self):
@@ -242,7 +241,10 @@ class Multiplexer:
 
             ip_address = bytes_to_ip_address(message.extra[1:5])
             channel = MultiplexerChannel(
-                self._queue, ip_address, channel_id=message.channel_id, throttling=self._throttling
+                self._queue,
+                ip_address,
+                channel_id=message.channel_id,
+                throttling=self._throttling,
             )
             self._channels[channel.uuid] = channel
             self._loop.create_task(self._new_connections(self, channel))

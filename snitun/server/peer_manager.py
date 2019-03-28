@@ -22,11 +22,11 @@ class PeerManager:
         self._peers = {}
 
     @property
-    def connections(self):
+    def connections(self) -> int:
         """Return count of connected devices."""
         return len(self._peers)
 
-    def register_peer(self, fernet_data: bytes) -> Peer:
+    def create_peer(self, fernet_data: bytes) -> Peer:
         """Create a new peer from crypt config."""
         try:
             data = self._fernet.decrypt(fernet_data).decode()
@@ -46,14 +46,21 @@ class PeerManager:
         aes_key = bytes.fromhex(config["aes_key"])
         aes_iv = bytes.fromhex(config["aes_iv"])
 
-        peer = self._peers[hostname] = Peer(
-            hostname, valid, aes_key, aes_iv, throttling=self._throttling
-        )
-        return peer
+        return Peer(hostname, valid, aes_key, aes_iv, throttling=self._throttling)
 
-    def remove_peer(self, peer: Peer):
+    def add_peer(self, peer: Peer) -> None:
+        """Register peer to internal hostname list."""
+        if self.peer_available(peer.hostname):
+            _LOGGER.warning("Found stale peer connection")
+            self._peers[peer.hostname].multiplexer.shutdown()
+
+        self._peers[peer.hostname] = peer
+
+    def remove_peer(self, peer: Peer) -> None:
         """Remove peer from list."""
-        self._peers.pop(peer.hostname, None)
+        if self._peers.get(peer.hostname) != peer:
+            return
+        self._peers.pop(peer.hostname)
 
     def peer_available(self, hostname: str) -> bool:
         """Check if peer available and return True or False."""
@@ -61,6 +68,6 @@ class PeerManager:
             return self._peers[hostname].is_ready
         return False
 
-    def get_peer(self, hostname: str) -> Peer:
+    def get_peer(self, hostname: str) -> Optional[Peer]:
         """Get peer."""
         return self._peers.get(hostname)

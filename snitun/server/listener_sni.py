@@ -153,7 +153,7 @@ class SNIProxy:
                 await multiplexer.delete_channel(channel)
 
         except asyncio.TimeoutError:
-            _LOGGER.warning("Close TCP session after timeout for %s", channel.uuid)
+            _LOGGER.debug("Close TCP session after timeout for %s", channel.uuid)
             with suppress(MultiplexerTransportError):
                 await multiplexer.delete_channel(channel)
 
