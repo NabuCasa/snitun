@@ -4,7 +4,7 @@ from datetime import datetime
 import hashlib
 import logging
 import os
-from typing import Optional
+from typing import Optional, Coroutine
 
 from ..exceptions import MultiplexerTransportDecrypt, SniTunChallengeError
 from ..multiplexer.core import Multiplexer
@@ -91,10 +91,10 @@ class Peer:
             self._crypto, reader, writer, throttling=self._throttling
         )
 
-    def wait_disconnect(self) -> asyncio.Task:
+    def wait_disconnect(self) -> Coroutine:
         """Wait until peer is disconnected.
 
-        Return awaitable object.
+        Return a coroutine.
         """
         if not self._multiplexer:
             raise RuntimeError("No Transport initialize for peer")
