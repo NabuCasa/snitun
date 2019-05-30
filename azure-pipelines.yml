@@ -48,5 +48,5 @@ jobs:
       versionSpec: '3.7'
   - script: pip install black
     displayName: 'Install black'
-  - script: black --check hassio
+  - script: black --check snitun
     displayName: 'Run Black'
