@@ -21,8 +21,6 @@ jobs:
     vmImage: 'ubuntu-latest'
   strategy:
     matrix:
-      Python35:
-        python.version: '3.5'
       Python36:
         python.version: '3.6'
       Python37:
@@ -34,5 +32,7 @@ jobs:
       versionSpec: '$(python.version)'
   - script: pip install tox
     displayName: 'Install Tox'
-  - script: tox
-    displayName: 'Run Tox'
+  - script: tox -e lint
+    displayName: 'Run Tox lint'
+  - script: sudo tox -e tests
+    displayName: 'Run Tox tests'
