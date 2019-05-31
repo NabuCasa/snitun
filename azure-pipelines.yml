@@ -11,8 +11,7 @@ trigger:
     exclude:
     - untagged*
 pr:
-- dev
-
+  - dev
 variables:
   - group: twine
 
