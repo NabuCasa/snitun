@@ -101,7 +101,11 @@ class SNIProxy:
     ):
         """Proxy data between end points."""
         transport = writer.transport
-        ip_address = ipaddress.ip_address(writer.get_extra_info("peername")[0])
+        try:
+            ip_address = ipaddress.ip_address(writer.get_extra_info("peername")[0])
+        except TypeError:
+            _LOGGER.error("Can't read source IP")
+            return
 
         # Open multiplexer channel
         try:
