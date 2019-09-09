@@ -54,12 +54,14 @@ class PeerManager:
             _LOGGER.warning("Found stale peer connection")
             self._peers[peer.hostname].multiplexer.shutdown()
 
+        _LOGGER.debug("New peer connection: %s", peer.hostname)
         self._peers[peer.hostname] = peer
 
     def remove_peer(self, peer: Peer) -> None:
         """Remove peer from list."""
         if self._peers.get(peer.hostname) != peer:
             return
+        _LOGGER.debug("Close peer connection: %s", peer.hostname)
         self._peers.pop(peer.hostname)
 
     def peer_available(self, hostname: str) -> bool:

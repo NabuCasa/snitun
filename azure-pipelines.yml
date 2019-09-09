@@ -8,8 +8,6 @@ trigger:
   tags:
     include:
     - '*'
-    exclude:
-    - untagged*
 pr:
   - dev
 variables:
@@ -38,20 +36,6 @@ jobs:
     displayName: 'Run Tox lint'
   - script: sudo tox -e tests
     displayName: 'Run Tox tests'
-
-
-- job: 'Black'
-  pool:
-    vmImage: 'ubuntu-latest'
-  steps:
-  - task: UsePythonVersion@0
-    displayName: 'Use Python 3.7'
-    inputs:
-      versionSpec: '3.7'
-  - script: pip install black
-    displayName: 'Install black'
-  - script: black --check snitun
-    displayName: 'Run Black'
 
 
 - job: 'Release'
