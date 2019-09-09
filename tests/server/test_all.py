@@ -14,8 +14,9 @@ from .const_tls import TLS_1_2
 IP_ADDR = ipaddress.ip_address("127.0.0.1")
 
 
-async def test_server_full(peer_manager, peer_listener, test_client_peer,
-                           sni_proxy, test_client_ssl):
+async def test_server_full(
+    peer_manager, peer_listener, test_client_peer, sni_proxy, test_client_ssl
+):
     """Run a full flow of with a peer after that disconnect."""
     peer_messages = []
     peer_address = []
@@ -24,8 +25,7 @@ async def test_server_full(peer_manager, peer_listener, test_client_peer,
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key,
-                                      aes_iv)
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
     crypto = CryptoTransport(aes_key, aes_iv)
 
@@ -48,8 +48,9 @@ async def test_server_full(peer_manager, peer_listener, test_client_peer,
             peer_messages.append(message)
             peer_address.append(channel.ip_address)
 
-    multiplexer = Multiplexer(crypto, test_client_peer.reader,
-                              test_client_peer.writer, mock_new_channel)
+    multiplexer = Multiplexer(
+        crypto, test_client_peer.reader, test_client_peer.writer, mock_new_channel
+    )
 
     test_client_ssl.writer.write(TLS_1_2)
     await test_client_ssl.writer.drain()

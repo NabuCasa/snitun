@@ -8,8 +8,6 @@ trigger:
   tags:
     include:
     - '*'
-    exclude:
-    - untagged*
 pr:
   - dev
 variables:
@@ -32,33 +30,18 @@ jobs:
     displayName: 'Use Python $(python.version)'
     inputs:
       versionSpec: '$(python.version)'
-  - script: pip install tox
+  - script: |
+      pip install tox
     displayName: 'Install Tox'
-  - script: tox -e lint
+  - script: |
+      tox
     displayName: 'Run Tox lint'
-  - script: sudo tox -e tests
-    displayName: 'Run Tox tests'
-
-
-- job: 'Black'
-  pool:
-    vmImage: 'ubuntu-latest'
-  steps:
-  - task: UsePythonVersion@0
-    displayName: 'Use Python 3.7'
-    inputs:
-      versionSpec: '3.7'
-  - script: pip install black
-    displayName: 'Install black'
-  - script: black --check snitun
-    displayName: 'Run Black'
 
 
 - job: 'Release'
-  condition: and(startsWith(variables['Build.SourceBranch'], 'refs/tags'), succeeded('Tox'), succeeded('Black'))
+  condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags'))
   dependsOn:
   - 'Tox'
-  - 'Black'
   pool:
     vmImage: 'ubuntu-latest'
   steps:

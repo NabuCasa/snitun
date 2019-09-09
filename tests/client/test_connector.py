@@ -11,8 +11,7 @@ IP_ADDR = ipaddress.ip_address("8.8.8.8")
 BAD_ADDR = ipaddress.ip_address("8.8.1.1")
 
 
-async def test_init_connector(test_endpoint, multiplexer_client,
-                              multiplexer_server):
+async def test_init_connector(test_endpoint, multiplexer_client, multiplexer_server):
     """Test and init a connector."""
     assert not test_endpoint
 
@@ -32,8 +31,7 @@ async def test_init_connector(test_endpoint, multiplexer_client,
     test_connection.close.set()
 
 
-async def test_flow_connector(test_endpoint, multiplexer_client,
-                              multiplexer_server):
+async def test_flow_connector(test_endpoint, multiplexer_client, multiplexer_server):
     """Test and and perform a connector flow."""
     assert not test_endpoint
 
@@ -59,8 +57,9 @@ async def test_flow_connector(test_endpoint, multiplexer_client,
     test_connection.close.set()
 
 
-async def test_close_connector_remote(test_endpoint, multiplexer_client,
-                                      multiplexer_server):
+async def test_close_connector_remote(
+    test_endpoint, multiplexer_client, multiplexer_server
+):
     """Test and init a connector with remote close."""
     assert not test_endpoint
 
@@ -90,8 +89,9 @@ async def test_close_connector_remote(test_endpoint, multiplexer_client,
     test_connection.close.set()
 
 
-async def test_close_connector_local(test_endpoint, multiplexer_client,
-                                     multiplexer_server):
+async def test_close_connector_local(
+    test_endpoint, multiplexer_client, multiplexer_server
+):
     """Test and init a connector."""
     assert not test_endpoint
 
@@ -122,8 +122,9 @@ async def test_close_connector_local(test_endpoint, multiplexer_client,
         await channel.read()
 
 
-async def test_init_connector_whitelist(test_endpoint, multiplexer_client,
-                                        multiplexer_server):
+async def test_init_connector_whitelist(
+    test_endpoint, multiplexer_client, multiplexer_server
+):
     """Test and init a connector with whitelist."""
     assert not test_endpoint
 
@@ -145,8 +146,9 @@ async def test_init_connector_whitelist(test_endpoint, multiplexer_client,
     test_connection.close.set()
 
 
-async def test_init_connector_whitelist_bad(test_endpoint, multiplexer_client,
-                                            multiplexer_server):
+async def test_init_connector_whitelist_bad(
+    test_endpoint, multiplexer_client, multiplexer_server
+):
     """Test and init a connector with whitelist bad requests."""
     assert not test_endpoint
 

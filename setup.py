@@ -9,8 +9,7 @@ setup(
     author="Nabu Casa, Inc.",
     author_email="opensource@nabucasa.com",
     url="https://www.nabucasa.com/",
-    download_url="https://github.com/NabuCasa/snitun/tarball/{}".format(
-        VERSION),
+    download_url="https://github.com/NabuCasa/snitun/tarball/{}".format(VERSION),
     description=("SNI proxy with TCP multiplexer"),
     long_description=(""),
     classifiers=[
@@ -29,10 +28,12 @@ setup(
     zip_safe=False,
     platforms="any",
     packages=[
-        "snitun", "snitun.server", "snitun.client", "snitun.multiplexer",
-        "snitun.utils"
+        "snitun",
+        "snitun.server",
+        "snitun.client",
+        "snitun.multiplexer",
+        "snitun.utils",
     ],
-    install_requires=[
-        "attrs>=18.2.0", "async_timeout>=3.0.1", "cryptography>=2.5"
-    ],
-    include_package_data=True)
+    install_requires=["attrs>=18.2.0", "async_timeout>=3.0.1", "cryptography>=2.5"],
+    include_package_data=True,
+)
