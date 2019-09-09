@@ -19,7 +19,9 @@ IP_ADDR = ipaddress.ip_address("127.0.0.1")
 
 async def test_snitun_runner():
     """Test SniTun Server runner object."""
-    server = SniTunServer(FERNET_TOKENS, peer_host="127.0.0.1", sni_host="127.0.0.1")
+    server = SniTunServer(
+        FERNET_TOKENS, peer_host="127.0.0.1", sni_host="127.0.0.1", sni_port=32000
+    )
 
     await server.start()
 
@@ -33,11 +35,11 @@ async def test_snitun_single_runner():
     peer_messages = []
     peer_address = []
 
-    server = SniTunServerSingle(FERNET_TOKENS, host="127.0.0.1")
+    server = SniTunServerSingle(FERNET_TOKENS, host="127.0.0.1", port=32000)
     await server.start()
 
     reader_peer, writer_peer = await asyncio.open_connection(
-        host="127.0.0.1", port="443"
+        host="127.0.0.1", port="32000"
     )
 
     valid = datetime.utcnow() + timedelta(days=1)
@@ -67,7 +69,7 @@ async def test_snitun_single_runner():
             peer_messages.append(message)
             peer_address.append(channel.ip_address)
 
-    _, writer_ssl = await asyncio.open_connection(host="127.0.0.1", port="443")
+    _, writer_ssl = await asyncio.open_connection(host="127.0.0.1", port="32000")
 
     multiplexer = Multiplexer(crypto, reader_peer, writer_peer, mock_new_channel)
 
@@ -94,11 +96,11 @@ async def test_snitun_single_runner_timeout(raise_timeout):
     peer_messages = []
     peer_address = []
 
-    server = SniTunServerSingle(FERNET_TOKENS, host="127.0.0.1")
+    server = SniTunServerSingle(FERNET_TOKENS, host="127.0.0.1", port="32000")
     await server.start()
 
     reader_peer, writer_peer = await asyncio.open_connection(
-        host="127.0.0.1", port="443"
+        host="127.0.0.1", port="32000"
     )
 
     valid = datetime.utcnow() + timedelta(days=1)
@@ -129,11 +131,13 @@ async def test_snitun_single_runner_throttling():
     peer_messages = []
     peer_address = []
 
-    server = SniTunServerSingle(FERNET_TOKENS, host="127.0.0.1", throttling=500)
+    server = SniTunServerSingle(
+        FERNET_TOKENS, host="127.0.0.1", port="32000", throttling=500
+    )
     await server.start()
 
     reader_peer, writer_peer = await asyncio.open_connection(
-        host="127.0.0.1", port="443"
+        host="127.0.0.1", port="32000"
     )
 
     valid = datetime.utcnow() + timedelta(days=1)
@@ -163,7 +167,7 @@ async def test_snitun_single_runner_throttling():
             peer_messages.append(message)
             peer_address.append(channel.ip_address)
 
-    _, writer_ssl = await asyncio.open_connection(host="127.0.0.1", port="443")
+    _, writer_ssl = await asyncio.open_connection(host="127.0.0.1", port="32000")
 
     multiplexer = Multiplexer(crypto, reader_peer, writer_peer, mock_new_channel)
 
