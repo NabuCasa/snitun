@@ -39,10 +39,9 @@ jobs:
 
 
 - job: 'Release'
-  condition: and(startsWith(variables['Build.SourceBranch'], 'refs/tags'), succeeded('Tox'), succeeded('Black'))
+  condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags'))
   dependsOn:
   - 'Tox'
-  - 'Black'
   pool:
     vmImage: 'ubuntu-latest'
   steps:
