@@ -13,7 +13,8 @@ class CryptoTransport:
     def __init__(self, key: bytes, iv: bytes):
         """Initialize crypto data."""
         self._cipher = Cipher(
-            algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+            algorithms.AES(key), modes.CBC(iv), backend=default_backend()
+        )
         self._encryptor = self._cipher.encryptor()
         self._decryptor = self._cipher.decryptor()
 

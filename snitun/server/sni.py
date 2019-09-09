@@ -116,7 +116,7 @@ def _parse_host_name(data: bytes, pos: int) -> str:
             continue
 
         try:
-            return bytes(data[pos + 3:pos + 3 + size]).decode()
+            return bytes(data[pos + 3 : pos + 3 + size]).decode()
         except IndexError:
             _LOGGER.debug("Wrong host length")
             raise ParseSNIError() from None
