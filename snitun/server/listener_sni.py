@@ -84,7 +84,7 @@ class SNIProxy:
             peer = self._peer_manager.get_peer(hostname)
 
             # Proxy data over mutliplexer to client
-            _LOGGER.debug("Processing for hostname % started", hostname)
+            _LOGGER.debug("Processing for hostname %s started", hostname)
             await self._proxy_peer(peer.multiplexer, client_hello, reader, writer)
 
         finally:
