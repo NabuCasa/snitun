@@ -30,12 +30,12 @@ jobs:
     displayName: 'Use Python $(python.version)'
     inputs:
       versionSpec: '$(python.version)'
-  - script: pip install tox
+  - script: |
+      pip install tox
     displayName: 'Install Tox'
-  - script: tox -e lint
+  - script: |
+      tox
     displayName: 'Run Tox lint'
-  - script: sudo tox -e tests
-    displayName: 'Run Tox tests'
 
 
 - job: 'Release'
