@@ -56,13 +56,13 @@ class ClientPeer:
             reader, writer = await asyncio.open_connection(
                 host=self._snitun_host, port=self._snitun_port
             )
-        except OSError:
+        except OSError as err:
             _LOGGER.error(
                 "Can't connect to SniTun server %s:%s",
                 self._snitun_host,
                 self._snitun_port,
             )
-            raise SniTunConnectionError()
+            raise SniTunConnectionError() from err
 
         # Send fernet token
         writer.write(fernet_token)
@@ -76,9 +76,13 @@ class ClientPeer:
 
             writer.write(crypto.encrypt(answer))
             await writer.drain()
-        except (MultiplexerTransportDecrypt, asyncio.IncompleteReadError, OSError):
+        except (
+            MultiplexerTransportDecrypt,
+            asyncio.IncompleteReadError,
+            OSError,
+        ) as err:
             _LOGGER.error("Challenge/Response error with SniTun server")
-            raise SniTunConnectionError()
+            raise SniTunConnectionError() from err
 
         # Run multiplexer
         self._multiplexer = Multiplexer(
