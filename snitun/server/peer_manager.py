@@ -31,9 +31,9 @@ class PeerManager:
         try:
             data = self._fernet.decrypt(fernet_data).decode()
             config = json.loads(data)
-        except (InvalidToken, json.JSONDecodeError):
+        except (InvalidToken, json.JSONDecodeError) as err:
             _LOGGER.warning("Invalid fernet token")
-            raise SniTunInvalidPeer()
+            raise SniTunInvalidPeer() from err
 
         # Check if token is valid
         valid = datetime.utcfromtimestamp(config["valid"])
