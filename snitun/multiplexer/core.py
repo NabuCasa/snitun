@@ -33,6 +33,19 @@ PEER_TCP_TIMEOUT = 90
 class Multiplexer:
     """Multiplexer Socket wrapper."""
 
+    __slots__ = [
+        "_crypto",
+        "_reader",
+        "_writer",
+        "_loop",
+        "_queue",
+        "_healthy",
+        "_processing_task",
+        "_channels",
+        "_new_connections",
+        "_throttling",
+    ]
+
     def __init__(
         self,
         crypto: CryptoTransport,
