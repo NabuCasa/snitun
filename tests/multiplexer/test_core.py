@@ -1,7 +1,7 @@
 """Tests for core multiplexer handler."""
 import asyncio
 import ipaddress
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
