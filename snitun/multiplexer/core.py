@@ -245,7 +245,7 @@ class Multiplexer:
             channel = MultiplexerChannel(
                 self._queue,
                 ip_address,
-                id=message.id,
+                channel_id=message.id,
                 throttling=self._throttling,
             )
             self._channels[channel.id] = channel

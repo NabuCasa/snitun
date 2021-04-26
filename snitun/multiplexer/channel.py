@@ -26,13 +26,13 @@ class MultiplexerChannel:
         self,
         output: asyncio.Queue,
         ip_address: IPv4Address,
-        id: Optional[MultiplexerChannelId] = None,
+        channel_id: Optional[MultiplexerChannelId] = None,
         throttling: Optional[float] = None,
     ) -> None:
         """Initialize Multiplexer Channel."""
         self._input = asyncio.Queue(8000)
         self._output = output
-        self._id = id or MultiplexerChannelId()
+        self._id = channel_id or MultiplexerChannelId()
         self._ip_address = ip_address
         self._throttling = throttling
         self._closing = False
