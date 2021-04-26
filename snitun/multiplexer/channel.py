@@ -3,7 +3,6 @@ import asyncio
 from ipaddress import IPv4Address
 import logging
 from typing import Optional
-import uuid
 
 import async_timeout
 
@@ -13,6 +12,7 @@ from .message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
     CHANNEL_FLOW_NEW,
+    MultiplexerChannelId,
     MultiplexerMessage,
 )
 
@@ -22,24 +22,26 @@ _LOGGER = logging.getLogger(__name__)
 class MultiplexerChannel:
     """Represent a multiplexer channel."""
 
+    __slots__ = ["_input", "_output", "_id", "_ip_address", "_throttling", "_closing"]
+
     def __init__(
         self,
         output: asyncio.Queue,
         ip_address: IPv4Address,
-        channel_id: Optional[uuid.UUID] = None,
+        channel_id: Optional[MultiplexerChannelId] = None,
         throttling: Optional[float] = None,
     ) -> None:
         """Initialize Multiplexer Channel."""
         self._input = asyncio.Queue(8000)
         self._output = output
-        self._id = channel_id or uuid.uuid4()
+        self._id = channel_id or MultiplexerChannelId()
         self._ip_address = ip_address
         self._throttling = throttling
         self._closing = False
 
     @property
-    def uuid(self) -> uuid.UUID:
-        """Return UUID of this channel."""
+    def id(self) -> MultiplexerChannelId:
+        """Return ID of this channel."""
         return self._id
 
     @property

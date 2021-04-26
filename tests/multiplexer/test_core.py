@@ -127,21 +127,8 @@ async def test_multiplexer_ping_error(loop, test_server, multiplexer_client):
 
 async def test_multiplexer_ping_pong(multiplexer_client, multiplexer_server):
     """Test that without new channel callback can't create new channels."""
-    messages = []
-    org_client_msg = multiplexer_client._process_message
-
-    async def mock_read_msg(message):
-        """Mock process message."""
-        messages.append(message)
-        await org_client_msg(message)
-
-    multiplexer_client._process_message = mock_read_msg
     await multiplexer_client.ping()
-
-    assert messages
-    pong = messages[-1]
-    assert pong.flow_type == CHANNEL_FLOW_PING
-    assert pong.extra.startswith(b"pong")
+    assert multiplexer_client._healthy.is_set()
 
 
 async def test_multiplexer_cant_init_channel(multiplexer_client, multiplexer_server):
@@ -170,10 +157,10 @@ async def test_multiplexer_init_channel(multiplexer_client, multiplexer_server):
     assert multiplexer_client._channels
     assert multiplexer_server._channels
 
-    assert multiplexer_client._channels[channel.uuid]
-    assert multiplexer_server._channels[channel.uuid]
-    assert multiplexer_client._channels[channel.uuid].ip_address == IP_ADDR
-    assert multiplexer_server._channels[channel.uuid].ip_address == IP_ADDR
+    assert multiplexer_client._channels[channel.id]
+    assert multiplexer_server._channels[channel.id]
+    assert multiplexer_client._channels[channel.id].ip_address == IP_ADDR
+    assert multiplexer_server._channels[channel.id].ip_address == IP_ADDR
 
 
 async def test_multiplexer_init_channel_full(multiplexer_client, raise_timeout):
@@ -198,10 +185,10 @@ async def test_multiplexer_close_channel(multiplexer_client, multiplexer_server)
     assert multiplexer_client._channels
     assert multiplexer_server._channels
 
-    assert multiplexer_client._channels[channel.uuid]
-    assert multiplexer_server._channels[channel.uuid]
-    assert multiplexer_client._channels[channel.uuid].ip_address == IP_ADDR
-    assert multiplexer_server._channels[channel.uuid].ip_address == IP_ADDR
+    assert multiplexer_client._channels[channel.id]
+    assert multiplexer_server._channels[channel.id]
+    assert multiplexer_client._channels[channel.id].ip_address == IP_ADDR
+    assert multiplexer_server._channels[channel.id].ip_address == IP_ADDR
 
     await multiplexer_client.delete_channel(channel)
     await asyncio.sleep(0.1)
@@ -235,7 +222,7 @@ async def test_multiplexer_data_channel(multiplexer_client, multiplexer_server):
     channel_client = await multiplexer_client.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
-    channel_server = multiplexer_server._channels.get(channel_client.uuid)
+    channel_server = multiplexer_server._channels.get(channel_client.id)
 
     assert channel_client
     assert channel_server
@@ -261,7 +248,7 @@ async def test_multiplexer_channel_shutdown(
     channel_client = await multiplexer_client.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
-    channel_server = multiplexer_server._channels.get(channel_client.uuid)
+    channel_server = multiplexer_server._channels.get(channel_client.id)
 
     client_read = loop.create_task(channel_client.read())
     server_read = loop.create_task(channel_server.read())
@@ -294,7 +281,7 @@ async def test_multiplexer_data_channel_abort_full(
     channel_client = await multiplexer_client.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
-    channel_server = multiplexer_server._channels.get(channel_client.uuid)
+    channel_server = multiplexer_server._channels.get(channel_client.id)
 
     assert channel_client
     assert channel_server
@@ -321,7 +308,7 @@ async def test_multiplexer_throttling(loop, multiplexer_client, multiplexer_serv
     channel_client = await multiplexer_client.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
-    channel_server = multiplexer_server._channels.get(channel_client.uuid)
+    channel_server = multiplexer_server._channels.get(channel_client.id)
     multiplexer_server._throttling = 0.1
     multiplexer_client._throttling = 0.1
 
@@ -362,7 +349,7 @@ async def test_multiplexer_core_peer_timeout(
     channel_client = await multiplexer_client.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
 
-    channel_server = multiplexer_server._channels.get(channel_client.uuid)
+    channel_server = multiplexer_server._channels.get(channel_client.id)
 
     client_read = loop.create_task(channel_client.read())
     server_read = loop.create_task(channel_server.read())

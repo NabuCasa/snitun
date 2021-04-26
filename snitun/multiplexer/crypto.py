@@ -10,6 +10,8 @@ from ..exceptions import MultiplexerTransportDecrypt
 class CryptoTransport:
     """Encrypt/Decrypt Transport flow."""
 
+    __slots__ = ["_cipher", "_encryptor", "_decryptor"]
+
     def __init__(self, key: bytes, iv: bytes):
         """Initialize crypto data."""
         self._cipher = Cipher(
