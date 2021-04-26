@@ -1,7 +1,7 @@
 """Tests for core multiplexer handler."""
 import asyncio
 import ipaddress
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -127,21 +127,8 @@ async def test_multiplexer_ping_error(loop, test_server, multiplexer_client):
 
 async def test_multiplexer_ping_pong(multiplexer_client, multiplexer_server):
     """Test that without new channel callback can't create new channels."""
-    messages = []
-    org_client_msg = multiplexer_client._process_message
-
-    async def mock_read_msg(message):
-        """Mock process message."""
-        messages.append(message)
-        await org_client_msg(message)
-
-    multiplexer_client._process_message = mock_read_msg
     await multiplexer_client.ping()
-
-    assert messages
-    pong = messages[-1]
-    assert pong.flow_type == CHANNEL_FLOW_PING
-    assert pong.extra.startswith(b"pong")
+    assert multiplexer_client._healthy.is_set()
 
 
 async def test_multiplexer_cant_init_channel(multiplexer_client, multiplexer_server):

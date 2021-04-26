@@ -22,6 +22,8 @@ _LOGGER = logging.getLogger(__name__)
 class MultiplexerChannel:
     """Represent a multiplexer channel."""
 
+    __slots__ = ["_input", "_output", "_id", "_ip_address", "_throttling", "_closing"]
+
     def __init__(
         self,
         output: asyncio.Queue,
