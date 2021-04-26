@@ -1,7 +1,6 @@
 """Pytest fixtures for SniTun."""
 import asyncio
 from datetime import datetime, timedelta
-import hashlib
 import logging
 import os
 from unittest.mock import patch

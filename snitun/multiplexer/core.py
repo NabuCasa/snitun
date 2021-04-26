@@ -5,7 +5,6 @@ import ipaddress
 import logging
 import os
 from typing import Optional
-import uuid
 
 import async_timeout
 
@@ -22,6 +21,7 @@ from .message import (
     CHANNEL_FLOW_DATA,
     CHANNEL_FLOW_NEW,
     CHANNEL_FLOW_PING,
+    MultiplexerChannelId,
     MultiplexerMessage,
 )
 
@@ -85,7 +85,9 @@ class Multiplexer:
         self._healthy.clear()
         try:
             self._write_message(
-                MultiplexerMessage(uuid.uuid4(), CHANNEL_FLOW_PING, b"", b"ping")
+                MultiplexerMessage(
+                    MultiplexerChannelId(), CHANNEL_FLOW_PING, b"", b"ping"
+                )
             )
 
             # Wait until pong is received
@@ -173,7 +175,7 @@ class Multiplexer:
 
     def _write_message(self, message: MultiplexerMessage) -> None:
         """Write message to peer."""
-        header = message.channel_id.bytes
+        header = message.id.bytes
         header += message.flow_type.to_bytes(1, byteorder="big")
         header += len(message.data).to_bytes(4, byteorder="big")
         header += message.extra + os.urandom(11 - len(message.extra))
@@ -206,7 +208,7 @@ class Multiplexer:
             data = b""
 
         message = MultiplexerMessage(
-            uuid.UUID(bytes=channel_id), flow_type, data, extra
+            MultiplexerChannelId(channel_id), flow_type, data, extra
         )
 
         # Process message to queue
@@ -218,11 +220,11 @@ class Multiplexer:
         # DATA
         if message.flow_type == CHANNEL_FLOW_DATA:
             # check if message exists
-            if message.channel_id not in self._channels:
+            if message.id not in self._channels:
                 _LOGGER.debug("Receive data from unknown channel")
                 return
 
-            channel = self._channels[message.channel_id]
+            channel = self._channels[message.id]
             if channel.closing:
                 pass
             elif channel.healthy:
@@ -243,19 +245,19 @@ class Multiplexer:
             channel = MultiplexerChannel(
                 self._queue,
                 ip_address,
-                channel_id=message.channel_id,
+                id=message.id,
                 throttling=self._throttling,
             )
-            self._channels[channel.uuid] = channel
+            self._channels[channel.id] = channel
             self._loop.create_task(self._new_connections(self, channel))
 
         # Close
         elif message.flow_type == CHANNEL_FLOW_CLOSE:
             # check if message exists
-            if message.channel_id not in self._channels:
+            if message.id not in self._channels:
                 _LOGGER.debug("Receive close from unknown channel")
                 return
-            channel = self._channels.pop(message.channel_id)
+            channel = self._channels.pop(message.id)
             channel.close()
 
         # Ping
@@ -266,9 +268,7 @@ class Multiplexer:
             else:
                 _LOGGER.debug("Receive ping from peer / send pong")
                 self._write_message(
-                    MultiplexerMessage(
-                        message.channel_id, CHANNEL_FLOW_PING, b"", b"pong"
-                    )
+                    MultiplexerMessage(message.id, CHANNEL_FLOW_PING, b"", b"pong")
                 )
 
         else:
@@ -289,7 +289,7 @@ class Multiplexer:
         except asyncio.TimeoutError:
             raise MultiplexerTransportError() from None
         else:
-            self._channels[channel.uuid] = channel
+            self._channels[channel.id] = channel
 
         return channel
 
@@ -303,4 +303,4 @@ class Multiplexer:
         except asyncio.TimeoutError:
             raise MultiplexerTransportError() from None
         finally:
-            self._channels.pop(channel.uuid, None)
+            self._channels.pop(channel.id, None)

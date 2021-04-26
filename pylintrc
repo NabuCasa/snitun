@@ -2,6 +2,8 @@
 reports=no
 ignore=tests_*
 
+good-names=id,i,j,k,ex,Run,_,fp,T
+
 # Reasons disabled:
 # locally-disabled - it spams too much
 # duplicate-code - unavoidable
