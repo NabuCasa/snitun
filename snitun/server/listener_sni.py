@@ -48,9 +48,10 @@ class SNIProxy:
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
         data: Optional[bytes] = None,
+        sni: Optional[str] = None,
     ):
         """Internal handler for incoming requests."""
-        if not data:
+        if data is None:
             try:
                 async with async_timeout.timeout(2):
                     client_hello = await reader.read(1024)
@@ -71,11 +72,14 @@ class SNIProxy:
 
         try:
             # Read Hostname
-            try:
-                hostname = parse_tls_sni(client_hello)
-            except ParseSNIError:
-                _LOGGER.warning("Receive invalid ClientHello on public Interface")
-                return
+            if sni is None:
+                try:
+                    hostname = parse_tls_sni(client_hello)
+                except ParseSNIError:
+                    _LOGGER.warning("Receive invalid ClientHello on public Interface")
+                    return
+            else:
+                hostname = sni
 
             # Peer available?
             if not self._peer_manager.peer_available(hostname):

@@ -62,8 +62,8 @@ class SniTunServerSingle:
         """Initialize SniTun Server."""
         self._loop = asyncio.get_event_loop()
         self._peers = PeerManager(fernet_keys, throttling=throttling)
-        self._list_sni = SNIProxy(self._peers, host=host)
-        self._list_peer = PeerListener(self._peers, host=host)
+        self._list_sni = SNIProxy(self._peers)
+        self._list_peer = PeerListener(self._peers)
         self._host = host
         self._port = port or 443
         self._server = None
@@ -106,9 +106,9 @@ class SniTunServerSingle:
         # Select the correct handler for process data
         if data[0] == 0x16:
             self._loop.create_task(
-                self._list_sni.handle_connection(reader, writer, data)
+                self._list_sni.handle_connection(reader, writer, data=data)
             )
         else:
             self._loop.create_task(
-                self._list_peer.handle_connection(reader, writer, data)
+                self._list_peer.handle_connection(reader, writer, data=data)
             )

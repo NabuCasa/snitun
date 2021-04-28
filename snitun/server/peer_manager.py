@@ -1,8 +1,10 @@
 """Manage peer connections."""
+import asyncio
 from datetime import datetime
 import json
 import logging
-from typing import List, Optional
+from typing import Callable, List, Optional
+from enum import Enum
 
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
@@ -12,13 +14,27 @@ from .peer import Peer
 _LOGGER = logging.getLogger(__name__)
 
 
+class PeerManagerEvent(str, Enum):
+    """Peer Manager event flags."""
+
+    CONNECTED = "connected"
+    DISCONNECTED = "disconnected"
+
+
 class PeerManager:
     """Manage Peer connections."""
 
-    def __init__(self, fernet_tokens: List[str], throttling: Optional[int] = None):
+    def __init__(
+        self,
+        fernet_tokens: List[str],
+        throttling: Optional[int] = None,
+        event_callback: Optional[Callable[[Peer, PeerManagerEvent], None]] = None,
+    ):
         """Initialize Peer Manager."""
         self._fernet = MultiFernet([Fernet(key) for key in fernet_tokens])
+        self._loop = asyncio.get_event_loop()
         self._throttling = throttling
+        self._event_callback = event_callback
         self._peers = {}
 
     @property
@@ -57,12 +73,20 @@ class PeerManager:
         _LOGGER.debug("New peer connection: %s", peer.hostname)
         self._peers[peer.hostname] = peer
 
+        if self._event_callback:
+            self._loop.call_soon(self._event_callback, peer, PeerManagerEvent.CONNECTED)
+
     def remove_peer(self, peer: Peer) -> None:
         """Remove peer from list."""
         if self._peers.get(peer.hostname) != peer:
             return
         _LOGGER.debug("Close peer connection: %s", peer.hostname)
         self._peers.pop(peer.hostname)
+
+        if self._event_callback:
+            self._loop.call_soon(
+                self._event_callback, peer, PeerManagerEvent.DISCONNECTED
+            )
 
     def peer_available(self, hostname: str) -> bool:
         """Check if peer available and return True or False."""
