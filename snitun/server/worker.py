@@ -7,7 +7,8 @@ from socket import socket
 
 from .listener_peer import PeerListener
 from .listener_sni import SNIProxy
-from .peer_manager import PeerManager
+from .peer_manager import PeerManager, PeerManagerEvent
+from .peer import Peer
 
 
 class ServerWorker(Process):
@@ -21,21 +22,40 @@ class ServerWorker(Process):
         """Initialize worker & communication."""
         super().__init__()
 
-        self._peers = PeerManager(fernet_keys, throttling=throttling)
-        self._list_sni = SNIProxy(self._peers)
-        self._list_peer = PeerListener(self._peers)
+        self._fernet_keys: List[str] = fernet_keys
+        self._throttling: Optional[int] = throttling
+
+        self._peers: Optional[PeerManager] = None
+        self._list_sni: Optional[SNIProxy] = None
+        self._list_peer: Optional[PeerListener] = None
 
         self._manager: Manager = Manager()
         self._new: Queue = self._manager.Queue()
-        self._sync: Dict[str, socket] = self._manager.dict()
+        self._sync: Dict[str, None] = self._manager.dict()
         self._closing: Event = self._manager.Event()
 
         self._loop: Optional[asyncio.BaseEventLoop] = None
 
+    async def _async_init(self) -> None:
+        """Initialize child process data."""
+        self._peers = PeerManager(self._fernet_keys, throttling=self._throttling)
+        self._list_sni = SNIProxy(self._peers)
+        self._list_peer = PeerListener(self._peers)
+
+    def _event_stream(self, peer: Peer, event: PeerManagerEvent) -> None:
+        """Event stream peer connection data."""
+        if event == PeerManagerEvent.CONNECTED:
+            self._sync[peer.hostname] = None
+        else:
+            self._sync.pop(peer.hostname, None)
+
     def handover_connection(
         self, con: socket, data: bytes, sni: Optional[str] = None
     ) -> None:
-        """Move new connection to worker."""
+        """Move new connection to worker.
+
+        Async friendly.
+        """
         self._new.put_nowait((con, data, sni))
 
     def run(self) -> None:
@@ -46,12 +66,17 @@ class ServerWorker(Process):
         running_loop = Thread(target=self._loop.run_forever)
         running_loop.start()
 
+        # Init backend
+        asyncio.run_coroutine_threadsafe(self._async_init(), loop=self._loop).result()
+
         while not self._closing.is_set():
             new: Tuple[socket, bytes, Optional[str]] = self._new.get()
 
-            asyncio.create_task(self._new_connection(*new))
+            asyncio.run_coroutine_threadsafe(
+                self._async_new_connection(*new), loop=self._loop
+            )
 
-    async def _new_connection(
+    async def _async_new_connection(
         self, con: socket, data: bytes, sni: Optional[str]
     ) -> None:
         """Handle incoming connection."""
