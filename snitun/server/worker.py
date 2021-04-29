@@ -95,6 +95,7 @@ class ServerWorker(Process):
             if new is None:
                 break
 
+            new[0].setblocking(False)
             asyncio.run_coroutine_threadsafe(
                 self._async_new_connection(*new), loop=self._loop
             )
@@ -107,7 +108,6 @@ class ServerWorker(Process):
         self, con: socket, data: bytes, sni: Optional[str]
     ) -> None:
         """Handle incoming connection."""
-        con.setblocking(False)
         reader, writer = await asyncio.open_connection(sock=con)
 
         # Select the correct handler for process connection
