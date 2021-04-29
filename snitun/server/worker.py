@@ -35,7 +35,6 @@ class ServerWorker(Process):
         self._manager: Manager = Manager()
         self._new: Queue = self._manager.Queue()
         self._sync: Dict[str, None] = self._manager.dict()
-        self._closing: Event = self._manager.Event()
 
     async def _async_init(self) -> None:
         """Initialize child process data."""
@@ -59,11 +58,8 @@ class ServerWorker(Process):
 
         This function blocking, don't call it inside loop!
         """
-        self._closing.set()
         self._new.put(None)
-
         self.join(10)
-        self.close()
 
     def handover_connection(
         self, con: socket, data: bytes, sni: Optional[str] = None
@@ -85,17 +81,17 @@ class ServerWorker(Process):
         # Init backend
         asyncio.run_coroutine_threadsafe(self._async_init(), loop=self._loop).result()
 
-        while not self._closing.is_set():
+        while True:
             new: Tuple[socket, bytes, Optional[str]] = self._new.get()
             if new is None:
-                continue
+                break
 
             asyncio.run_coroutine_threadsafe(
                 self._async_new_connection(*new), loop=self._loop
             )
 
         # Shutdown worker
-        self._loop.stop()
+        self._loop.call_soon_threadsafe(self._loop.stop)
         running_loop.join(10)
 
     async def _async_new_connection(
