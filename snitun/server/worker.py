@@ -49,6 +49,17 @@ class ServerWorker(Process):
         else:
             self._sync.pop(peer.hostname, None)
 
+    def shutdown(self) -> None:
+        """Shutdown child process.
+
+        This function blocking, don't call it inside loop!
+        """
+        self._closing.set()
+        self._new.put(None)
+
+        self.join(10)
+        self.close()
+
     def handover_connection(
         self, con: socket, data: bytes, sni: Optional[str] = None
     ) -> None:
@@ -71,10 +82,16 @@ class ServerWorker(Process):
 
         while not self._closing.is_set():
             new: Tuple[socket, bytes, Optional[str]] = self._new.get()
+            if new is None:
+                continue
 
             asyncio.run_coroutine_threadsafe(
                 self._async_new_connection(*new), loop=self._loop
             )
+
+        # Shutdown worker
+        self._loop.stop()
+        running_loop.join(10)
 
     async def _async_new_connection(
         self, con: socket, data: bytes, sni: Optional[str]
