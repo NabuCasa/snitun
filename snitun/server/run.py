@@ -5,6 +5,7 @@ from multiprocessing import cpu_count
 import select
 import socket
 from typing import Awaitable, List, Optional
+from threading import Thread
 
 import async_timeout
 
@@ -120,7 +121,7 @@ class SniTunServerSingle:
             )
 
 
-class SniTunServerWorker:
+class SniTunServerWorker(Thread):
     """SniTunServer helper class for Worker."""
 
     def __init__(
@@ -132,12 +133,15 @@ class SniTunServerWorker:
         throttling: Optional[int] = None,
     ):
         """Initialize SniTun Server."""
+        super().__init__()
+
         self._host: Optional[str] = host
         self._port: int = port or 443
         self._fernet_keys: List[str] = fernet_keys
         self._throttling: Optional[int] = throttling
         self._worker_size: int = worker_size or (cpu_count() * 2)
         self._workers: List[ServerWorker] = []
+        self._running: bool = False
 
         # TCP server
         self._server: Optional[socket.socket] = None
@@ -154,12 +158,18 @@ class SniTunServerWorker:
         self._server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server.bind((self._host, self._port))
         self._server.setblocking(False)
-        self._server.listen(120 * 1000)
+        self._server.listen(80 * 1000)
+
+        self._running = True
         self._poller = select.epoll()
+        self._poller.register(self._server.fileno(), select.EPOLLIN)
+
+        super().start()
 
     def stop(self) -> None:
         """Stop server."""
-        # TODO: Stop run
+        self._running = False
+        self.join()
 
         # Shutdown all workers
         for worker in self._workers:
@@ -171,3 +181,31 @@ class SniTunServerWorker:
 
     def run(self) -> None:
         """Handle incoming connection."""
+        fd_server = self._server.fileno()
+        connections = {}
+
+        while self._running:
+            events = self._poller.poll(1)
+            for fileno, event in events:
+                # New Connection
+                if fileno == fd_server:
+                    con, _ = self._server.accept()
+                    con.setblocking(False)
+
+                    self._poller.register(con.fileno(), select.EPOLLIN)
+                    connections[con.fileno()] = con
+
+                # Read hello & forward to worker
+                elif event & select.EPOLLIN:
+                    self._poller.unregister(fileno)
+                    con = connections.pop(fileno)
+                    self._process(con)
+
+                # Close
+                elif event & select.EPOLLHUP:
+                    self._poller.unregister(fileno)
+                    con = connections.pop(fileno)
+                    con.close()
+
+    def _process(self, con: socket.socket) -> None:
+        """Process connection & helo."""
