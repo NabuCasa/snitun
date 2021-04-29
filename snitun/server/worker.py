@@ -36,6 +36,10 @@ class ServerWorker(Process):
         self._new: Queue = self._manager.Queue()
         self._sync: Dict[str, None] = self._manager.dict()
 
+    def is_responsible_peer(self, sni: str) -> bool:
+        """Return True if worker is responsible for this peer domain."""
+        return sni in self._sync
+
     async def _async_init(self) -> None:
         """Initialize child process data."""
         self._peers = PeerManager(

@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 import logging
 import os
 from unittest.mock import patch
+import socket
+from threading import Thread
 
 import attr
 import pytest
@@ -84,6 +86,38 @@ async def test_client(test_server):
     yield Client(reader, writer)
 
     writer.close()
+
+
+@pytest.fixture
+def test_server_sync(loop):
+    """Create a TCP test server."""
+    connections = []
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 8366))
+    sock.listen(1)
+
+    def _incoming() -> None:
+        connection, _ = sock.accept()
+        connections.append(connection)
+
+    runner = Thread(target=_incoming)
+    runner.start()
+
+    yield connections
+
+    sock.close()
+
+
+@pytest.fixture
+def test_client_sync(test_server_sync):
+    """Create a TCP test client."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(("127.0.0.1", 8366))
+
+    yield sock
+
+    sock.close()
 
 
 @pytest.fixture
