@@ -18,6 +18,7 @@ def test_worker_up_down(loop):
 
     worker.start()
     assert worker.is_alive()
+    assert worker.peer_size == 0
     worker.shutdown()
 
     assert worker.exitcode == 0
@@ -44,6 +45,7 @@ def test_peer_connection(test_server_sync, test_client_sync, loop):
 
     time.sleep(1)
     assert worker.is_responsible_peer(hostname)
+    assert worker.peer_size == 1
 
     worker.shutdown()
 
@@ -68,10 +70,12 @@ def test_peer_connection_disconnect(test_server_sync, test_client_sync, loop):
 
     time.sleep(1)
     assert worker.is_responsible_peer(hostname)
+    assert worker.peer_size == 1
 
     test_client_sync.shutdown(socket.SHUT_RDWR)
     time.sleep(1)
     assert not worker.is_responsible_peer(hostname)
+    assert worker.peer_size == 0
 
     worker.shutdown()
 
