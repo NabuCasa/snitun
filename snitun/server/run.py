@@ -137,7 +137,7 @@ class SniTunServerWorker:
         self._fernet_keys: List[str] = fernet_keys
         self._throttling: Optional[int] = throttling
         self._worker_size: int = worker_size or (cpu_count() * 2)
-        self._worker: List[ServerWorker] = []
+        self._workers: List[ServerWorker] = []
 
         # TCP server
         self._server: Optional[socket.socket] = None
@@ -145,9 +145,29 @@ class SniTunServerWorker:
 
     def start(self) -> None:
         """Run server."""
+        # Init first all worker, we don't want the epoll on the childs
+        for _ in range(self._worker_size):
+            worker = ServerWorker(self._fernet_keys, throttling=self._throttling)
+            worker.start()
+            self._workers.append(worker)
+
+        self._server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._server.bind((self._host, self._port))
+        self._server.setblocking(False)
+        self._server.listen(120 * 1000)
+        self._poller = select.epoll()
 
     def stop(self) -> None:
         """Stop server."""
+        # TODO: Stop run
 
-    def _handle_connections(self) -> None:
+        # Shutdown all workers
+        for worker in self._workers:
+            worker.shutdown()
+            worker.close()
+
+        self._server.close()
+        self._poller.close()
+
+    def run(self) -> None:
         """Handle incoming connection."""

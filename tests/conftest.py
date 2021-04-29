@@ -111,6 +111,8 @@ def test_server_sync(loop):
                 connection, _ = sock.accept()
                 connections.append(connection)
 
+        poller.close()
+
     runner = Thread(target=_incoming)
     runner.start()
 
