@@ -1,47 +1,53 @@
 """SniTun reference implementation."""
 import asyncio
 import logging
-from typing import List, Optional
+from multiprocessing import cpu_count
+import select
+import socket
+from typing import Awaitable, List, Optional
 
 import async_timeout
 
 from .listener_peer import PeerListener
 from .listener_sni import SNIProxy
 from .peer_manager import PeerManager
+from .worker import ServerWorker
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class SniTunServer:
-    """SniTunServer helper class."""
+    """SniTunServer helper class for Dual port Asyncio."""
 
     def __init__(
         self,
         fernet_keys: List[str],
-        sni_port=None,
-        sni_host=None,
-        peer_port=None,
-        peer_host=None,
+        sni_port: Optional[int] = None,
+        sni_host: Optional[str] = None,
+        peer_port: Optional[int] = None,
+        peer_host: Optional[str] = None,
         throttling: Optional[int] = None,
     ):
         """Initialize SniTun Server."""
-        self._peers = PeerManager(fernet_keys, throttling=throttling)
-        self._list_sni = SNIProxy(self._peers, host=sni_host, port=sni_port)
-        self._list_peer = PeerListener(self._peers, host=peer_host, port=peer_port)
+        self._peers: PeerManager = PeerManager(fernet_keys, throttling=throttling)
+        self._list_sni: SNIProxy = SNIProxy(self._peers, host=sni_host, port=sni_port)
+        self._list_peer: PeerListener = PeerListener(
+            self._peers, host=peer_host, port=peer_port
+        )
 
     @property
     def peers(self) -> PeerManager:
         """Return peer manager."""
         return self._peers
 
-    def start(self):
+    def start(self) -> Awaitable[None]:
         """Run server.
 
         Return coroutine.
         """
         return asyncio.wait([self._list_peer.start(), self._list_sni.start()])
 
-    def stop(self):
+    def stop(self) -> Awaitable[None]:
         """Stop server.
 
         Return coroutine.
@@ -50,46 +56,46 @@ class SniTunServer:
 
 
 class SniTunServerSingle:
-    """SniTunServer helper class."""
+    """SniTunServer helper class for Single port Asnycio."""
 
     def __init__(
         self,
         fernet_keys: List[str],
-        host=None,
-        port=None,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
         throttling: Optional[int] = None,
     ):
         """Initialize SniTun Server."""
-        self._loop = asyncio.get_event_loop()
-        self._peers = PeerManager(fernet_keys, throttling=throttling)
-        self._list_sni = SNIProxy(self._peers)
-        self._list_peer = PeerListener(self._peers)
-        self._host = host
-        self._port = port or 443
-        self._server = None
+        self._loop: asyncio.BaseEventLoop = asyncio.get_event_loop()
+        self._server: Optional[asyncio.AbstractServer] = None
+        self._peers: PeerManager = PeerManager(fernet_keys, throttling=throttling)
+        self._list_sni: SNIProxy = SNIProxy(self._peers)
+        self._list_peer: PeerListener = PeerListener(self._peers)
+        self._host: Optional[str] = host
+        self._port: int = port or 443
 
     @property
     def peers(self) -> PeerManager:
         """Return peer manager."""
         return self._peers
 
-    async def start(self):
+    async def start(self) -> None:
         """Run server."""
         self._server = await asyncio.start_server(
             self._handler, host=self._host, port=self._port
         )
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop server."""
         self._server.close()
         await self._server.wait_closed()
 
     async def _handler(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ):
+    ) -> None:
         """Handle incoming connection."""
         try:
-            async with async_timeout.timeout(2):
+            async with async_timeout.timeout(5):
                 data = await reader.read(2048)
         except asyncio.TimeoutError:
             _LOGGER.warning("Abort connection initializing")
@@ -112,3 +118,36 @@ class SniTunServerSingle:
             self._loop.create_task(
                 self._list_peer.handle_connection(reader, writer, data=data)
             )
+
+
+class SniTunServerWorker:
+    """SniTunServer helper class for Worker."""
+
+    def __init__(
+        self,
+        fernet_keys: List[str],
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+        worker_size: Optional[int] = None,
+        throttling: Optional[int] = None,
+    ):
+        """Initialize SniTun Server."""
+        self._host: Optional[str] = host
+        self._port: int = port or 443
+        self._fernet_keys: List[str] = fernet_keys
+        self._throttling: Optional[int] = throttling
+        self._worker_size: int = worker_size or (cpu_count() * 2)
+        self._worker: List[ServerWorker] = []
+
+        # TCP server
+        self._server: Optional[socket.socket] = None
+        self._poller: Optional[select.epoll] = None
+
+    def start(self) -> None:
+        """Run server."""
+
+    def stop(self) -> None:
+        """Stop server."""
+
+    def _handle_connections(self) -> None:
+        """Handle incoming connection."""
