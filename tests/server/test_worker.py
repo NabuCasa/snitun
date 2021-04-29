@@ -1,5 +1,4 @@
 """Tests for the server worker."""
-import asyncio
 from datetime import datetime, timedelta
 import hashlib
 import os

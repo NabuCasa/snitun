@@ -1,7 +1,7 @@
 """SniTun worker for traffics."""
 import asyncio
 from multiprocessing import Process, Manager, Queue
-from threading import Thread, Event
+from threading import Thread
 from typing import Dict, Optional, List, Tuple
 from socket import socket
 
