@@ -25,20 +25,25 @@ class ServerWorker(Process):
         self._fernet_keys: List[str] = fernet_keys
         self._throttling: Optional[int] = throttling
 
+        # Used on the child
         self._peers: Optional[PeerManager] = None
         self._list_sni: Optional[SNIProxy] = None
         self._list_peer: Optional[PeerListener] = None
+        self._loop: Optional[asyncio.BaseEventLoop] = None
 
+        # Communication between Parent/Child
         self._manager: Manager = Manager()
         self._new: Queue = self._manager.Queue()
         self._sync: Dict[str, None] = self._manager.dict()
         self._closing: Event = self._manager.Event()
 
-        self._loop: Optional[asyncio.BaseEventLoop] = None
-
     async def _async_init(self) -> None:
         """Initialize child process data."""
-        self._peers = PeerManager(self._fernet_keys, throttling=self._throttling)
+        self._peers = PeerManager(
+            self._fernet_keys,
+            throttling=self._throttling,
+            event_callback=self._event_stream,
+        )
         self._list_sni = SNIProxy(self._peers)
         self._list_peer = PeerListener(self._peers)
 
