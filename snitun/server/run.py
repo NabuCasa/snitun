@@ -213,7 +213,7 @@ class SniTunServerWorker(Thread):
                     con = connections.pop(fileno)
                     con.close()
 
-    def _process(self, con: socket.socket, workers: Iterable[ServerWorker]) -> None:
+    def _process(self, con: socket.socket, workers_lb: Iterable[ServerWorker]) -> None:
         """Process connection & helo."""
         data = b""
         try:
@@ -243,4 +243,4 @@ class SniTunServerWorker(Thread):
             con.shutdown()
 
         else:
-            next(workers).handover_connection(con, data)
+            next(workers_lb).handover_connection(con, data)
