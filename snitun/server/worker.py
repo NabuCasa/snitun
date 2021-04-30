@@ -63,20 +63,14 @@ class ServerWorker(Process):
             self._sync.pop(peer.hostname, None)
 
     def shutdown(self) -> None:
-        """Shutdown child process.
-
-        This function blocking, don't call it inside loop!
-        """
+        """Shutdown child process."""
         self._new.put(None)
         self.join(10)
 
     def handover_connection(
         self, con: socket, data: bytes, sni: Optional[str] = None
     ) -> None:
-        """Move new connection to worker.
-
-        Async friendly.
-        """
+        """Move new connection to worker."""
         self._new.put_nowait((con, data, sni))
 
     def run(self) -> None:

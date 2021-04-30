@@ -1,10 +1,11 @@
 """SniTun reference implementation."""
 import asyncio
+from itertools import cycle
 import logging
 from multiprocessing import cpu_count
 import select
 import socket
-from typing import Awaitable, List, Optional
+from typing import Awaitable, Iterable, List, Optional
 from threading import Thread
 
 import async_timeout
@@ -13,6 +14,7 @@ from .listener_peer import PeerListener
 from .listener_sni import SNIProxy
 from .peer_manager import PeerManager
 from .worker import ServerWorker
+from .sni import ParseSNIError, parse_tls_sni
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -183,6 +185,7 @@ class SniTunServerWorker(Thread):
         """Handle incoming connection."""
         fd_server = self._server.fileno()
         connections = {}
+        worker_lb = cycle(self._workers)
 
         while self._running:
             events = self._poller.poll(1)
@@ -192,20 +195,51 @@ class SniTunServerWorker(Thread):
                     con, _ = self._server.accept()
                     con.setblocking(False)
 
-                    self._poller.register(con.fileno(), select.EPOLLIN)
+                    self._poller.register(
+                        con.fileno(), select.EPOLLIN | select.EPOLLHUP | select.EPOLLERR
+                    )
                     connections[con.fileno()] = con
 
                 # Read hello & forward to worker
                 elif event & select.EPOLLIN:
                     self._poller.unregister(fileno)
                     con = connections.pop(fileno)
-                    self._process(con)
+                    self._process(con, worker_lb)
 
                 # Close
-                elif event & select.EPOLLHUP:
+                else:
                     self._poller.unregister(fileno)
                     con = connections.pop(fileno)
                     con.close()
 
-    def _process(self, con: socket.socket) -> None:
+    def _process(self, con: socket.socket, workers: Iterable[ServerWorker]) -> None:
         """Process connection & helo."""
+        data = b""
+        try:
+            data = con.recv(2048)
+        except OSError as err:
+            _LOGGER.warning("Receive fails: %s", err)
+
+        # No data received
+        if not data:
+            con.shutdown()
+            return
+
+        # Detect type of incoming stream
+        if data[0] == 0x16:
+            try:
+                hostname = parse_tls_sni(data)
+            except ParseSNIError:
+                _LOGGER.warning("Receive invalid ClientHello on public Interface")
+            else:
+                for worker in self._workers:
+                    if not worker.is_responsible_peer(hostname):
+                        continue
+                    worker.handover_connection(con, data, sni=hostname)
+                    return
+                _LOGGER.warning("No responsible worker for %s", hostname)
+
+            con.shutdown()
+
+        else:
+            next(workers).handover_connection(con, data)
