@@ -287,7 +287,7 @@ def test_snitun_worker_timeout(loop):
     """Test SniTunWorker Server runner object timeout."""
     from snitun.server import run
 
-    run.WORKER_STALE_MAX = 0
+    run.WORKER_STALE_MAX = 1
     server = SniTunServerWorker(
         FERNET_TOKENS, host="127.0.0.1", port=32001, worker_size=2
     )
@@ -297,7 +297,7 @@ def test_snitun_worker_timeout(loop):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(("127.0.0.1", 32001))
 
-    time.sleep(1)
+    time.sleep(2)
 
     with pytest.raises(OSError):
         valid = datetime.utcnow() + timedelta(days=1)
