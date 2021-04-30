@@ -281,3 +281,37 @@ def test_snitun_worker_runner(loop):
 
     sock_ssl.close()
     server.stop()
+
+
+def test_snitun_worker_timeout(loop):
+    """Test SniTunWorker Server runner object timeout."""
+    from snitun.server import run
+
+    run.WORKER_STALE_MAX = 0
+    server = SniTunServerWorker(
+        FERNET_TOKENS, host="127.0.0.1", port=32001, worker_size=2
+    )
+
+    server.start()
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(("127.0.0.1", 32001))
+
+    time.sleep(1)
+
+    with pytest.raises(OSError):
+        valid = datetime.utcnow() + timedelta(days=1)
+        aes_key = os.urandom(32)
+        aes_iv = os.urandom(16)
+        hostname = "localhost"
+        fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
+
+        crypto = CryptoTransport(aes_key, aes_iv)
+
+        sock.sendall(fernet_token)
+
+        token = sock.recv(32)
+        token = hashlib.sha256(crypto.decrypt(token)).digest()
+        sock.sendall(crypto.encrypt(token))
+
+    server.stop()

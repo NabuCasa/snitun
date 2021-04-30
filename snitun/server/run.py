@@ -5,7 +5,7 @@ import logging
 from multiprocessing import cpu_count
 import select
 import socket
-from typing import Awaitable, Iterable, List, Optional
+from typing import Awaitable, Iterable, List, Optional, Dict
 from threading import Thread
 
 import async_timeout
@@ -17,6 +17,8 @@ from .worker import ServerWorker
 from .sni import ParseSNIError, parse_tls_sni
 
 _LOGGER = logging.getLogger(__name__)
+
+WORKER_STALE_MAX = 20
 
 
 class SniTunServer:
@@ -185,8 +187,9 @@ class SniTunServerWorker(Thread):
     def run(self) -> None:
         """Handle incoming connection."""
         fd_server = self._server.fileno()
-        connections = {}
+        connections: Dict[int, socket.socket] = {}
         worker_lb = cycle(self._workers)
+        stale: Dict[int, int] = {}
 
         while self._running:
             events = self._poller.poll(1)
@@ -200,6 +203,7 @@ class SniTunServerWorker(Thread):
                         con.fileno(), select.EPOLLIN | select.EPOLLHUP | select.EPOLLERR
                     )
                     connections[con.fileno()] = con
+                    stale[con.fileno()] = 0
 
                 # Read hello & forward to worker
                 elif event & select.EPOLLIN:
@@ -212,6 +216,17 @@ class SniTunServerWorker(Thread):
                     self._poller.unregister(fileno)
                     con = connections.pop(fileno)
                     con.close()
+
+            # cleanup stale connection
+            for con in tuple(stale.keys()):
+                if con not in connections:
+                    stale.pop(con)
+                elif stale[con] >= WORKER_STALE_MAX:
+                    self._poller.unregister(con)
+                    con = connections.pop(con)
+                    con.close()
+                else:
+                    stale[con] += 1
 
     def _process(self, con: socket.socket, workers_lb: Iterable[ServerWorker]) -> None:
         """Process connection & helo."""
