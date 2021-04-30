@@ -100,7 +100,7 @@ class SniTunServerSingle:
     ) -> None:
         """Handle incoming connection."""
         try:
-            async with async_timeout.timeout(5):
+            async with async_timeout.timeout(10):
                 data = await reader.read(2048)
         except asyncio.TimeoutError:
             _LOGGER.warning("Abort connection initializing")
