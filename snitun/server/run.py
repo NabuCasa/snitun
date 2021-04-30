@@ -18,7 +18,7 @@ from .sni import ParseSNIError, parse_tls_sni
 
 _LOGGER = logging.getLogger(__name__)
 
-WORKER_STALE_MAX = 20
+WORKER_STALE_MAX = 10
 
 
 class SniTunServer:
