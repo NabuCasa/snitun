@@ -118,9 +118,6 @@ async def test_snitun_single_runner():
 
 async def test_snitun_single_runner_timeout(raise_timeout):
     """Test SniTunSingle Server runner object."""
-    peer_messages = []
-    peer_address = []
-
     server = SniTunServerSingle(FERNET_TOKENS, host="127.0.0.1", port="32000")
     await server.start()
 
