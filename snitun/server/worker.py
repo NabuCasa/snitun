@@ -102,7 +102,11 @@ class ServerWorker(Process):
         self, con: socket, data: bytes, sni: Optional[str]
     ) -> None:
         """Handle incoming connection."""
-        reader, writer = await asyncio.open_connection(sock=con)
+        try:
+            reader, writer = await asyncio.open_connection(sock=con)
+        except OSError:
+            con.close()
+            return
 
         # Select the correct handler for process connection
         if sni:
