@@ -74,7 +74,7 @@ class SniTunServerSingle:
         self._peers: PeerManager = PeerManager(fernet_keys, throttling=throttling)
         self._list_sni: SNIProxy = SNIProxy(self._peers)
         self._list_peer: PeerListener = PeerListener(self._peers)
-        self._host: Optional[str] = host
+        self._host: str = host or "0.0.0.0"
         self._port: int = port or 443
 
     @property
