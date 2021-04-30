@@ -4,12 +4,13 @@ from datetime import datetime, timedelta
 import hashlib
 import ipaddress
 import os
+import time
 
 import pytest
 
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
-from snitun.server.run import SniTunServer, SniTunServerSingle
+from snitun.server.run import SniTunServer, SniTunServerSingle, SniTunServerWorker
 
 from .const_fernet import FERNET_TOKENS, create_peer_config
 from .const_tls import TLS_1_2
@@ -17,7 +18,7 @@ from .const_tls import TLS_1_2
 IP_ADDR = ipaddress.ip_address("127.0.0.1")
 
 
-async def test_snitun_runner():
+async def test_snitun_runner_updown():
     """Test SniTun Server runner object."""
     server = SniTunServer(
         FERNET_TOKENS, peer_host="127.0.0.1", sni_host="127.0.0.1", sni_port=32000
@@ -28,6 +29,30 @@ async def test_snitun_runner():
     await asyncio.sleep(0.1)
 
     await server.stop()
+
+
+async def test_snitun_single_runner_updown():
+    """Test SniTun Single Server runner object."""
+    server = SniTunServerSingle(FERNET_TOKENS, host="127.0.0.1", port=32000)
+
+    await server.start()
+
+    await asyncio.sleep(0.1)
+
+    await server.stop()
+
+
+def test_snitun_worker_runner_updown(loop):
+    """Test SniTun Worker Server runner object."""
+    server = SniTunServerWorker(
+        FERNET_TOKENS, host="127.0.0.1", port=32000, worker_size=2
+    )
+
+    server.start()
+
+    time.sleep(0.1)
+
+    server.stop()
 
 
 async def test_snitun_single_runner():

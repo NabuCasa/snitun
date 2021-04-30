@@ -178,6 +178,7 @@ class SniTunServerWorker(Thread):
             worker.shutdown()
             worker.close()
 
+        self._workers.clear()
         self._server.close()
         self._poller.close()
 
