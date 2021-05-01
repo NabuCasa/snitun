@@ -2,7 +2,7 @@
 import asyncio
 from multiprocessing import Process, Manager, Queue
 from threading import Thread
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, Optional, List
 from socket import socket
 
 from .listener_peer import PeerListener
