@@ -218,7 +218,7 @@ class SniTunServerWorker(Thread):
                     con.close()
 
             # cleanup stale connection
-            for con in tuple(stale.keys()):
+            for con in tuple(stale):
                 if con not in connections:
                     stale.pop(con)
                 elif stale[con] >= WORKER_STALE_MAX:
