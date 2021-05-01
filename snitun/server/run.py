@@ -218,15 +218,15 @@ class SniTunServerWorker(Thread):
                     con.close()
 
             # cleanup stale connection
-            for con in tuple(stale):
-                if con not in connections:
-                    stale.pop(con)
-                elif stale[con] >= WORKER_STALE_MAX:
-                    self._poller.unregister(con)
-                    con = connections.pop(con)
+            for fileno in tuple(stale):
+                if fileno not in connections:
+                    stale.pop(fileno)
+                elif stale[fileno] >= WORKER_STALE_MAX:
+                    self._poller.unregister(fileno)
+                    con = connections.pop(fileno)
                     con.close()
                 else:
-                    stale[con] += 1
+                    stale[fileno] += 1
 
     def _process(self, con: socket.socket, workers_lb: Iterable[ServerWorker]) -> None:
         """Process connection & helo."""
