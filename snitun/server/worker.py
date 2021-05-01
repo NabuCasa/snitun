@@ -84,7 +84,7 @@ class ServerWorker(Process):
         asyncio.run_coroutine_threadsafe(self._async_init(), loop=loop).result()
 
         while True:
-            new: Tuple[socket, bytes, Optional[str]] = self._new.get()
+            new = self._new.get()
             if new is None:
                 break
 

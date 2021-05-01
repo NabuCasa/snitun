@@ -241,21 +241,22 @@ class SniTunServerWorker(Thread):
             con.shutdown()
             return
 
-        # Detect type of incoming stream
-        if data[0] == 0x16:
-            try:
-                hostname = parse_tls_sni(data)
-            except ParseSNIError:
-                _LOGGER.warning("Receive invalid ClientHello on public Interface")
-            else:
-                for worker in self._workers:
-                    if not worker.is_responsible_peer(hostname):
-                        continue
-                    worker.handover_connection(con, data, sni=hostname)
-                    return
-                _LOGGER.warning("No responsible worker for %s", hostname)
-
-            con.shutdown()
-
-        else:
+        # Peer connection
+        if data[0] != 0x16:
             next(workers_lb).handover_connection(con, data)
+            return
+
+        # TLS/SSL connection
+        try:
+            hostname = parse_tls_sni(data)
+        except ParseSNIError:
+            _LOGGER.warning("Receive invalid ClientHello on public Interface")
+        else:
+            for worker in self._workers:
+                if not worker.is_responsible_peer(hostname):
+                    continue
+                worker.handover_connection(con, data, sni=hostname)
+                return
+            _LOGGER.warning("No responsible worker for %s", hostname)
+
+        con.shutdown()
