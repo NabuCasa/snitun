@@ -29,7 +29,6 @@ class ServerWorker(Process):
         self._peers: Optional[PeerManager] = None
         self._list_sni: Optional[SNIProxy] = None
         self._list_peer: Optional[PeerListener] = None
-        self._loop: Optional[asyncio.BaseEventLoop] = None
 
         # Communication between Parent/Child
         self._manager: Manager = Manager()
@@ -75,14 +74,14 @@ class ServerWorker(Process):
 
     def run(self) -> None:
         """Running worker process."""
-        self._loop = asyncio.new_event_loop()
+        loop = asyncio.new_event_loop()
 
         # Start eventloop
-        running_loop = Thread(target=self._loop.run_forever)
+        running_loop = Thread(target=loop.run_forever)
         running_loop.start()
 
         # Init backend
-        asyncio.run_coroutine_threadsafe(self._async_init(), loop=self._loop).result()
+        asyncio.run_coroutine_threadsafe(self._async_init(), loop=loop).result()
 
         while True:
             new: Tuple[socket, bytes, Optional[str]] = self._new.get()
@@ -90,12 +89,12 @@ class ServerWorker(Process):
                 break
 
             new[0].setblocking(False)
-            asyncio.run_coroutine_threadsafe(
-                self._async_new_connection(*new), loop=self._loop
+            loop.call_soon_threadsafe(
+                asyncio.create_task, self._async_new_connection(*new)
             )
 
         # Shutdown worker
-        self._loop.call_soon_threadsafe(self._loop.stop)
+        loop.call_soon_threadsafe(loop.stop)
         running_loop.join(10)
 
     async def _async_new_connection(
@@ -109,11 +108,12 @@ class ServerWorker(Process):
             return
 
         # Select the correct handler for process connection
+        loop = asyncio.get_running_loop()
         if sni:
-            self._loop.create_task(
+            loop.create_task(
                 self._list_sni.handle_connection(reader, writer, data=data, sni=sni)
             )
         else:
-            self._loop.create_task(
+            loop.create_task(
                 self._list_peer.handle_connection(reader, writer, data=data)
             )
