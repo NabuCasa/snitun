@@ -4,6 +4,9 @@ from datetime import datetime, timedelta
 import logging
 import os
 from unittest.mock import patch
+import select
+import socket
+from threading import Thread
 
 import attr
 import pytest
@@ -84,6 +87,62 @@ async def test_client(test_server):
     yield Client(reader, writer)
 
     writer.close()
+
+
+@pytest.fixture
+def test_server_sync(loop):
+    """Create a TCP test server."""
+    connections = []
+    shutdown = False
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 8366))
+    sock.listen(2)
+    sock.setblocking(False)
+
+    def _incoming() -> None:
+        nonlocal shutdown
+        poller = select.epoll()
+
+        poller.register(sock, select.EPOLLIN)
+        while not shutdown:
+            events = poller.poll(0.1)
+            for _, _ in events:
+                connection, _ = sock.accept()
+                connections.append(connection)
+
+        poller.close()
+
+    runner = Thread(target=_incoming)
+    runner.start()
+
+    yield connections
+
+    shutdown = True
+    runner.join()
+    sock.close()
+
+
+@pytest.fixture
+def test_client_sync(test_server_sync):
+    """Create a TCP test client."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(("127.0.0.1", 8366))
+
+    yield sock
+
+    sock.close()
+
+
+@pytest.fixture
+def test_client_ssl_sync(test_server_sync):
+    """Create a TCP test client for SSL."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(("127.0.0.1", 8366))
+
+    yield sock
+
+    sock.close()
 
 
 @pytest.fixture
