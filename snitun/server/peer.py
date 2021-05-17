@@ -82,9 +82,9 @@ class Peer:
             MultiplexerTransportDecrypt,
             AssertionError,
             OSError,
-        ):
+        ) as err:
             _LOGGER.warning("Wrong challenge from peer")
-            raise SniTunChallengeError()
+            raise SniTunChallengeError() from err
 
         # Start Multiplexer
         self._multiplexer = Multiplexer(

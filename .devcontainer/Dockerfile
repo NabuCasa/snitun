@@ -1,4 +1,7 @@
-FROM python:3.7
+FROM mcr.microsoft.com/vscode/devcontainers/python:0-3.8
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 
 WORKDIR /workspaces
 

@@ -1,4 +1,5 @@
 # SniTun
+
 End-to-End encryption with SNI proxy on top of a TCP multiplexer
 
 ## Connection flow
@@ -24,10 +25,10 @@ The session master create a fernet token from client's config (aes/whitelist) an
 
 ```json
 {
-    "valid": 1923841,
-    "hostname": "myname.ui.nabu.casa",
-    "aes_key": "hexstring",
-    "aes_iv": "hexstring"
+  "valid": 1923841,
+  "hostname": "myname.ui.nabu.casa",
+  "aes_key": "hexstring",
+  "aes_iv": "hexstring"
 }
 ```
 
@@ -42,21 +43,21 @@ SniTun server create a SHA256 from a random 40bit value. They will be encrypted 
 ## Multiplexer protocol
 
 The header is encrypted with AES / CBC. The Payload should be SSL!
-The UUID change for every TCP connection and is single for every connection. The Size is for the DATA Payload.
+The ID change for every TCP connection and is single for every connection. The Size is for the DATA Payload.
 
 Extra could be additional information like on NEW message it contain the caller IP address. Otherwise it's random bits.
 
 ```
 |________________________________________________________|
 |-----------------HEADER---------------------------------|______________________________________________|
-|-----UUID----|--FLAG--|--SIZE--|---------EXTRA ---------|--------------------DATA----------------------|
+|------ID-----|--FLAG--|--SIZE--|---------EXTRA ---------|--------------------DATA----------------------|
 |   16 bytes  | 1 byte | 4 bytes|       11 bytes         |                  variable                    |
 |--------------------------------------------------------|----------------------------------------------|
 ```
 
 Message Flags/Types:
 
- - `0x01`: New | Extra data include first byte a ASCII value as `4` or `6` follow by the caller IP in bytes
- - `0x02`: DATA
- - `0x04`: Close
- - `0x05`: Ping | Extra data are `ping` or `pong` as response of a ping.
+- `0x01`: New | Extra data include first byte a ASCII value as `4` or `6` follow by the caller IP in bytes
+- `0x02`: DATA
+- `0x04`: Close
+- `0x05`: Ping | Extra data are `ping` or `pong` as response of a ping.

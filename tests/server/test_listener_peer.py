@@ -19,7 +19,6 @@ async def test_init_listener(peer_manager):
 
     await asyncio.sleep(0.1)
 
-    yield listener
     await listener.stop()
 
 

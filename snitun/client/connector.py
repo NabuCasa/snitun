@@ -95,12 +95,12 @@ class Connector:
                     await writer.drain()
 
         except (MultiplexerTransportError, OSError, RuntimeError):
-            _LOGGER.debug("Transport closed by endpoint for %s", channel.uuid)
+            _LOGGER.debug("Transport closed by endpoint for %s", channel.id)
             with suppress(MultiplexerTransportError):
                 await multiplexer.delete_channel(channel)
 
         except MultiplexerTransportClose:
-            _LOGGER.debug("Peer close connection for %s", channel.uuid)
+            _LOGGER.debug("Peer close connection for %s", channel.id)
 
         finally:
             # Cleanup peer reader

@@ -4,10 +4,10 @@
   "context": "..",
   "dockerFile": "Dockerfile",
   "postCreateCommand": "pip3 install -e .",
-  "runArgs": ["-e", "GIT_EDITOR=\"code --wait\""],
+  "runArgs": ["-e", "GIT_EDITOR=code --wait"],
   "extensions": [
-    "ms-python.python",
-    "ms-azure-devops.azure-pipelines",
+    "ms-python.vscode-pylance",
+    "visualstudioexptteam.vscodeintellicode",
     "esbenp.prettier-vscode"
   ],
   "settings": {
@@ -15,7 +15,7 @@
     "python.linting.pylintEnabled": true,
     "python.linting.enabled": true,
     "python.formatting.provider": "black",
-    "python.formatting.blackArgs": ["--target-version", "py36"],
+    "python.formatting.blackArgs": ["--target-version", "py38"],
     "editor.formatOnPaste": false,
     "editor.formatOnSave": true,
     "editor.formatOnType": true,

@@ -1,4 +1,7 @@
 """Multiplexer message handling."""
+import binascii
+import os
+
 import attr
 
 CHANNEL_FLOW_NEW = 0x01
@@ -14,11 +17,28 @@ CHANNEL_FLOW_ALL = [
 ]
 
 
-@attr.s(frozen=True)
+@attr.s(frozen=True, slots=True, eq=True, hash=True)
+class MultiplexerChannelId:
+    """Represent a channel ID aka multiplexer stream."""
+
+    bytes: bytes = attr.ib(default=attr.Factory(lambda: os.urandom(16)), eq=True)
+    hex: str = attr.ib(
+        default=attr.Factory(
+            lambda self: binascii.hexlify(self.bytes).decode(), takes_self=True
+        ),
+        eq=False,
+    )
+
+    def __str__(self) -> str:
+        """Return string representation for logger."""
+        return self.hex
+
+
+@attr.s(frozen=True, slots=True)
 class MultiplexerMessage:
     """Represent a message from multiplexer stream."""
 
-    channel_id = attr.ib(type=str)
-    flow_type = attr.ib(type=int, validator=attr.validators.in_(CHANNEL_FLOW_ALL))
-    data = attr.ib(type=bytes, default=b"")
-    extra = attr.ib(type=bytes, default=b"")
+    id: MultiplexerChannelId = attr.ib()
+    flow_type: int = attr.ib(validator=attr.validators.in_(CHANNEL_FLOW_ALL))
+    data: bytes = attr.ib(default=b"")
+    extra: bytes = attr.ib(default=b"")
