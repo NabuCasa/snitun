@@ -154,10 +154,7 @@ class SniTunServerWorker(Thread):
     @property
     def peer_counter(self) -> int:
         """Return number of active peer connections."""
-        total = 0
-        for worker in self._workers:
-            total += worker.peer_size
-        return total
+        return sum(worker.peer_size for worker in self._workers)
 
     def start(self) -> None:
         """Run server."""
