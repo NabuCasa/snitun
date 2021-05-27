@@ -139,7 +139,7 @@ class SniTunServerWorker(Thread):
         """Initialize SniTun Server."""
         super().__init__()
 
-        self._host: Optional[str] = host
+        self._host: str = host or "0.0.0.0"
         self._port: int = port or 443
         self._fernet_keys: List[str] = fernet_keys
         self._throttling: Optional[int] = throttling
@@ -150,6 +150,11 @@ class SniTunServerWorker(Thread):
         # TCP server
         self._server: Optional[socket.socket] = None
         self._poller: Optional[select.epoll] = None
+
+    @property
+    def peer_counter(self) -> int:
+        """Return number of active peer connections."""
+        return sum(worker.peer_size for worker in self._workers)
 
     def start(self) -> None:
         """Run server."""
