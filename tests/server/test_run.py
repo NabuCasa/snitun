@@ -247,6 +247,7 @@ def test_snitun_worker_runner(loop):
 
     time.sleep(1)
     assert any(worker.is_responsible_peer(hostname) for worker in server._workers)
+    assert server.peer_counter == 1
 
     async def mock_new_channel(multiplexer, channel):
         """Mock new channel."""
