@@ -139,7 +139,7 @@ class SniTunServerWorker(Thread):
         """Initialize SniTun Server."""
         super().__init__()
 
-        self._host: Optional[str] = host or "0.0.0.0"
+        self._host: str = host or "0.0.0.0"
         self._port: int = port or 443
         self._fernet_keys: List[str] = fernet_keys
         self._throttling: Optional[int] = throttling
