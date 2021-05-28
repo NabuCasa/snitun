@@ -243,7 +243,7 @@ class SniTunServerWorker(Thread):
 
         # No data received
         if not data:
-            con.shutdown()
+            con.shutdown(socket.SHUT_RDWR)
             return
 
         # Peer connection
@@ -264,4 +264,4 @@ class SniTunServerWorker(Thread):
                 return
             _LOGGER.warning("No responsible worker for %s", hostname)
 
-        con.shutdown()
+        con.shutdown(socket.SHUT_RDWR)
