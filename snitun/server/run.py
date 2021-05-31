@@ -253,6 +253,7 @@ class SniTunServerWorker(Thread):
         # Peer connection
         if data[0] != 0x16:
             next(workers_lb).handover_connection(con, data)
+            _LOGGER.debug("Handover new peer connection: %s", data)
             return
 
         # TLS/SSL connection
