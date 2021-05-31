@@ -1,5 +1,6 @@
 """SniTun reference implementation."""
 import asyncio
+from contextlib import suppress
 from itertools import cycle
 import logging
 from multiprocessing import cpu_count
@@ -240,15 +241,19 @@ class SniTunServerWorker(Thread):
             data = con.recv(2048)
         except OSError as err:
             _LOGGER.warning("Receive fails: %s", err)
+            con.close()
+            return
 
         # No data received
         if not data:
-            con.shutdown(socket.SHUT_RDWR)
+            with suppress(OSError):
+                con.shutdown(socket.SHUT_RDWR)
             return
 
         # Peer connection
         if data[0] != 0x16:
             next(workers_lb).handover_connection(con, data)
+            _LOGGER.debug("Handover new peer connection: %s", data)
             return
 
         # TLS/SSL connection
@@ -261,7 +266,10 @@ class SniTunServerWorker(Thread):
                 if not worker.is_responsible_peer(hostname):
                     continue
                 worker.handover_connection(con, data, sni=hostname)
+
+                _LOGGER.info("Handover %s to %s", hostname, worker.name)
                 return
             _LOGGER.warning("No responsible worker for %s", hostname)
 
-        con.shutdown(socket.SHUT_RDWR)
+        with suppress(OSError):
+            con.shutdown(socket.SHUT_RDWR)
