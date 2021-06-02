@@ -117,11 +117,11 @@ class SniTunServerSingle:
 
         # Select the correct handler for process data
         if data[0] == 0x16:
-            self._loop.create_task(
+            asyncio.create_task(
                 self._list_sni.handle_connection(reader, writer, data=data)
             )
         elif data.startswith(b"gA"):
-            self._loop.create_task(
+            asyncio.create_task(
                 self._list_peer.handle_connection(reader, writer, data=data)
             )
         else:

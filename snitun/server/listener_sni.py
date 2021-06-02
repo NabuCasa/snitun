@@ -126,9 +126,9 @@ class SNIProxy:
             # Process stream into multiplexer
             while not transport.is_closing():
                 if not from_proxy:
-                    from_proxy = self._loop.create_task(reader.read(4096))
+                    from_proxy = asyncio.create_task(reader.read(4096))
                 if not from_peer:
-                    from_peer = self._loop.create_task(channel.read())
+                    from_peer = asyncio.create_task(channel.read())
 
                 # Wait until data need to be processed
                 async with async_timeout.timeout(TCP_SESSION_TIMEOUT):

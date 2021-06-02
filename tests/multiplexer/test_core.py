@@ -87,7 +87,7 @@ async def test_multiplexer_client_close(multiplexer_server, multiplexer_client):
 async def test_multiplexer_ping(loop, test_server, multiplexer_client):
     """Test a ping between peers."""
     client = test_server[0]
-    ping_task = loop.create_task(multiplexer_client.ping())
+    ping_task = asyncio.create_task(multiplexer_client.ping())
 
     await asyncio.sleep(0.1)
 
@@ -107,7 +107,7 @@ async def test_multiplexer_ping_error(loop, test_server, multiplexer_client):
     multi_core.PEER_TCP_TIMEOUT = 0.2
 
     client = test_server[0]
-    ping_task = loop.create_task(multiplexer_client.ping())
+    ping_task = asyncio.create_task(multiplexer_client.ping())
 
     await asyncio.sleep(0.3)
 
@@ -250,8 +250,8 @@ async def test_multiplexer_channel_shutdown(
 
     channel_server = multiplexer_server._channels.get(channel_client.id)
 
-    client_read = loop.create_task(channel_client.read())
-    server_read = loop.create_task(channel_server.read())
+    client_read = asyncio.create_task(channel_client.read())
+    server_read = asyncio.create_task(channel_server.read())
 
     assert not client_read.done()
     assert not server_read.done()
@@ -323,8 +323,8 @@ async def test_multiplexer_throttling(loop, multiplexer_client, multiplexer_serv
             data = await channel_server.read()
             data_in.append(data)
 
-    receiver = loop.create_task(_receiver())
-    sender = loop.create_task(_sender())
+    receiver = asyncio.create_task(_receiver())
+    sender = asyncio.create_task(_sender())
     await asyncio.sleep(0.8)
 
     assert not sender.done()
@@ -351,8 +351,8 @@ async def test_multiplexer_core_peer_timeout(
 
     channel_server = multiplexer_server._channels.get(channel_client.id)
 
-    client_read = loop.create_task(channel_client.read())
-    server_read = loop.create_task(channel_server.read())
+    client_read = asyncio.create_task(channel_client.read())
+    server_read = asyncio.create_task(channel_server.read())
 
     assert not client_read.done()
     assert not server_read.done()

@@ -61,7 +61,7 @@ class Multiplexer:
         self._loop = asyncio.get_event_loop()
         self._queue = asyncio.Queue(12000)
         self._healthy = asyncio.Event()
-        self._processing_task = self._loop.create_task(self._runner())
+        self._processing_task = asyncio.create_task(self._runner())
         self._channels = {}
         self._new_connections = new_connections
         self._throttling = 1 / throttling if throttling else None
@@ -123,10 +123,10 @@ class Multiplexer:
         try:
             while not transport.is_closing():
                 if not from_peer:
-                    from_peer = self._loop.create_task(self._reader.readexactly(32))
+                    from_peer = asyncio.create_task(self._reader.readexactly(32))
 
                 if not to_peer:
-                    to_peer = self._loop.create_task(self._queue.get())
+                    to_peer = asyncio.create_task(self._queue.get())
 
                 # Wait until data need to be processed
                 async with async_timeout.timeout(PEER_TCP_TIMEOUT):
@@ -243,7 +243,7 @@ class Multiplexer:
             elif channel.healthy:
                 _LOGGER.warning("Abort connection, channel is not healthy")
                 channel.close()
-                self._loop.create_task(self.delete_channel(channel))
+                asyncio.create_task(self.delete_channel(channel))
             else:
                 channel.message_transport(message)
 
@@ -262,7 +262,7 @@ class Multiplexer:
                 throttling=self._throttling,
             )
             self._channels[channel.id] = channel
-            self._loop.create_task(self._new_connections(self, channel))
+            asyncio.create_task(self._new_connections(self, channel))
 
         # Close
         elif message.flow_type == CHANNEL_FLOW_CLOSE:

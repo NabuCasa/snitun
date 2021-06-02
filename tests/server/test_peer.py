@@ -35,7 +35,7 @@ async def test_init_peer_multiplexer(loop, test_client, test_server):
     with pytest.raises(RuntimeError):
         await peer.wait_disconnect()
 
-    init_task = loop.create_task(
+    init_task = asyncio.create_task(
         peer.init_multiplexer_challenge(test_client.reader, test_client.writer)
     )
     await asyncio.sleep(0.1)
@@ -76,7 +76,7 @@ async def test_init_peer_multiplexer_crypto(loop, test_client, test_server):
     with pytest.raises(RuntimeError):
         await peer.wait_disconnect()
 
-    init_task = loop.create_task(
+    init_task = asyncio.create_task(
         peer.init_multiplexer_challenge(test_client.reader, test_client.writer)
     )
     await asyncio.sleep(0.1)
@@ -96,7 +96,7 @@ async def test_init_peer_multiplexer_crypto(loop, test_client, test_server):
     assert peer.is_ready
     assert peer.is_connected
 
-    ping_task = loop.create_task(peer.multiplexer.ping())
+    ping_task = asyncio.create_task(peer.multiplexer.ping())
     await asyncio.sleep(0.1)
 
     ping_data = await client.reader.read(1024)
@@ -127,7 +127,7 @@ async def test_init_peer_wrong_challenge(loop, test_client, test_server):
     with pytest.raises(RuntimeError):
         await peer.wait_disconnect()
 
-    init_task = loop.create_task(
+    init_task = asyncio.create_task(
         peer.init_multiplexer_challenge(test_client.reader, test_client.writer)
     )
     await asyncio.sleep(0.1)
@@ -170,7 +170,7 @@ async def test_init_peer_multiplexer_throttling(loop, test_client, test_server):
     with pytest.raises(RuntimeError):
         await peer.wait_disconnect()
 
-    init_task = loop.create_task(
+    init_task = asyncio.create_task(
         peer.init_multiplexer_challenge(test_client.reader, test_client.writer)
     )
     await asyncio.sleep(0.1)

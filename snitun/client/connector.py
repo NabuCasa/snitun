@@ -66,9 +66,9 @@ class Connector:
             # Process stream from multiplexer
             while not writer.transport.is_closing():
                 if not from_endpoint:
-                    from_endpoint = self._loop.create_task(reader.read(4096))
+                    from_endpoint = asyncio.create_task(reader.read(4096))
                 if not from_peer:
-                    from_peer = self._loop.create_task(channel.read())
+                    from_peer = asyncio.create_task(channel.read())
 
                 # Wait until data need to be processed
                 await asyncio.wait(

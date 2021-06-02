@@ -94,7 +94,7 @@ class ClientPeer:
         )
 
         # Task a process for pings/cleanups
-        self._loop.create_task(self._handler())
+        asyncio.create_task(self._handler())
 
     async def stop(self) -> None:
         """Stop connection to SniTun server."""

@@ -62,7 +62,7 @@ async def test_sni_proxy_flow_close_by_client(
     data = await channel.read()
     assert data == b"Very secret!"
 
-    ssl_client_read = loop.create_task(test_client_ssl.reader.read(2024))
+    ssl_client_read = asyncio.create_task(test_client_ssl.reader.read(2024))
     await asyncio.sleep(0.1)
     assert not ssl_client_read.done()
 
@@ -93,7 +93,7 @@ async def test_sni_proxy_flow_close_by_server(
     data = await channel.read()
     assert data == b"Very secret!"
 
-    client_read = loop.create_task(channel.read())
+    client_read = asyncio.create_task(channel.read())
     await asyncio.sleep(0.1)
     assert not client_read.done()
 
