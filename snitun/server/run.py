@@ -120,7 +120,7 @@ class SniTunServerSingle:
             self._loop.create_task(
                 self._list_sni.handle_connection(reader, writer, data=data)
             )
-        if data.startswith(b"gA"):
+        elif data.startswith(b"gA"):
             self._loop.create_task(
                 self._list_peer.handle_connection(reader, writer, data=data)
             )
