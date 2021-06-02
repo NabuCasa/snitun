@@ -151,6 +151,37 @@ async def test_snitun_single_runner_timeout(raise_timeout):
     await server.stop()
 
 
+async def test_snitun_single_runner_invalid_payload(raise_timeout):
+    """Test SniTunSingle Server runner object with invalid payload."""
+    server = SniTunServerSingle(FERNET_TOKENS, host="127.0.0.1", port="32000")
+    await server.start()
+
+    reader_peer, writer_peer = await asyncio.open_connection(
+        host="127.0.0.1", port="32000"
+    )
+
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    hostname = "localhost"
+
+    crypto = CryptoTransport(aes_key, aes_iv)
+
+    writer_peer.write(b"INVALID")
+    await writer_peer.drain()
+
+    with pytest.raises(ConnectionResetError):
+        token = await reader_peer.readexactly(32)
+        token = hashlib.sha256(crypto.decrypt(token)).digest()
+        writer_peer.write(crypto.encrypt(token))
+
+        await writer_peer.drain()
+        await asyncio.sleep(0.1)
+
+    assert not server.peers.peer_available(hostname)
+
+    await server.stop()
+
+
 async def test_snitun_single_runner_throttling():
     """Test SniTunSingle Server runner object."""
     peer_messages = []
@@ -298,21 +329,45 @@ def test_snitun_worker_timeout(loop):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(("127.0.0.1", 32001))
 
-    time.sleep(2)
+    time.sleep(1.5)
+
+    valid = datetime.utcnow() + timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    hostname = "localhost"
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
+    crypto = CryptoTransport(aes_key, aes_iv)
 
     with pytest.raises(OSError):
-        valid = datetime.utcnow() + timedelta(days=1)
-        aes_key = os.urandom(32)
-        aes_iv = os.urandom(16)
-        hostname = "localhost"
-        fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
-
-        crypto = CryptoTransport(aes_key, aes_iv)
-
         sock.sendall(fernet_token)
 
         token = sock.recv(32)
         token = hashlib.sha256(crypto.decrypt(token)).digest()
         sock.sendall(crypto.encrypt(token))
+
+    server.stop()
+
+
+def test_snitun_worker_runner_invalid_payload(loop):
+    """Test SniTunWorker Server runner invalid payload."""
+    server = SniTunServerWorker(
+        FERNET_TOKENS, host="127.0.0.1", port=32001, worker_size=2
+    )
+    server.start()
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(("127.0.0.1", 32001))
+
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    crypto = CryptoTransport(aes_key, aes_iv)
+
+    sock.sendall(b"INVALID")
+
+    with pytest.raises(OSError):
+        for _ in range(3):
+            token = sock.recv(32)
+            token = hashlib.sha256(crypto.decrypt(token)).digest()
+            sock.sendall(crypto.encrypt(token))
 
     server.stop()

@@ -120,10 +120,14 @@ class SniTunServerSingle:
             self._loop.create_task(
                 self._list_sni.handle_connection(reader, writer, data=data)
             )
-        else:
+        if data.startswith(b"gA"):
             self._loop.create_task(
                 self._list_peer.handle_connection(reader, writer, data=data)
             )
+        else:
+            _LOGGER.warning("No valid ClientHello found: %s", data)
+            writer.close()
+            return
 
 
 class SniTunServerWorker(Thread):
@@ -251,12 +255,18 @@ class SniTunServerWorker(Thread):
             return
 
         # Peer connection
-        if data[0] != 0x16:
+        if data.startswith(b"gA"):
             next(workers_lb).handover_connection(con, data)
             _LOGGER.debug("Handover new peer connection: %s", data)
             return
 
         # TLS/SSL connection
+        if data[0] != 0x16:
+            _LOGGER.warning("No valid ClientHello found: %s", data)
+            with suppress(OSError):
+                con.shutdown(socket.SHUT_RDWR)
+            return
+
         try:
             hostname = parse_tls_sni(data)
         except ParseSNIError:
