@@ -113,12 +113,11 @@ class ServerWorker(Process):
             return
 
         # Select the correct handler for process connection
-        loop = asyncio.get_running_loop()
         if sni:
-            loop.create_task(
+            asyncio.create_task(
                 self._list_sni.handle_connection(reader, writer, data=data, sni=sni)
             )
         else:
-            loop.create_task(
+            asyncio.create_task(
                 self._list_peer.handle_connection(reader, writer, data=data)
             )
