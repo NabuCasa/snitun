@@ -1,6 +1,6 @@
 from setuptools import setup
 
-VERSION = "0.26.0"
+VERSION = "0.25.1"
 
 setup(
     name="snitun",

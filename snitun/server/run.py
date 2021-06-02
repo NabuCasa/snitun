@@ -164,6 +164,7 @@ class SniTunServerWorker(Thread):
     def start(self) -> None:
         """Run server."""
         # Init first all worker, we don't want the epoll on the childs
+        _LOGGER.info("Run SniTun with %d worker", self._worker_size)
         for _ in range(self._worker_size):
             worker = ServerWorker(self._fernet_keys, throttling=self._throttling)
             worker.start()

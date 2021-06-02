@@ -1,5 +1,6 @@
 """SniTun worker for traffics."""
 import asyncio
+import logging
 from multiprocessing import Process, Manager, Queue
 from threading import Thread
 from typing import Dict, Optional, List
@@ -9,6 +10,8 @@ from .listener_peer import PeerListener
 from .listener_sni import SNIProxy
 from .peer_manager import PeerManager, PeerManagerEvent
 from .peer import Peer
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class ServerWorker(Process):
@@ -74,6 +77,7 @@ class ServerWorker(Process):
 
     def run(self) -> None:
         """Running worker process."""
+        _LOGGER.info("Start worker: %s", self.name)
         loop = asyncio.new_event_loop()
 
         # Start eventloop
@@ -94,6 +98,7 @@ class ServerWorker(Process):
             )
 
         # Shutdown worker
+        _LOGGER.info("Stop worker: %s", self.name)
         loop.call_soon_threadsafe(loop.stop)
         running_loop.join(10)
 
