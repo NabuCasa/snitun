@@ -78,7 +78,10 @@ class ServerWorker(Process):
     def run(self) -> None:
         """Running worker process."""
         _LOGGER.info("Start worker: %s", self.name)
+
+        # Init new event loop
         loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
         # Start eventloop
         running_loop = Thread(target=loop.run_forever)
