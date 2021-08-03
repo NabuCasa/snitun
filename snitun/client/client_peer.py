@@ -81,7 +81,7 @@ class ClientPeer:
             asyncio.IncompleteReadError,
             OSError,
         ) as err:
-            _LOGGER.error("Challenge/Response error with SniTun server")
+            _LOGGER.error("Challenge/Response error with SniTun server: %s", err)
             raise SniTunConnectionError() from err
 
         # Run multiplexer
