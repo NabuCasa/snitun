@@ -122,7 +122,7 @@ async def test_peer_listener_expire(peer_manager, peer_listener, test_client_pee
 
     listener_peer.CHECK_VALID_EXPIRE = 0.1
 
-    valid = datetime.utcnow() + timedelta(seconds=1)
+    valid = datetime.now() + timedelta(seconds=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
