@@ -52,6 +52,9 @@ class ClientPeer:
             raise RuntimeError("SniTun connection available")
 
         # Connect to SniTun server
+        _LOGGER.debug(
+            "Opening connection to %s:%s", self._snitun_host, self._snitun_port
+        )
         try:
             reader, writer = await asyncio.open_connection(
                 host=self._snitun_host, port=self._snitun_port
