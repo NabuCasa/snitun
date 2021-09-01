@@ -6,6 +6,7 @@ import ipaddress
 import os
 import socket
 import time
+from unittest.mock import patch
 
 import pytest
 
@@ -369,5 +370,25 @@ def test_snitun_worker_runner_invalid_payload(loop):
             token = sock.recv(32)
             token = hashlib.sha256(crypto.decrypt(token)).digest()
             sock.sendall(crypto.encrypt(token))
+
+    server.stop()
+
+
+@patch("snitun.server.run.os.kill")
+def test_snitun_worker_crash(kill, loop):
+    """Test SniTunWorker Server runner object with crashing worker."""
+    server = SniTunServerWorker(
+        FERNET_TOKENS, host="127.0.0.1", port=32001, worker_size=2
+    )
+
+    server.start()
+
+    for worker in server._workers:
+        worker.shutdown()
+        break
+
+    time.sleep(1.5)
+
+    assert kill.called
 
     server.stop()

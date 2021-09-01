@@ -4,11 +4,12 @@ from contextlib import suppress
 from itertools import cycle
 import logging
 from multiprocessing import cpu_count
+import os
 import select
+import signal
 import socket
 from typing import Awaitable, Iterable, List, Optional, Dict
 from threading import Thread
-import sys
 
 import async_timeout
 
@@ -245,7 +246,7 @@ class SniTunServerWorker(Thread):
                 if worker.is_alive():
                     continue
                 _LOGGER.critical("Worker '%s' crashed!", worker.name)
-                sys.exit(10)
+                os.kill(os.getpid(), signal.SIGINT)
 
     def _process(self, con: socket.socket, workers_lb: Iterable[ServerWorker]) -> None:
         """Process connection & helo."""
