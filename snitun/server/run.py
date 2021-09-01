@@ -289,7 +289,7 @@ class SniTunServerWorker(Thread):
 
                 _LOGGER.info("Handover %s to %s", hostname, worker.name)
                 return
-            _LOGGER.warning("No responsible worker for %s", hostname)
+            _LOGGER.debug("No responsible worker for %s", hostname)
 
         with suppress(OSError):
             con.shutdown(socket.SHUT_RDWR)
