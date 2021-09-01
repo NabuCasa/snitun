@@ -32,6 +32,7 @@ class ServerWorker(Process):
         self._peers: Optional[PeerManager] = None
         self._list_sni: Optional[SNIProxy] = None
         self._list_peer: Optional[PeerListener] = None
+        self._loop: Optional[asyncio.BaseEventLoop] = None
 
         # Communication between Parent/Child
         self._manager: Manager = Manager()
@@ -80,15 +81,15 @@ class ServerWorker(Process):
         _LOGGER.info("Start worker: %s", self.name)
 
         # Init new event loop
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
 
         # Start eventloop
-        running_loop = Thread(target=loop.run_forever)
+        running_loop = Thread(target=self._loop.run_forever)
         running_loop.start()
 
         # Init backend
-        asyncio.run_coroutine_threadsafe(self._async_init(), loop=loop).result()
+        asyncio.run_coroutine_threadsafe(self._async_init(), loop=self._loop).result()
 
         while True:
             new = self._new.get()
@@ -97,12 +98,12 @@ class ServerWorker(Process):
 
             new[0].setblocking(False)
             asyncio.run_coroutine_threadsafe(
-                self._async_new_connection(*new), loop=loop
+                self._async_new_connection(*new), loop=self._loop
             )
 
         # Shutdown worker
         _LOGGER.info("Stop worker: %s", self.name)
-        loop.call_soon_threadsafe(loop.stop)
+        self._loop.call_soon_threadsafe(self._loop.stop)
         running_loop.join(10)
 
     async def _async_new_connection(
@@ -117,10 +118,10 @@ class ServerWorker(Process):
 
         # Select the correct handler for process connection
         if sni:
-            asyncio.create_task(
+            self._loop.create_task(
                 self._list_sni.handle_connection(reader, writer, data=data, sni=sni)
             )
         else:
-            asyncio.create_task(
+            self._loop.create_task(
                 self._list_peer.handle_connection(reader, writer, data=data)
             )
