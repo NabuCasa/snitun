@@ -17,6 +17,8 @@ from .connector import Connector
 
 _LOGGER = logging.getLogger(__name__)
 
+CONNECTION_TIMEOUT = 60
+
 
 class ClientPeer:
     """Client to SniTun Server."""
@@ -56,29 +58,44 @@ class ClientPeer:
             "Opening connection to %s:%s", self._snitun_host, self._snitun_port
         )
         try:
-            reader, writer = await asyncio.open_connection(
-                host=self._snitun_host, port=self._snitun_port
-            )
+            async with async_timeout.timeout(CONNECTION_TIMEOUT):
+                reader, writer = await asyncio.open_connection(
+                    host=self._snitun_host, port=self._snitun_port
+                )
         except OSError as err:
             _LOGGER.error(
-                "Can't connect to SniTun server %s:%s",
+                "Can't connect to SniTun server %s:%s with: %s",
+                self._snitun_host,
+                self._snitun_port,
+                err,
+            )
+            raise SniTunConnectionError() from err
+        except asyncio.TimeoutError:
+            _LOGGER.error(
+                "Connection timeout for SniTun server %s:%s",
                 self._snitun_host,
                 self._snitun_port,
             )
-            raise SniTunConnectionError() from err
+            raise SniTunConnectionError() from None
 
         # Send fernet token
         writer.write(fernet_token)
-        await writer.drain()
+        try:
+            async with async_timeout.timeout(CONNECTION_TIMEOUT):
+                await writer.drain()
+        except asyncio.TimeoutError:
+            _LOGGER.error("Timeout for writting connection token")
+            raise SniTunConnectionError() from None
 
         # Challenge/Response
         crypto = CryptoTransport(aes_key, aes_iv)
         try:
-            challenge = await reader.readexactly(32)
-            answer = hashlib.sha256(crypto.decrypt(challenge)).digest()
+            async with async_timeout.timeout(CONNECTION_TIMEOUT):
+                challenge = await reader.readexactly(32)
+                answer = hashlib.sha256(crypto.decrypt(challenge)).digest()
 
-            writer.write(crypto.encrypt(answer))
-            await writer.drain()
+                writer.write(crypto.encrypt(answer))
+                await writer.drain()
         except (
             MultiplexerTransportDecrypt,
             asyncio.IncompleteReadError,
@@ -86,6 +103,9 @@ class ClientPeer:
         ) as err:
             _LOGGER.error("Challenge/Response error with SniTun server (%s)", err)
             raise SniTunConnectionError() from err
+        except asyncio.TimeoutError:
+            _LOGGER.error("Challenge/Response timeout error to SniTun server")
+            raise SniTunConnectionError() from None
 
         # Run multiplexer
         self._multiplexer = Multiplexer(
