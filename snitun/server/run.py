@@ -4,7 +4,9 @@ from contextlib import suppress
 from itertools import cycle
 import logging
 from multiprocessing import cpu_count
+import os
 import select
+import signal
 import socket
 from typing import Awaitable, Iterable, List, Optional, Dict
 from threading import Thread
@@ -239,6 +241,13 @@ class SniTunServerWorker(Thread):
                 else:
                     stale[fileno] += 1
 
+            # Check if worker are running
+            for worker in self._workers:
+                if worker.is_alive():
+                    continue
+                _LOGGER.critical("Worker '%s' crashed!", worker.name)
+                os.kill(os.getpid(), signal.SIGINT)
+
     def _process(self, con: socket.socket, workers_lb: Iterable[ServerWorker]) -> None:
         """Process connection & helo."""
         data = b""
@@ -280,7 +289,7 @@ class SniTunServerWorker(Thread):
 
                 _LOGGER.info("Handover %s to %s", hostname, worker.name)
                 return
-            _LOGGER.warning("No responsible worker for %s", hostname)
+            _LOGGER.debug("No responsible worker for %s", hostname)
 
         with suppress(OSError):
             con.shutdown(socket.SHUT_RDWR)
