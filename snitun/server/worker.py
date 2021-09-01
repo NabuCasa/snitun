@@ -96,8 +96,8 @@ class ServerWorker(Process):
                 break
 
             new[0].setblocking(False)
-            loop.call_soon_threadsafe(
-                asyncio.create_task, self._async_new_connection(*new)
+            asyncio.run_coroutine_threadsafe(
+                self._async_new_connection(*new), loop=loop
             )
 
         # Shutdown worker
