@@ -228,7 +228,7 @@ class SniTunServerWorker(Thread):
                 else:
                     self._poller.unregister(fileno)
                     con = connections.pop(fileno)
-                    con.close()
+                    self._close_socket(con, shutdown=False)
 
             # cleanup stale connection
             for fileno in tuple(stale):
@@ -237,7 +237,7 @@ class SniTunServerWorker(Thread):
                 elif stale[fileno] >= WORKER_STALE_MAX:
                     self._poller.unregister(fileno)
                     con = connections.pop(fileno)
-                    con.close()
+                    self._close_socket(con)
                 else:
                     stale[fileno] += 1
 
@@ -255,13 +255,12 @@ class SniTunServerWorker(Thread):
             data = con.recv(2048)
         except OSError as err:
             _LOGGER.warning("Receive fails: %s", err)
-            con.close()
+            self._close_socket(con, shutdown=False)
             return
 
         # No data received
         if not data:
-            with suppress(OSError):
-                con.shutdown(socket.SHUT_RDWR)
+            self._close_socket(con)
             return
 
         # Peer connection
@@ -273,8 +272,7 @@ class SniTunServerWorker(Thread):
         # TLS/SSL connection
         if data[0] != 0x16:
             _LOGGER.warning("No valid ClientHello found: %s", data)
-            with suppress(OSError):
-                con.shutdown(socket.SHUT_RDWR)
+            self._close_socket(con)
             return
 
         try:
@@ -291,5 +289,12 @@ class SniTunServerWorker(Thread):
                 return
             _LOGGER.debug("No responsible worker for %s", hostname)
 
+        self._close_socket(con)
+
+    @staticmethod
+    def _close_socket(con: socket.socket, shutdown: bool = True) -> None:
+        """Gracefull shutdown a socket or free the handle."""
         with suppress(OSError):
-            con.shutdown(socket.SHUT_RDWR)
+            if shutdown:
+                con.shutdown(socket.SHUT_RDWR)
+            con.close()
