@@ -162,7 +162,12 @@ class Multiplexer:
                 self._writer.write_eof()
                 await self._writer.drain()
 
-        except (MultiplexerTransportClose, asyncio.IncompleteReadError, OSError):
+        except (
+            MultiplexerTransportClose,
+            asyncio.IncompleteReadError,
+            ConnectionResetError,
+            OSError,
+        ):
             _LOGGER.debug("Transport was closed")
 
         finally:
