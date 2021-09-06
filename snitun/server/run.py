@@ -173,6 +173,7 @@ class SniTunServerWorker(Thread):
             self._workers.append(worker)
 
         self._server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._server.bind((self._host, self._port))
         self._server.setblocking(False)
         self._server.listen(80 * 1000)

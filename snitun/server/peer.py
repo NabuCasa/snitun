@@ -6,6 +6,8 @@ import logging
 import os
 from typing import Optional, Coroutine
 
+import async_timeout
+
 from ..exceptions import MultiplexerTransportDecrypt, SniTunChallengeError
 from ..multiplexer.core import Multiplexer
 from ..multiplexer.crypto import CryptoTransport
@@ -69,15 +71,17 @@ class Peer:
         try:
             token = hashlib.sha256(os.urandom(40)).digest()
             writer.write(self._crypto.encrypt(token))
-            await writer.drain()
 
-            data = await reader.readexactly(32)
-            data = self._crypto.decrypt(data)
+            async with async_timeout.timeout(10):
+                await writer.drain()
+                data = await reader.readexactly(32)
 
             # Check Token
+            data = self._crypto.decrypt(data)
             assert hashlib.sha256(token).digest() == data
 
         except (
+            asyncio.TimeoutError,
             asyncio.IncompleteReadError,
             MultiplexerTransportDecrypt,
             AssertionError,
