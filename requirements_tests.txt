@@ -1,6 +1,6 @@
 flake8==4.0.1
 pylint==2.10.2
 pytest==6.2.5
-pytest-timeout==1.4.2
+pytest-timeout==2.0.1
 pytest-aiohttp==0.3.0
 black==21.8b0
