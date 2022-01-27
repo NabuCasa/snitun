@@ -2,7 +2,7 @@
 reports=no
 ignore=tests_*
 
-good-names=id,i,j,k,ex,Run,_,fp,T
+good-names=id,i,j,k,ex,Run,_,fp,T,iv
 
 # Reasons disabled:
 # locally-disabled - it spams too much
