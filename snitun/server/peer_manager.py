@@ -45,9 +45,9 @@ class PeerManager:
     def create_peer(self, fernet_data: bytes) -> Peer:
         """Create a new peer from crypt config."""
         try:
-            data = self._fernet.decrypt(fernet_data).decode()
+            data = self._fernet.decrypt(fernet_data).decode("utf-8")
             config = json.loads(data)
-        except (InvalidToken, json.JSONDecodeError) as err:
+        except (InvalidToken, json.JSONDecodeError, UnicodeDecodeError) as err:
             _LOGGER.warning("Invalid fernet token")
             raise SniTunInvalidPeer() from err
 
