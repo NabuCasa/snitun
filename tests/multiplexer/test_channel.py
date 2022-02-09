@@ -148,8 +148,9 @@ async def test_message_transport_never_lock():
     assert channel.healthy
 
 
-async def test_write_throttling(loop):
+async def test_write_throttling(event_loop):
     """Message transport should never lock down."""
+    loop = event_loop
     output = asyncio.Queue(500)
     channel = MultiplexerChannel(output, IP_ADDR, throttling=0.1)
     assert isinstance(channel.id, MultiplexerChannelId)
