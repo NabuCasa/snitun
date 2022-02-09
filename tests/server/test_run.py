@@ -44,7 +44,7 @@ async def test_snitun_single_runner_updown():
     await server.stop()
 
 
-def test_snitun_worker_runner_updown(loop):
+def test_snitun_worker_runner_updown(event_loop):
     """Test SniTun Worker Server runner object."""
     server = SniTunServerWorker(
         FERNET_TOKENS, host="127.0.0.1", port=32001, worker_size=2
@@ -250,8 +250,9 @@ async def test_snitun_single_runner_throttling():
     await server.stop()
 
 
-def test_snitun_worker_runner(loop):
+def test_snitun_worker_runner(event_loop):
     """Test SniTunWorker Server runner object."""
+    loop = event_loop
     peer_messages = []
     peer_address = []
 
@@ -316,7 +317,7 @@ def test_snitun_worker_runner(loop):
     server.stop()
 
 
-def test_snitun_worker_timeout(loop):
+def test_snitun_worker_timeout(event_loop):
     """Test SniTunWorker Server runner object timeout."""
     from snitun.server import run
 
@@ -349,7 +350,7 @@ def test_snitun_worker_timeout(loop):
     server.stop()
 
 
-def test_snitun_worker_runner_invalid_payload(loop):
+def test_snitun_worker_runner_invalid_payload(event_loop):
     """Test SniTunWorker Server runner invalid payload."""
     server = SniTunServerWorker(
         FERNET_TOKENS, host="127.0.0.1", port=32001, worker_size=2
@@ -375,7 +376,7 @@ def test_snitun_worker_runner_invalid_payload(loop):
 
 
 @patch("snitun.server.run.os.kill")
-def test_snitun_worker_crash(kill, loop):
+def test_snitun_worker_crash(kill, event_loop):
     """Test SniTunWorker Server runner object with crashing worker."""
     server = SniTunServerWorker(
         FERNET_TOKENS, host="127.0.0.1", port=32001, worker_size=2

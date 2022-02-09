@@ -42,9 +42,10 @@ async def test_sni_proxy_flow(multiplexer_client, test_client_ssl):
 
 
 async def test_sni_proxy_flow_close_by_client(
-    multiplexer_client, test_client_ssl, loop
+    multiplexer_client, test_client_ssl, event_loop
 ):
     """Test a normal flow of connection data and close by client."""
+    loop = event_loop
     test_client_ssl.writer.write(TLS_1_2)
     await test_client_ssl.writer.drain()
     await asyncio.sleep(0.1)
@@ -73,9 +74,10 @@ async def test_sni_proxy_flow_close_by_client(
 
 
 async def test_sni_proxy_flow_close_by_server(
-    multiplexer_client, test_client_ssl, loop
+    multiplexer_client, test_client_ssl, event_loop
 ):
     """Test a normal flow of connection data and close by server."""
+    loop = event_loop
     test_client_ssl.writer.write(TLS_1_2)
     await test_client_ssl.writer.drain()
     await asyncio.sleep(0.1)

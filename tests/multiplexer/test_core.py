@@ -84,8 +84,9 @@ async def test_multiplexer_client_close(multiplexer_server, multiplexer_client):
     assert not multiplexer_client.is_connected
 
 
-async def test_multiplexer_ping(loop, test_server, multiplexer_client):
+async def test_multiplexer_ping(event_loop, test_server, multiplexer_client):
     """Test a ping between peers."""
+    loop = event_loop
     client = test_server[0]
     ping_task = loop.create_task(multiplexer_client.ping())
 
@@ -100,10 +101,11 @@ async def test_multiplexer_ping(loop, test_server, multiplexer_client):
     ping_task.cancel()
 
 
-async def test_multiplexer_ping_error(loop, test_server, multiplexer_client):
+async def test_multiplexer_ping_error(event_loop, test_server, multiplexer_client):
     """Test a ping between peers."""
     from snitun.multiplexer import core as multi_core
 
+    loop = event_loop
     multi_core.PEER_TCP_TIMEOUT = 0.2
 
     client = test_server[0]
@@ -239,9 +241,11 @@ async def test_multiplexer_data_channel(multiplexer_client, multiplexer_server):
 
 
 async def test_multiplexer_channel_shutdown(
-    loop, multiplexer_client, multiplexer_server
+    event_loop, multiplexer_client, multiplexer_server
 ):
     """Test that new channels are created and graceful shutdown."""
+    loop = event_loop
+
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
 
@@ -299,8 +303,12 @@ async def test_multiplexer_data_channel_abort_full(
     assert not multiplexer_server._channels
 
 
-async def test_multiplexer_throttling(loop, multiplexer_client, multiplexer_server):
+async def test_multiplexer_throttling(
+    event_loop, multiplexer_client, multiplexer_server
+):
     """Test that new channels are created and graceful shutdown."""
+    loop = event_loop
+
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
     data_in = []
@@ -336,11 +344,12 @@ async def test_multiplexer_throttling(loop, multiplexer_client, multiplexer_serv
 
 
 async def test_multiplexer_core_peer_timeout(
-    loop, multiplexer_client, multiplexer_server
+    event_loop, multiplexer_client, multiplexer_server
 ):
     """Test that new channels are created and graceful shutdown."""
     from snitun.multiplexer import core as multi_core
 
+    loop = event_loop
     multi_core.PEER_TCP_TIMEOUT = 0.2
 
     assert not multiplexer_client._channels

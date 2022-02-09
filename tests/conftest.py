@@ -41,7 +41,7 @@ def raise_timeout():
 
 
 @pytest.fixture
-async def test_server(loop):
+async def test_server():
     """Create a TCP test server."""
     connections = []
 
@@ -60,7 +60,7 @@ async def test_server(loop):
 
 
 @pytest.fixture
-async def test_endpoint(loop):
+async def test_endpoint():
     """Create a TCP test endpoint."""
     connections = []
 
@@ -90,7 +90,7 @@ async def test_client(test_server):
 
 
 @pytest.fixture
-def test_server_sync(loop):
+def test_server_sync(event_loop):
     """Create a TCP test server."""
     connections = []
     shutdown = False
@@ -219,7 +219,7 @@ def crypto_transport():
 
 
 @pytest.fixture
-async def peer(loop, crypto_transport, multiplexer_server):
+async def peer(crypto_transport, multiplexer_server):
     """Init a peer with transport."""
     valid = datetime.utcnow() + timedelta(days=1)
     peer = Peer("localhost", valid, os.urandom(32), os.urandom(16))
