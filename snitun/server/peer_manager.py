@@ -48,14 +48,12 @@ class PeerManager:
             data = self._fernet.decrypt(fernet_data).decode("utf-8")
             config = json.loads(data)
         except (InvalidToken, json.JSONDecodeError, UnicodeDecodeError) as err:
-            _LOGGER.warning("Invalid fernet token")
-            raise SniTunInvalidPeer() from err
+            raise SniTunInvalidPeer("Invalid fernet token") from err
 
         # Check if token is valid
         valid = datetime.utcfromtimestamp(config["valid"])
         if valid < datetime.utcnow():
-            _LOGGER.warning("Token was expired")
-            raise SniTunInvalidPeer()
+            raise SniTunInvalidPeer("Token was expired")
 
         # Extract configuration
         hostname = config["hostname"]

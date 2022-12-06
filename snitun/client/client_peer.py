@@ -63,20 +63,13 @@ class ClientPeer:
                     host=self._snitun_host, port=self._snitun_port
                 )
         except OSError as err:
-            _LOGGER.error(
-                "Can't connect to SniTun server %s:%s with: %s",
-                self._snitun_host,
-                self._snitun_port,
-                err,
-            )
-            raise SniTunConnectionError() from err
+            raise SniTunConnectionError(
+                f"Can't connect to SniTun server {self._snitun_host}:{self._snitun_port} with: {err}"
+            ) from err
         except asyncio.TimeoutError:
-            _LOGGER.error(
-                "Connection timeout for SniTun server %s:%s",
-                self._snitun_host,
-                self._snitun_port,
-            )
-            raise SniTunConnectionError() from None
+            raise SniTunConnectionError(
+                f"Connection timeout for SniTun server {self._snitun_host}:{self._snitun_port}",
+            ) from None
 
         # Send fernet token
         writer.write(fernet_token)
@@ -84,8 +77,9 @@ class ClientPeer:
             async with async_timeout.timeout(CONNECTION_TIMEOUT):
                 await writer.drain()
         except asyncio.TimeoutError:
-            _LOGGER.error("Timeout for writting connection token")
-            raise SniTunConnectionError() from None
+            raise SniTunConnectionError(
+                "Timeout for writting connection token"
+            ) from None
 
         # Challenge/Response
         crypto = CryptoTransport(aes_key, aes_iv)
@@ -101,11 +95,13 @@ class ClientPeer:
             asyncio.IncompleteReadError,
             OSError,
         ) as err:
-            _LOGGER.error("Challenge/Response error with SniTun server (%s)", err)
-            raise SniTunConnectionError() from err
+            raise SniTunConnectionError(
+                f"Challenge/Response error with SniTun server ({err})"
+            ) from err
         except asyncio.TimeoutError:
-            _LOGGER.error("Challenge/Response timeout error to SniTun server")
-            raise SniTunConnectionError() from None
+            raise SniTunConnectionError(
+                "Challenge/Response timeout error to SniTun server"
+            ) from None
 
         # Run multiplexer
         self._multiplexer = Multiplexer(
