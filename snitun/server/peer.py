@@ -87,8 +87,7 @@ class Peer:
             AssertionError,
             OSError,
         ) as err:
-            _LOGGER.warning("Wrong challenge from peer")
-            raise SniTunChallengeError() from err
+            raise SniTunChallengeError("Wrong challenge from peer") from err
 
         # Start Multiplexer
         self._multiplexer = Multiplexer(
