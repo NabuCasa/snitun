@@ -72,7 +72,7 @@ class Peer:
             token = hashlib.sha256(os.urandom(40)).digest()
             writer.write(self._crypto.encrypt(token))
 
-            async with async_timeout.timeout(10):
+            async with async_timeout.timeout(60):
                 await writer.drain()
                 data = await reader.readexactly(32)
 
