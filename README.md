@@ -21,7 +21,7 @@ End-to-End encryption with SNI proxy on top of a TCP multiplexer
 
 ## Fernet token
 
-The session master create a fernet token from client's config (aes/whitelist) and attach the hostname and a utc timestamp until this token is valid.
+The session master creates a fernet token from client's config (aes/whitelist) and attaches the hostname and a utc timestamp with the lifetime validity of this token.
 
 ```json
 {
@@ -32,20 +32,20 @@ The session master create a fernet token from client's config (aes/whitelist) an
 }
 ```
 
-The SniTun server need to be able to decrypt this token to validate the client plausibility. SniTun initialize after that a challenge response handling to validate the AES key and make sure that it's the same client as they requests the fernet token from session master.
+The SniTun server needs to be able to decrypt this token to validate the clients plausibility. SniTun after that, initializes a challenge response handling to validate the AES key and makes sure that it's the same client which made the requests for the fernet token from the session master.
 
-SniTun server doesn't perform any user authentications!
+SniTun server doesn't perform any user authentication!
 
 ### Challenge/Response
 
-SniTun server create a SHA256 from a random 40bit value. They will be encrypted and send to client. This decrypt the value and perform again a SHA256 with this value and send it encrypted back to SniTun. If they is valid, he going into Multiplexer modus.
+SniTun server creates a SHA256 from a random 40bit value. They will be encrypted and sent to the client. The client decrypts the value and performs again a SHA256 with this value and sends it encrypted back to SniTun. If the response is valid, the communication goes into Multiplexer mode.
 
 ## Multiplexer protocol
 
-The header is encrypted with AES / CBC. The Payload should be SSL!
-The ID change for every TCP connection and is single for every connection. The Size is for the DATA Payload.
+The header is encrypted with AES / CBC. The payload should be SSL encrypted!
+The ID changes for every TCP connection and is unique for every connection. The SIZE is for the DATA payload.
 
-Extra could be additional information like on NEW message it contain the caller IP address. Otherwise it's random bits.
+EXTRA could be additional information like on NEW message it contains the caller IP address. Otherwise it's filled with random bits.
 
 ```
 |________________________________________________________|
