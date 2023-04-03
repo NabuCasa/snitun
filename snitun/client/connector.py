@@ -1,8 +1,11 @@
 """Connector to end resource."""
+from __future__ import annotations
+
 import asyncio
 from contextlib import suppress
 import ipaddress
 import logging
+from typing import Any, Coroutine
 
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from ..multiplexer.channel import MultiplexerChannel
@@ -14,13 +17,20 @@ _LOGGER = logging.getLogger(__name__)
 class Connector:
     """Connector to end resource."""
 
-    def __init__(self, end_host: str, end_port=None, whitelist=False):
+    def __init__(
+        self,
+        end_host: str,
+        end_port=None,
+        whitelist=False,
+        endpoint_connection_error_callback: Coroutine[Any, Any, None] | None = None,
+    ):
         """Initialize Connector."""
         self._loop = asyncio.get_event_loop()
         self._end_host = end_host
         self._end_port = end_port or 443
         self._whitelist = set()
         self._whitelist_enabled = whitelist
+        self._endpoint_connection_error_callback = endpoint_connection_error_callback
 
     @property
     def whitelist(self) -> set:
@@ -60,6 +70,8 @@ class Connector:
                 "Can't connect to endpoint %s:%s", self._end_host, self._end_port
             )
             await multiplexer.delete_channel(channel)
+            if self._endpoint_connection_error_callback:
+                await self._endpoint_connection_error_callback()
             return
 
         try:

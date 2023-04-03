@@ -1,6 +1,7 @@
 """Test client connector."""
 import asyncio
 import ipaddress
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -165,3 +166,18 @@ async def test_init_connector_whitelist_bad(
 
     with pytest.raises(MultiplexerTransportClose):
         await channel.read()
+
+
+async def test_connector_error_callback(multiplexer_client, multiplexer_server):
+    """Test connector endpoint error callback."""
+    callback = AsyncMock()
+    connector = Connector("127.0.0.1", "8822", False, callback)
+
+    channel = await multiplexer_server.create_channel(IP_ADDR)
+
+    callback.assert_not_called()
+
+    with patch("asyncio.open_connection", side_effect=OSError("Lorem ipsum...")):
+        await connector.handler(multiplexer_client, channel)
+
+    callback.assert_called_once()
