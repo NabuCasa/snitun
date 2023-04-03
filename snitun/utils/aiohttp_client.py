@@ -1,10 +1,12 @@
 """Helper for handle aiohttp internal server."""
+from __future__ import annotations
+
 import asyncio
 from contextlib import suppress
 import logging
 import socket
 import ssl
-from typing import Optional
+from typing import Any, Coroutine, Optional
 
 from aiohttp.web import AppRunner, SockSite
 
@@ -51,12 +53,21 @@ class SniTunClientAioHttp:
         """Block until connection to snitun is closed."""
         return self._client.wait()
 
-    async def start(self, whitelist: bool = False) -> None:
+    async def start(
+        self,
+        whitelist: bool = False,
+        endpoint_connection_error_callback: Coroutine[Any, Any, None] | None = None,
+    ) -> None:
         """Start internal server."""
         await self._site.start()
 
         host, port = self._socket.getsockname()[:2]
-        self._connector = Connector(host, port, whitelist)
+        self._connector = Connector(
+            host,
+            port,
+            whitelist,
+            endpoint_connection_error_callback=endpoint_connection_error_callback,
+        )
 
         _LOGGER.info("AioHTTP snitun client started on %s:%s", host, port)
 
