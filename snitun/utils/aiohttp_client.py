@@ -116,7 +116,7 @@ class SniTunClientAioHttp:
         _LOGGER.info("AioHTTP snitun client disconnected from: %s", self._server_name)
 
 
-async def _async_waitfor_socket_closed(sock: None | socket.socket = None) -> None:
+async def _async_waitfor_socket_closed(sock: socket.socket | None = None) -> None:
     """Wait for the socket to be closed."""
     if sock is None:
         return
