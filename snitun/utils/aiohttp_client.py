@@ -72,8 +72,13 @@ class SniTunClientAioHttp:
 
         _LOGGER.info("AioHTTP snitun client started on %s:%s", host, port)
 
-    async def stop(self) -> None:
-        """Stop internal server."""
+    async def stop(self, *, wait: bool = False) -> None:
+        """
+        Stop internal server.
+
+        Args:
+            wait: wait for the socket to close.
+        """
         await self.disconnect()
         with suppress(OSError):
             self._socket.close()
@@ -82,8 +87,9 @@ class SniTunClientAioHttp:
             # pylint: disable=protected-access
             self._site._runner._unreg_site(self._site)
 
-        # Wait for the socket to close
-        await _async_waitfor_socket_closed(self._socket)
+        if wait:
+            # Wait for the socket to close
+            await _async_waitfor_socket_closed(self._socket)
 
         _LOGGER.info("AioHTTP snitun client closed")
 
