@@ -53,14 +53,24 @@ class SniTunServer:
 
         Return coroutine.
         """
-        return asyncio.wait([self._list_peer.start(), self._list_sni.start()])
+        return asyncio.wait(
+            [
+                asyncio.create_task(self._list_peer.start()),
+                asyncio.create_task(self._list_sni.start()),
+            ]
+        )
 
     def stop(self) -> Awaitable[None]:
         """Stop server.
 
         Return coroutine.
         """
-        return asyncio.wait([self._list_peer.stop(), self._list_sni.stop()])
+        return asyncio.wait(
+            [
+                asyncio.create_task(self._list_peer.stop()),
+                asyncio.create_task(self._list_sni.stop()),
+            ]
+        )
 
 
 class SniTunServerSingle:
