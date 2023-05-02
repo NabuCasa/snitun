@@ -306,8 +306,8 @@ class Multiplexer:
                 await self._queue.put(message)
         except asyncio.TimeoutError:
             raise MultiplexerTransportError() from None
-        else:
-            self._channels[channel.id] = channel
+
+        self._channels[channel.id] = channel
 
         return channel
 
