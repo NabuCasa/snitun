@@ -89,7 +89,6 @@ def _parse_extension(data: bytes, pos: int) -> str:
 
     # Loop over extension until we have our SNI
     while pos + 4 <= len(data):
-
         # SNI?
         if data[pos] == 0x00 and data[pos + 1] == 0x00:
             return _parse_host_name(data, pos + 4)
