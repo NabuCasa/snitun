@@ -155,13 +155,13 @@ class SNIProxy:
                     # Flush buffer
                     await writer.drain()
 
-        except (MultiplexerTransportError, OSError, RuntimeError, ConnectionResetError):
-            _LOGGER.debug("Transport closed by Proxy for %s", channel.id)
+        except asyncio.TimeoutError:
+            _LOGGER.debug("Close TCP session after timeout for %s", channel.id)
             with suppress(MultiplexerTransportError):
                 await multiplexer.delete_channel(channel)
 
-        except asyncio.TimeoutError:
-            _LOGGER.debug("Close TCP session after timeout for %s", channel.id)
+        except (MultiplexerTransportError, OSError, RuntimeError, ConnectionResetError):
+            _LOGGER.debug("Transport closed by Proxy for %s", channel.id)
             with suppress(MultiplexerTransportError):
                 await multiplexer.delete_channel(channel)
 
