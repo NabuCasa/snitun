@@ -4,7 +4,7 @@ from datetime import datetime
 import hashlib
 import logging
 import os
-from typing import Optional, Coroutine
+from typing import Optional, Coroutine, List
 
 import async_timeout
 
@@ -25,11 +25,13 @@ class Peer:
         aes_key: bytes,
         aes_iv: bytes,
         throttling: Optional[int] = None,
+        alias: Optional[List[str]] = None,
     ):
         """Initialize a Peer."""
         self._hostname = hostname
         self._valid = valid
         self._throttling = throttling
+        self._alias = alias or []
         self._multiplexer = None
         self._crypto = CryptoTransport(aes_key, aes_iv)
 
@@ -37,6 +39,11 @@ class Peer:
     def hostname(self) -> str:
         """Return his hostname."""
         return self._hostname
+
+    @property
+    def alias(self) -> List[str]:
+        """Return the alias."""
+        return self._alias
 
     @property
     def is_connected(self) -> bool:

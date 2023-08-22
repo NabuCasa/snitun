@@ -60,7 +60,14 @@ class PeerManager:
         aes_key = bytes.fromhex(config["aes_key"])
         aes_iv = bytes.fromhex(config["aes_iv"])
 
-        return Peer(hostname, valid, aes_key, aes_iv, throttling=self._throttling)
+        return Peer(
+            hostname,
+            valid,
+            aes_key,
+            aes_iv,
+            throttling=self._throttling,
+            alias=config.get("alias", []),
+        )
 
     def add_peer(self, peer: Peer) -> None:
         """Register peer to internal hostname list."""
@@ -70,6 +77,9 @@ class PeerManager:
 
         _LOGGER.debug("New peer connection: %s", peer.hostname)
         self._peers[peer.hostname] = peer
+        for alias in peer.alias:
+            _LOGGER.debug("New peer connection alias: %s for %s", alias, peer.hostname)
+            self._peers[alias] = peer
 
         if self._event_callback:
             self._loop.call_soon(self._event_callback, peer, PeerManagerEvent.CONNECTED)
@@ -80,6 +90,8 @@ class PeerManager:
             return
         _LOGGER.debug("Close peer connection: %s", peer.hostname)
         self._peers.pop(peer.hostname)
+        for alias in peer.alias:
+            self._peers.pop(alias, None)
 
         if self._event_callback:
             self._loop.call_soon(
