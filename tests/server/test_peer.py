@@ -15,11 +15,18 @@ from snitun.exceptions import SniTunChallengeError
 def test_init_peer():
     """Test simple init of peer."""
     valid = datetime.utcnow() + timedelta(days=1)
-    peer = Peer("localhost", valid, os.urandom(32), os.urandom(16))
+    peer = Peer(
+        "localhost",
+        valid,
+        os.urandom(32),
+        os.urandom(16),
+        alias="localhost.custom",
+    )
 
     assert peer.is_valid
     assert peer.hostname == "localhost"
     assert peer.multiplexer is None
+    assert peer.alias == "localhost.custom"
 
 
 async def test_init_peer_multiplexer(event_loop, test_client, test_server):
