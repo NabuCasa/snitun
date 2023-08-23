@@ -89,9 +89,8 @@ class PeerManager:
         if self._peers.get(peer.hostname) != peer:
             return
         _LOGGER.debug("Close peer connection: %s", peer.hostname)
-        self._peers.pop(peer.hostname)
-        for alias in peer.alias:
-            self._peers.pop(alias, None)
+        for hostname in peer.all_hostnames:
+            self._peers.pop(hostname, None)
 
         if self._event_callback:
             self._loop.call_soon(

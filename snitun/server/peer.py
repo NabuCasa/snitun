@@ -46,6 +46,11 @@ class Peer:
         return self._alias
 
     @property
+    def all_hostnames(self) -> List[str]:
+        """Return a list of the base hostname and any alias."""
+        return [self._hostname, *self._alias]
+
+    @property
     def is_connected(self) -> bool:
         """Return True if we are connected to peer."""
         if not self._multiplexer:
