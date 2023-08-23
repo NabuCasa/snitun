@@ -89,7 +89,10 @@ def test_sni_connection(
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
-    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
+    alias = ["localhost.custom"]
+    fernet_token = create_peer_config(
+        valid.timestamp(), hostname, aes_key, aes_iv, alias=alias
+    )
 
     worker.start()
     crypto = CryptoTransport(aes_key, aes_iv)
@@ -102,6 +105,8 @@ def test_sni_connection(
 
     time.sleep(1)
     assert worker.is_responsible_peer(hostname)
+    for entry in alias:
+        assert worker.is_responsible_peer(entry)
 
     worker.handover_connection(test_server_sync[1], TLS_1_2, hostname)
     assert len(test_client_sync.recv(1048)) == 32

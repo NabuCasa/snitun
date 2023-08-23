@@ -61,9 +61,11 @@ class ServerWorker(Process):
     def _event_stream(self, peer: Peer, event: PeerManagerEvent) -> None:
         """Event stream peer connection data."""
         if event == PeerManagerEvent.CONNECTED:
-            self._sync[peer.hostname] = None
+            for hostname in peer.all_hostnames:
+                self._sync[hostname] = None
         else:
-            self._sync.pop(peer.hostname, None)
+            for hostname in peer.all_hostnames:
+                self._sync.pop(hostname, None)
 
     def shutdown(self) -> None:
         """Shutdown child process."""
