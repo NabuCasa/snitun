@@ -65,11 +65,13 @@ class ServerWorker(Process):
     def _event_stream(self, peer: Peer, event: PeerManagerEvent) -> None:
         """Event stream peer connection data."""
         if event == PeerManagerEvent.CONNECTED:
-            self._peer_count.set(self._peer_count.value + 1)
+            if peer.hostname not in self._sync:
+                self._peer_count.set(self._peer_count.value + 1)
             for hostname in peer.all_hostnames:
                 self._sync[hostname] = None
         else:
-            self._peer_count.set(self._peer_count.value - 1)
+            if peer.hostname in self._sync:
+                self._peer_count.set(self._peer_count.value - 1)
             for hostname in peer.all_hostnames:
                 self._sync.pop(hostname, None)
 
