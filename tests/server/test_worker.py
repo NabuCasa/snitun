@@ -1,5 +1,5 @@
 """Tests for the server worker."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 import os
 import socket
@@ -28,7 +28,7 @@ def test_worker_up_down(event_loop):
 def test_peer_connection(test_server_sync, test_client_sync, event_loop):
     """Run a full flow of with a peer."""
     worker = ServerWorker(FERNET_TOKENS)
-    valid = datetime.utcnow() + timedelta(days=1)
+    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -53,7 +53,7 @@ def test_peer_connection(test_server_sync, test_client_sync, event_loop):
 def test_peer_connection_disconnect(test_server_sync, test_client_sync, event_loop):
     """Run a full flow of with a peer & disconnect."""
     worker = ServerWorker(FERNET_TOKENS)
-    valid = datetime.utcnow() + timedelta(days=1)
+    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -85,7 +85,7 @@ def test_sni_connection(
 ):
     """Run a full flow of with a peer."""
     worker = ServerWorker(FERNET_TOKENS)
-    valid = datetime.utcnow() + timedelta(days=1)
+    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"

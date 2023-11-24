@@ -1,5 +1,5 @@
 """Utils for server handling."""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List
 import json
 
@@ -15,7 +15,7 @@ def generate_client_token(
 ):
     """Generate a token for client."""
     fernet = MultiFernet([Fernet(key) for key in tokens])
-    valid = datetime.utcnow() + valid_delta
+    valid = datetime.now(tz=timezone.utc) + valid_delta
 
     return fernet.encrypt(
         json.dumps(
