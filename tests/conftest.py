@@ -56,7 +56,6 @@ async def test_server():
     yield connections
 
     server.close()
-    await server.wait_closed()
 
 
 @pytest.fixture
@@ -75,7 +74,6 @@ async def test_endpoint():
     yield connections
 
     server.close()
-    await server.wait_closed()
 
 
 @pytest.fixture
