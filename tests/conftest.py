@@ -1,6 +1,6 @@
 """Pytest fixtures for SniTun."""
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import os
 from unittest.mock import patch
@@ -221,7 +221,7 @@ def crypto_transport():
 @pytest.fixture
 async def peer(crypto_transport, multiplexer_server):
     """Init a peer with transport."""
-    valid = datetime.utcnow() + timedelta(days=1)
+    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     peer = Peer("localhost", valid, os.urandom(32), os.urandom(16))
     peer._crypto = crypto_transport
     peer._multiplexer = multiplexer_server

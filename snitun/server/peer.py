@@ -1,6 +1,6 @@
 """Represent a single Peer."""
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import logging
 import os
@@ -60,7 +60,7 @@ class Peer:
     @property
     def is_valid(self) -> bool:
         """Return True if the peer is valid."""
-        return self._valid > datetime.utcnow()
+        return self._valid > datetime.now(tz=timezone.utc)
 
     @property
     def multiplexer(self) -> Optional[Multiplexer]:
