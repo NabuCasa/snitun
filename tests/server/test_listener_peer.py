@@ -1,6 +1,6 @@
 """Tests for peer listener & manager."""
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 import os
 
@@ -24,7 +24,7 @@ async def test_init_listener(peer_manager):
 
 async def test_peer_listener(peer_manager, peer_listener, test_client_peer):
     """Run a full flow of with a peer."""
-    valid = datetime.utcnow() + timedelta(days=1)
+    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -47,7 +47,7 @@ async def test_peer_listener(peer_manager, peer_listener, test_client_peer):
 
 async def test_peer_listener_invalid(peer_manager, peer_listener, test_client_peer):
     """Run a full flow of with a peer."""
-    valid = datetime.utcnow() - timedelta(days=1)
+    valid = datetime.now(tz=timezone.utc) - timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -64,7 +64,7 @@ async def test_peer_listener_invalid(peer_manager, peer_listener, test_client_pe
 
 async def test_peer_listener_disconnect(peer_manager, peer_listener, test_client_peer):
     """Run a full flow of with a peer after that disconnect."""
-    valid = datetime.utcnow() + timedelta(days=1)
+    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -94,7 +94,7 @@ async def test_peer_listener_timeout(
     raise_timeout, peer_manager, peer_listener, test_client_peer
 ):
     """Run a full flow of with a peer."""
-    valid = datetime.utcnow() + timedelta(days=1)
+    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"

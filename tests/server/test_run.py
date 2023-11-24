@@ -1,6 +1,6 @@
 """Test runner of SniTun Server."""
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 import ipaddress
 import os
@@ -69,7 +69,7 @@ async def test_snitun_single_runner():
         host="127.0.0.1", port="32000"
     )
 
-    valid = datetime.utcnow() + timedelta(days=1)
+    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -128,7 +128,7 @@ async def test_snitun_single_runner_timeout(raise_timeout):
         host="127.0.0.1", port="32000"
     )
 
-    valid = datetime.utcnow() + timedelta(days=1)
+    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -197,7 +197,7 @@ async def test_snitun_single_runner_throttling():
         host="127.0.0.1", port="32000"
     )
 
-    valid = datetime.utcnow() + timedelta(days=1)
+    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -264,7 +264,7 @@ def test_snitun_worker_runner(event_loop):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(("127.0.0.1", 32001))
 
-    valid = datetime.utcnow() + timedelta(days=1)
+    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -333,7 +333,7 @@ def test_snitun_worker_timeout(event_loop):
 
     time.sleep(1.5)
 
-    valid = datetime.utcnow() + timedelta(days=1)
+    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"

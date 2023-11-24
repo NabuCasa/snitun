@@ -1,6 +1,6 @@
 """Manage peer connections."""
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 from typing import Callable, List, Optional
@@ -51,8 +51,8 @@ class PeerManager:
             raise SniTunInvalidPeer("Invalid fernet token") from err
 
         # Check if token is valid
-        valid = datetime.utcfromtimestamp(config["valid"])
-        if valid < datetime.utcnow():
+        valid = datetime.fromtimestamp(config["valid"], tz=timezone.utc)
+        if valid < datetime.now(tz=timezone.utc):
             raise SniTunInvalidPeer("Token was expired")
 
         # Extract configuration
