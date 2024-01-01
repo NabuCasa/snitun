@@ -1,5 +1,5 @@
 flake8==6.1.0
-pylint==3.0.2
+pylint==3.0.3
 pytest==7.4.3
 pytest-timeout==2.2.0
 pytest-aiohttp==1.0.5
