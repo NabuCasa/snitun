@@ -108,6 +108,39 @@ class SniTunServerSingle:
         self._server.close()
         await self._server.wait_closed()
 
+    def parse_proxy(self, data: bytes):
+        # PROXY protocol supported by HAPROXY and NGINX
+        # https://www.haproxy.org/download/2.8/doc/proxy-protocol.txt
+        # http://nginx.org/en/docs/stream/ngx_stream_proxy_module.html#proxy_protocol
+        if data.startswith(b'PROXY'):
+            maxlen = 108
+            proxy_end = data.index(b'\r\n')
+            if not proxy_end:
+                _LOGGER.warning('Bad PROXY header, no cr/lf')
+                return data, None
+            if proxy_end > maxlen:
+                _LOGGER.warning(f'Bad PROXY data, length > {maxlen}')
+                return data, None
+            proxy_hello = data[:proxy_end]
+            _split_params = proxy_hello.split(b' ')
+            if len(_split_params) != 6:
+                _LOGGER.warning(f'Bad PROXY data content: %s', _split_params)
+                return data, None
+            proxy_params = {
+                'header_len': len(proxy_hello),
+                'hello': _split_params[0].decode(),
+                'ip_version': _split_params[1].decode(),
+                'src_ip': _split_params[2].decode(),
+                'dst_ip': _split_params[3].decode(),
+                'src_port': int(_split_params[4]),
+                'dst_port': int(_split_params[5])
+            }
+            _LOGGER.debug('PROXY v1 protocol detected: %s', proxy_params)
+            return data[proxy_end+2:], proxy_params
+        else:
+            _LOGGER.debug('No PROXY header')
+            return data, None
+
     async def _handler(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
@@ -126,6 +159,14 @@ class SniTunServerSingle:
         if not data:
             writer.close()
             return
+
+        # Check if HAPROXY/NGINX is used
+        if data.startswith(b'PROXY'):
+            data, proxy_params = self.parse_proxy(data)
+            if not proxy_params:
+                _LOGGER.warning("PROXY header detected, but PROXY data have BAD content.")
+                writer.close()
+                return
 
         # Select the correct handler for process data
         if data[0] == 0x16:
