@@ -1,4 +1,4 @@
-flake8==6.1.0
+flake8==7.0.0
 pylint==3.0.2
 pytest==7.4.3
 pytest-timeout==2.2.0
