@@ -19,7 +19,9 @@ async def test_client_stop_no_wait():
     with patch("snitun.utils.aiohttp_client.SockSite"):
         client = SniTunClientAioHttp(None, None, "127.0.0.1")
 
-    with patch("snitun.utils.aiohttp_client._async_waitfor_socket_closed") as waitfor_socket_closed:
+    with patch(
+        "snitun.utils.aiohttp_client._async_waitfor_socket_closed"
+    ) as waitfor_socket_closed:
         waitfor_socket_closed.assert_not_called()
         await client.stop()
         waitfor_socket_closed.assert_not_called()
