@@ -37,8 +37,8 @@ version = "0.36.2"
 [project.optional-dependencies]
 lint = [
     "aiohttp==3.9.3",
-    "black==23.11.0",
     "pylint==3.1.0",
+    "ruff==0.3.2",
 ]
 test = [
     "pytest-aiohttp==1.0.5",
@@ -123,6 +123,80 @@ reports=false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+
+[tool.ruff]
+fix = true
+line-length = 88
+show-fixes = true
+target-version = "py38"
+
+[tool.ruff.lint]
+ignore = [
+  "ANN101", # https://docs.astral.sh/ruff/rules/missing-type-self/
+  "EM101", # https://docs.astral.sh/ruff/rules/raw-string-in-exception/
+  "EM102", # https://docs.astral.sh/ruff/rules/f-string-in-exception/
+  "FBT", # https://docs.astral.sh/ruff/rules/#flake8-boolean-trap-fbt
+  "N818", # https://docs.astral.sh/ruff/rules/error-suffix-on-exception-name/
+  "PLR2004", # https://docs.astral.sh/ruff/rules/magic-value-comparison/
+  "S101", # https://docs.astral.sh/ruff/rules/assert/
+  "TCH003", # https://docs.astral.sh/ruff/rules/typing-only-standard-library-import/
+  "TID252", # https://docs.astral.sh/ruff/rules/relative-imports/
+  "TRY003", # https://docs.astral.sh/ruff/rules/raise-vanilla-args/
+  "TRY301", # https://docs.astral.sh/ruff/rules/raise-within-try/
+  "TRY400", # https://docs.astral.sh/ruff/rules/error-instead-of-exception/
+
+  # TODO:
+  "ANN001",
+  "ANN201",
+  "ANN202",
+  "ANN204",
+  "COM812",
+  "D202",
+  "D401",
+  "E501",
+  "FA100",
+  "I001",
+  "PERF203",
+  "RSE102",
+  "S104",
+  "SIM105",
+  "SLF001",
+  "TCH001",
+  "UP007",
+]
+
+select = [
+  "ALL",
+]
+
+[tool.ruff.lint.extend-per-file-ignores]
+"py.typed" = [
+  "D100",
+]
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+mark-parentheses = false
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-sort-within-sections = true
+known-first-party = [
+  "snitun",
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 22
+
+[tool.ruff.lint.pydocstyle]
+# Use Google-style docstrings.
+convention = "pep257"
+
+[tool.ruff.lint.pylint]
+max-args = 15
+max-branches = 30
+max-returns = 7
+max-statements = 80
 
 [tool.setuptools]
 include-package-data = true
