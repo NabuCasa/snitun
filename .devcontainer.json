@@ -1,7 +1,7 @@
 {
   "name": "NabuCasa SniTun Dev",
   "image": "mcr.microsoft.com/vscode/devcontainers/python:0-3.8",
-  "postCreateCommand": "python3 -m pip install -e .[test]",
+  "postCreateCommand": "python3 -m pip install -e .[test,lint]",
   "postStartCommand": "python3 -m pip install -e .",
   "containerUser": "vscode",
   "containerEnv": {
