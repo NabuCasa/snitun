@@ -10,6 +10,7 @@
   "customizations": {
     "vscode": {
       "extensions": [
+        "charliermarsh.ruff",
         "esbenp.prettier-vscode",
         "ms-python.python",
         "ms-python.vscode-pylance",
@@ -17,16 +18,11 @@
       ],
       "settings": {
         "python.pythonPath": "/usr/local/bin/python",
-        "python.linting.pylintEnabled": true,
-        "python.linting.enabled": true,
-        "python.formatting.provider": "black",
-        "python.formatting.blackArgs": [
-          "--target-version",
-          "py38"
-        ],
+        "python.formatting.provider": "ruff",
         "editor.formatOnPaste": false,
         "editor.formatOnSave": true,
         "editor.formatOnType": true,
+        "editor.defaultFormatter": "charliermarsh.ruff",
         "editor.rulers": [
           88
         ],
