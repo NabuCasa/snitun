@@ -1,10 +1,13 @@
 """Multiplexer for SniTun."""
+from __future__ import annotations
+
 import asyncio
+from collections.abc import Coroutine
 from contextlib import suppress
 import ipaddress
 import logging
 import os
-from typing import Optional
+from typing import Any, Optional
 
 import async_timeout
 
@@ -51,9 +54,9 @@ class Multiplexer:
         crypto: CryptoTransport,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-        new_connections=None,
+        new_connections: Coroutine[Any, Any, None] | None =None,
         throttling: Optional[int] = None,
-    ):
+    ) -> None:
         """Initialize Multiplexer."""
         self._crypto = crypto
         self._reader = reader
@@ -78,7 +81,7 @@ class Multiplexer:
         """
         return asyncio.shield(self._processing_task)
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Shutdown connection."""
         if self._processing_task.done():
             return
@@ -87,20 +90,20 @@ class Multiplexer:
         self._processing_task.cancel()
         self._graceful_channel_shutdown()
 
-    def _graceful_channel_shutdown(self):
+    def _graceful_channel_shutdown(self) -> None:
         """Graceful shutdown of channels."""
         for channel in self._channels.values():
             channel.close()
         self._channels.clear()
 
-    async def ping(self):
+    async def ping(self) -> None:
         """Send a ping flow message to hold the connection open."""
         self._healthy.clear()
         try:
             self._write_message(
                 MultiplexerMessage(
-                    MultiplexerChannelId(), CHANNEL_FLOW_PING, b"", b"ping"
-                )
+                    MultiplexerChannelId(), CHANNEL_FLOW_PING, b"", b"ping",
+                ),
             )
 
             # Wait until pong is received
@@ -112,7 +115,7 @@ class Multiplexer:
             self._loop.call_soon(self.shutdown)
             raise MultiplexerTransportError() from None
 
-    async def _runner(self):
+    async def _runner(self) -> None:
         """Runner task of processing stream."""
         transport = self._writer.transport
         from_peer = None
@@ -131,7 +134,7 @@ class Multiplexer:
                 # Wait until data need to be processed
                 async with async_timeout.timeout(PEER_TCP_TIMEOUT):
                     await asyncio.wait(
-                        [from_peer, to_peer], return_when=asyncio.FIRST_COMPLETED
+                        [from_peer, to_peer], return_when=asyncio.FIRST_COMPLETED,
                     )
 
                 # From peer
@@ -226,7 +229,7 @@ class Multiplexer:
             data = b""
 
         message = MultiplexerMessage(
-            MultiplexerChannelId(channel_id), flow_type, data, extra
+            MultiplexerChannelId(channel_id), flow_type, data, extra,
         )
 
         # Process message to queue
@@ -234,7 +237,6 @@ class Multiplexer:
 
     async def _process_message(self, message: MultiplexerMessage) -> None:
         """Process received message."""
-
         # DATA
         if message.flow_type == CHANNEL_FLOW_DATA:
             # check if message exists
@@ -286,18 +288,18 @@ class Multiplexer:
             else:
                 _LOGGER.debug("Receive ping from peer / send pong")
                 self._write_message(
-                    MultiplexerMessage(message.id, CHANNEL_FLOW_PING, b"", b"pong")
+                    MultiplexerMessage(message.id, CHANNEL_FLOW_PING, b"", b"pong"),
                 )
 
         else:
             _LOGGER.warning("Receive unknown message type")
 
     async def create_channel(
-        self, ip_address: ipaddress.IPv4Address
+        self, ip_address: ipaddress.IPv4Address,
     ) -> MultiplexerChannel:
         """Create a new channel for transport."""
         channel = MultiplexerChannel(
-            self._queue, ip_address, throttling=self._throttling
+            self._queue, ip_address, throttling=self._throttling,
         )
         message = channel.init_new()
 

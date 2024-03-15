@@ -1,4 +1,7 @@
 """SniTun client for server connection."""
+
+from __future__ import annotations
+
 import asyncio
 import hashlib
 import logging
@@ -23,7 +26,7 @@ CONNECTION_TIMEOUT = 60
 class ClientPeer:
     """Client to SniTun Server."""
 
-    def __init__(self, snitun_host: str, snitun_port=None):
+    def __init__(self, snitun_host: str, snitun_port: int | None = None) -> None:
         """Initialize ClientPeer connector."""
         self._multiplexer = None
         self._loop = asyncio.get_event_loop()
@@ -55,12 +58,12 @@ class ClientPeer:
 
         # Connect to SniTun server
         _LOGGER.debug(
-            "Opening connection to %s:%s", self._snitun_host, self._snitun_port
+            "Opening connection to %s:%s", self._snitun_host, self._snitun_port,
         )
         try:
             async with async_timeout.timeout(CONNECTION_TIMEOUT):
                 reader, writer = await asyncio.open_connection(
-                    host=self._snitun_host, port=self._snitun_port
+                    host=self._snitun_host, port=self._snitun_port,
                 )
         except asyncio.TimeoutError:
             raise SniTunConnectionError(
@@ -68,7 +71,7 @@ class ClientPeer:
             ) from None
         except OSError as err:
             raise SniTunConnectionError(
-                f"Can't connect to SniTun server {self._snitun_host}:{self._snitun_port} with: {err}"
+                f"Can't connect to SniTun server {self._snitun_host}:{self._snitun_port} with: {err}",
             ) from err
 
         # Send fernet token
@@ -78,7 +81,7 @@ class ClientPeer:
                 await writer.drain()
         except asyncio.TimeoutError:
             raise SniTunConnectionError(
-                "Timeout for writting connection token"
+                "Timeout for writting connection token",
             ) from None
 
         # Challenge/Response
@@ -92,7 +95,7 @@ class ClientPeer:
                 await writer.drain()
         except asyncio.TimeoutError:
             raise SniTunConnectionError(
-                "Challenge/Response timeout error to SniTun server"
+                "Challenge/Response timeout error to SniTun server",
             ) from None
         except (
             MultiplexerTransportDecrypt,
@@ -100,7 +103,7 @@ class ClientPeer:
             OSError,
         ) as err:
             raise SniTunConnectionError(
-                f"Challenge/Response error with SniTun server ({err})"
+                f"Challenge/Response error with SniTun server ({err})",
             ) from err
 
         # Run multiplexer

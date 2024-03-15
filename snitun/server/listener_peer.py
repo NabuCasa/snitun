@@ -1,4 +1,6 @@
 """Public peer interface."""
+from __future__ import annotations
+
 import asyncio
 from contextlib import suppress
 import logging
@@ -17,20 +19,20 @@ CHECK_VALID_EXPIRE = 14400
 class PeerListener:
     """Peer Listener class."""
 
-    def __init__(self, peer_manager: PeerManager, host=None, port=None):
+    def __init__(self, peer_manager: PeerManager, host:str|None=None, port:int|None=None) -> None:
         """Initialize SNI Proxy interface."""
         self._peer_manager = peer_manager
         self._host = host
         self._port = port or 8080
         self._server = None
 
-    async def start(self):
+    async def start(self) -> None:
         """Start peer server."""
         self._server = await asyncio.start_server(
-            self.handle_connection, host=self._host, port=self._port
+            self.handle_connection, host=self._host, port=self._port,
         )
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop peer server."""
         self._server.close()
         await self._server.wait_closed()
@@ -40,8 +42,8 @@ class PeerListener:
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
         data: Optional[bytes] = None,
-    ):
-        """Internal handler for incoming requests."""
+    ) -> None:
+        """Handle incoming requests."""
         if not data:
             try:
                 async with async_timeout.timeout(2):

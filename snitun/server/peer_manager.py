@@ -29,7 +29,7 @@ class PeerManager:
         fernet_tokens: List[str],
         throttling: Optional[int] = None,
         event_callback: Optional[Callable[[Peer, PeerManagerEvent], None]] = None,
-    ):
+    ) -> None:
         """Initialize Peer Manager."""
         self._fernet = MultiFernet([Fernet(key) for key in fernet_tokens])
         self._loop = asyncio.get_event_loop()
@@ -94,7 +94,7 @@ class PeerManager:
 
         if self._event_callback:
             self._loop.call_soon(
-                self._event_callback, peer, PeerManagerEvent.DISCONNECTED
+                self._event_callback, peer, PeerManagerEvent.DISCONNECTED,
             )
 
     def peer_available(self, hostname: str) -> bool:

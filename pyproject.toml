@@ -146,13 +146,8 @@ ignore = [
   "TRY400", # https://docs.astral.sh/ruff/rules/error-instead-of-exception/
 
   # TODO:
-  "ANN001",
-  "ANN201",
-  "ANN202",
-  "ANN204",
-  "COM812",
-  "D202",
-  "D401",
+#  "D202",
+#  "D401",
   "E501",
   "FA100",
   "I001",

@@ -12,7 +12,6 @@ TLS_HANDSHAKE_TYPE_CLIENT_HELLO = 0x01
 
 def parse_tls_sni(data: bytes) -> str:
     """Parse TLS SNI extention."""
-
     if len(data) < TLS_HEADER_LEN:
         _LOGGER.debug("Invalid TLS header")
         raise ParseSNIError()
@@ -74,7 +73,6 @@ def parse_tls_sni(data: bytes) -> str:
 
 def _parse_extension(data: bytes, pos: int) -> str:
     """Parse TLS ClientHello Extension."""
-
     # Seek Extension start
     try:
         tls_extension_size = (data[pos] << 8) + data[pos + 1]
@@ -101,7 +99,6 @@ def _parse_extension(data: bytes, pos: int) -> str:
 
 def _parse_host_name(data: bytes, pos: int) -> str:
     """Parse TLS ServerName Extension."""
-
     # Seek list size
     pos += 2
 
