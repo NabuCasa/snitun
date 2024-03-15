@@ -21,7 +21,7 @@ jobs:
         shell: bash
         run: |
           python3 -m pip install -e .[lint]
-      - name: Run Tox
+      - name: Lint
         shell: bash
         run: |
           scripts/lint
@@ -47,7 +47,7 @@ jobs:
         shell: bash
         run: |
           python3 -m pip install -e .[test]
-      - name: Run Tox
+      - name: Test
         shell: bash
         run: |
           scripts/test

@@ -2,5 +2,5 @@
 
 cd "$(dirname "$0")/.."
 
-python3 -m pylint snitun
 python3 -m black --target-version py38 --check snitun tests
+python3 -m pylint snitun
