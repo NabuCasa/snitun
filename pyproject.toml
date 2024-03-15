@@ -1,0 +1,163 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+  "setuptools>=62.3",
+]
+
+[project]
+authors = [
+  {name = "Nabu Casa, Inc.", email = "opensource@nabucasa.com"},
+]
+classifiers = [
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+    "Topic :: Internet :: Proxy Servers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "attrs>=18.2.0",
+    "async_timeout>=3.0.1",
+    "cryptography>=2.5",
+]
+description = "SNI proxy with TCP multiplexer"
+keywords = ["sni", "proxy", "multiplexer", "tls"]
+license = {text = "GPL v3"}
+name = "snitun"
+requires-python = ">=3.8"
+version = "0.36.2"
+
+[project.optional-dependencies]
+test = [
+    "flake8==6.1.0",
+    "pylint==3.0.2",
+    "pytest==7.4.3",
+    "pytest-timeout==2.2.0",
+    "pytest-aiohttp==1.0.5",
+    "black==23.11.0",
+]
+
+[project.urls]
+Homepage = "https://www.nabucasa.com/"
+Repository = "https://github.com/NabuCasa/snitun.git"
+
+[tool.isort]
+combine_as_imports = true
+default_section = "THIRDPARTY"
+force_grid_wrap = 0
+force_sort_within_sections = true
+forced_separate = "tests"
+include_trailing_comma = true
+indent = "    "
+line_length = 88
+multi_line_output = 3
+sections = [
+    "FUTURE",
+    "STDLIB",
+    "THIRDPARTY",
+    "FIRSTPARTY",
+    "LOCALFOLDER",
+]
+use_parentheses = true
+
+[tool.tox]
+legacy_tox_ini = """
+    [tox]
+    envlist = lint, tests, black
+
+    [testenv]
+    basepython = python3
+    deps =
+        -e '.[test]'
+
+    [testenv:lint]
+    ignore_errors = True
+    commands =
+        pylint snitun
+
+    [testenv:tests]
+    commands =
+        pytest tests
+
+    [testenv:black]
+    commands =
+        black --target-version py38 --check snitun tests
+"""
+
+[tool.pylint.BASIC]
+disable = [
+  "abstract-method",
+  "cyclic-import",
+  "duplicate-code",
+  "global-statement",
+  "locally-disabled",
+  "not-context-manager",
+  "too-few-public-methods",
+  "too-many-arguments",
+  "too-many-branches",
+  "too-many-instance-attributes",
+  "too-many-lines",
+  "too-many-locals",
+  "too-many-public-methods",
+  "too-many-return-statements",
+  "too-many-statements",
+  "unused-argument",
+  "missing-docstring",
+  "line-too-long",
+  "too-few-public-methods",
+  "too-many-locals",
+  "too-many-branches",
+]
+generated-members=[
+  "botocore.errorfactory",
+]
+good-names= [
+  "_",
+  "ex",
+  "fp",
+  "i",
+  "id",
+  "iv",
+  "j",
+  "k",
+  "Run",
+  "T",
+]
+
+
+[tool.pylint.EXCEPTIONS]
+overgeneral-exceptions=[
+  "builtins.Exception",
+]
+
+[tool.pylint.MAIN]
+ignore=[
+  "tests_*",
+]
+reports=false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[tool.setuptools]
+include-package-data = true
+platforms = [
+  "any",
+]
+zip-safe = false
+
+[tool.setuptools.packages.find]
+include = [
+    "snitun",
+    "snitun.server",
+    "snitun.client",
+    "snitun.multiplexer",
+    "snitun.utils",
+]
