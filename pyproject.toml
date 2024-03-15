@@ -35,13 +35,15 @@ requires-python = ">=3.8"
 version = "0.36.2"
 
 [project.optional-dependencies]
-test = [
-    "flake8==6.1.0",
-    "pylint==3.0.2",
-    "pytest==7.4.3",
-    "pytest-timeout==2.2.0",
-    "pytest-aiohttp==1.0.5",
+lint = [
+    "aiohttp==3.9.3",
     "black==23.11.0",
+    "pylint==3.0.2",
+]
+test = [
+    "pytest-aiohttp==1.0.5",
+    "pytest-timeout==2.2.0",
+    "pytest==7.4.3",
 ]
 
 [project.urls]
@@ -66,30 +68,6 @@ sections = [
     "LOCALFOLDER",
 ]
 use_parentheses = true
-
-[tool.tox]
-legacy_tox_ini = """
-    [tox]
-    envlist = lint, tests, black
-
-    [testenv]
-    basepython = python3
-    deps =
-        -e '.[test]'
-
-    [testenv:lint]
-    ignore_errors = True
-    commands =
-        pylint snitun
-
-    [testenv:tests]
-    commands =
-        pytest tests
-
-    [testenv:black]
-    commands =
-        black --target-version py38 --check snitun tests
-"""
 
 [tool.pylint.BASIC]
 disable = [

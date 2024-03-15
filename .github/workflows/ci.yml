@@ -20,11 +20,11 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
-          pip install tox
-      - name: Run Tox
+          python3 -m pip install -e .[lint]
+      - name: Lint
         shell: bash
         run: |
-          tox -e lint,black
+          scripts/lint
 
   build:
     runs-on: ubuntu-latest
@@ -46,8 +46,8 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
-          pip install tox
-      - name: Run Tox
+          python3 -m pip install -e .[test]
+      - name: Test
         shell: bash
         run: |
-          tox -e tests
+          scripts/test
