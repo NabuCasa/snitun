@@ -36,6 +36,7 @@ version = "0.36.2"
 
 [project.optional-dependencies]
 lint = [
+    "aiohttp==3.9.3",
     "black==23.11.0",
     "pylint==3.0.2",
 ]
