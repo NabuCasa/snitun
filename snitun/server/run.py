@@ -1,4 +1,6 @@
 """SniTun reference implementation."""
+from __future__ import annotations
+
 import asyncio
 from contextlib import suppress
 from itertools import cycle
@@ -8,16 +10,16 @@ import os
 import select
 import signal
 import socket
-from typing import Awaitable, Iterable, List, Optional, Dict
 from threading import Thread
+from typing import Awaitable, Iterable
 
 import async_timeout
 
 from .listener_peer import PeerListener
 from .listener_sni import SNIProxy
 from .peer_manager import PeerManager
-from .worker import ServerWorker
 from .sni import ParseSNIError, parse_tls_sni
+from .worker import ServerWorker
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,18 +31,20 @@ class SniTunServer:
 
     def __init__(
         self,
-        fernet_keys: List[str],
-        sni_port: Optional[int] = None,
-        sni_host: Optional[str] = None,
-        peer_port: Optional[int] = None,
-        peer_host: Optional[str] = None,
-        throttling: Optional[int] = None,
-    ):
+        fernet_keys: list[str],
+        sni_port: int | None = None,
+        sni_host: str | None = None,
+        peer_port: int | None = None,
+        peer_host: str | None = None,
+        throttling: int | None = None,
+    ) -> None:
         """Initialize SniTun Server."""
         self._peers: PeerManager = PeerManager(fernet_keys, throttling=throttling)
         self._list_sni: SNIProxy = SNIProxy(self._peers, host=sni_host, port=sni_port)
         self._list_peer: PeerListener = PeerListener(
-            self._peers, host=peer_host, port=peer_port
+            self._peers,
+            host=peer_host,
+            port=peer_port,
         )
 
     @property
@@ -57,7 +61,7 @@ class SniTunServer:
             [
                 asyncio.create_task(self._list_peer.start()),
                 asyncio.create_task(self._list_sni.start()),
-            ]
+            ],
         )
 
     def stop(self) -> Awaitable[None]:
@@ -69,7 +73,7 @@ class SniTunServer:
             [
                 asyncio.create_task(self._list_peer.stop()),
                 asyncio.create_task(self._list_sni.stop()),
-            ]
+            ],
         )
 
 
@@ -78,14 +82,14 @@ class SniTunServerSingle:
 
     def __init__(
         self,
-        fernet_keys: List[str],
-        host: Optional[str] = None,
-        port: Optional[int] = None,
-        throttling: Optional[int] = None,
-    ):
+        fernet_keys: list[str],
+        host: str | None = None,
+        port: int | None = None,
+        throttling: int | None = None,
+    ) -> None:
         """Initialize SniTun Server."""
         self._loop: asyncio.BaseEventLoop = asyncio.get_event_loop()
-        self._server: Optional[asyncio.AbstractServer] = None
+        self._server: asyncio.AbstractServer | None = None
         self._peers: PeerManager = PeerManager(fernet_keys, throttling=throttling)
         self._list_sni: SNIProxy = SNIProxy(self._peers)
         self._list_peer: PeerListener = PeerListener(self._peers)
@@ -100,7 +104,9 @@ class SniTunServerSingle:
     async def start(self) -> None:
         """Run server."""
         self._server = await asyncio.start_server(
-            self._handler, host=self._host, port=self._port
+            self._handler,
+            host=self._host,
+            port=self._port,
         )
 
     async def stop(self) -> None:
@@ -109,7 +115,9 @@ class SniTunServerSingle:
         await self._server.wait_closed()
 
     async def _handler(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+        self,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
     ) -> None:
         """Handle incoming connection."""
         try:
@@ -130,11 +138,11 @@ class SniTunServerSingle:
         # Select the correct handler for process data
         if data[0] == 0x16:
             self._loop.create_task(
-                self._list_sni.handle_connection(reader, writer, data=data)
+                self._list_sni.handle_connection(reader, writer, data=data),
             )
         elif data.startswith(b"gA"):
             self._loop.create_task(
-                self._list_peer.handle_connection(reader, writer, data=data)
+                self._list_peer.handle_connection(reader, writer, data=data),
             )
         else:
             _LOGGER.warning("No valid ClientHello found: %s", data)
@@ -147,26 +155,26 @@ class SniTunServerWorker(Thread):
 
     def __init__(
         self,
-        fernet_keys: List[str],
-        host: Optional[str] = None,
-        port: Optional[int] = None,
-        worker_size: Optional[int] = None,
-        throttling: Optional[int] = None,
-    ):
+        fernet_keys: list[str],
+        host: str | None = None,
+        port: int | None = None,
+        worker_size: int | None = None,
+        throttling: int | None = None,
+    ) -> None:
         """Initialize SniTun Server."""
         super().__init__()
 
         self._host: str = host or "0.0.0.0"
         self._port: int = port or 443
-        self._fernet_keys: List[str] = fernet_keys
-        self._throttling: Optional[int] = throttling
+        self._fernet_keys: list[str] = fernet_keys
+        self._throttling: int | None = throttling
         self._worker_size: int = worker_size or (cpu_count() * 2)
-        self._workers: List[ServerWorker] = []
+        self._workers: list[ServerWorker] = []
         self._running: bool = False
 
         # TCP server
-        self._server: Optional[socket.socket] = None
-        self._poller: Optional[select.epoll] = None
+        self._server: socket.socket | None = None
+        self._poller: select.epoll | None = None
 
     @property
     def peer_counter(self) -> int:
@@ -211,9 +219,9 @@ class SniTunServerWorker(Thread):
     def run(self) -> None:
         """Handle incoming connection."""
         fd_server = self._server.fileno()
-        connections: Dict[int, socket.socket] = {}
+        connections: dict[int, socket.socket] = {}
         worker_lb = cycle(self._workers)
-        stale: Dict[int, int] = {}
+        stale: dict[int, int] = {}
 
         while self._running:
             events = self._poller.poll(1)
@@ -224,7 +232,8 @@ class SniTunServerWorker(Thread):
                     con.setblocking(False)
 
                     self._poller.register(
-                        con.fileno(), select.EPOLLIN | select.EPOLLHUP | select.EPOLLERR
+                        con.fileno(),
+                        select.EPOLLIN | select.EPOLLHUP | select.EPOLLERR,
                     )
                     connections[con.fileno()] = con
                     stale[con.fileno()] = 0

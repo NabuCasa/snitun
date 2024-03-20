@@ -1,15 +1,17 @@
 """SniTun worker for traffics."""
+from __future__ import annotations
+
 import asyncio
 import logging
-from multiprocessing import Process, Manager, Queue
-from threading import Thread
-from typing import TYPE_CHECKING, Dict, Optional, List
+from multiprocessing import Manager, Process, Queue
 from socket import socket
+from threading import Thread
+from typing import TYPE_CHECKING
 
 from .listener_peer import PeerListener
 from .listener_sni import SNIProxy
-from .peer_manager import PeerManager, PeerManagerEvent
 from .peer import Peer
+from .peer_manager import PeerManager, PeerManagerEvent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,25 +24,25 @@ class ServerWorker(Process):
 
     def __init__(
         self,
-        fernet_keys: List[str],
-        throttling: Optional[int] = None,
+        fernet_keys: list[str],
+        throttling: int | None = None,
     ) -> None:
         """Initialize worker & communication."""
         super().__init__()
 
-        self._fernet_keys: List[str] = fernet_keys
-        self._throttling: Optional[int] = throttling
+        self._fernet_keys: list[str] = fernet_keys
+        self._throttling: int | None = throttling
 
         # Used on the child
-        self._peers: Optional[PeerManager] = None
-        self._list_sni: Optional[SNIProxy] = None
-        self._list_peer: Optional[PeerListener] = None
-        self._loop: Optional[asyncio.BaseEventLoop] = None
+        self._peers: PeerManager | None = None
+        self._list_sni: SNIProxy | None = None
+        self._list_peer: PeerListener | None = None
+        self._loop: asyncio.BaseEventLoop | None = None
 
         # Communication between Parent/Child
         self._manager: SyncManager = Manager()
         self._new: Queue = self._manager.Queue()
-        self._sync: Dict[str, None] = self._manager.dict()
+        self._sync: dict[str, None] = self._manager.dict()
         self._peer_count = self._manager.Value("peer_count", 0)
 
     @property
@@ -81,13 +83,13 @@ class ServerWorker(Process):
         self.join(10)
 
     def handover_connection(
-        self, con: socket, data: bytes, sni: Optional[str] = None
+        self, con: socket, data: bytes, sni: str | None = None,
     ) -> None:
         """Move new connection to worker."""
         self._new.put_nowait((con, data, sni))
 
     def run(self) -> None:
-        """Running worker process."""
+        """Run the worker process."""
         _LOGGER.info("Start worker: %s", self.name)
 
         # Init new event loop
@@ -108,7 +110,7 @@ class ServerWorker(Process):
 
             new[0].setblocking(False)
             asyncio.run_coroutine_threadsafe(
-                self._async_new_connection(*new), loop=self._loop
+                self._async_new_connection(*new), loop=self._loop,
             )
 
         # Shutdown worker
@@ -117,7 +119,7 @@ class ServerWorker(Process):
         running_loop.join(10)
 
     async def _async_new_connection(
-        self, con: socket, data: bytes, sni: Optional[str]
+        self, con: socket, data: bytes, sni: str | None,
     ) -> None:
         """Handle incoming connection."""
         try:
@@ -129,9 +131,9 @@ class ServerWorker(Process):
         # Select the correct handler for process connection
         if sni:
             self._loop.create_task(
-                self._list_sni.handle_connection(reader, writer, data=data, sni=sni)
+                self._list_sni.handle_connection(reader, writer, data=data, sni=sni),
             )
         else:
             self._loop.create_task(
-                self._list_peer.handle_connection(reader, writer, data=data)
+                self._list_peer.handle_connection(reader, writer, data=data),
             )

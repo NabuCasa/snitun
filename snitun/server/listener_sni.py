@@ -1,9 +1,10 @@
 """Public proxy interface with SNI."""
+from __future__ import annotations
+
 import asyncio
 from contextlib import suppress
 import ipaddress
 import logging
-from typing import Optional
 
 import async_timeout
 
@@ -24,7 +25,12 @@ TCP_SESSION_TIMEOUT = 60
 class SNIProxy:
     """SNI Proxy class."""
 
-    def __init__(self, peer_manager: PeerManager, host=None, port=None):
+    def __init__(
+        self,
+        peer_manager: PeerManager,
+        host: str | None = None,
+        port: int | None = None,
+    ) -> None:
         """Initialize SNI Proxy interface."""
         self._peer_manager = peer_manager
         self._loop = asyncio.get_event_loop()
@@ -32,13 +38,15 @@ class SNIProxy:
         self._port = port or 443
         self._server = None
 
-    async def start(self):
+    async def start(self) -> None:
         """Start Proxy server."""
         self._server = await asyncio.start_server(
-            self.handle_connection, host=self._host, port=self._port
+            self.handle_connection,
+            host=self._host,
+            port=self._port,
         )
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop proxy server."""
         self._server.close()
         await self._server.wait_closed()
@@ -47,10 +55,10 @@ class SNIProxy:
         self,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-        data: Optional[bytes] = None,
-        sni: Optional[str] = None,
-    ):
-        """Internal handler for incoming requests."""
+        data: bytes | None = None,
+        sni: str | None = None,
+    ) -> None:
+        """Handle incoming requests."""
         if data is None:
             try:
                 async with async_timeout.timeout(2):
@@ -102,7 +110,7 @@ class SNIProxy:
         client_hello: bytes,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-    ):
+    ) -> None:
         """Proxy data between end points."""
         transport = writer.transport
         try:
@@ -133,7 +141,8 @@ class SNIProxy:
                 # Wait until data need to be processed
                 async with async_timeout.timeout(TCP_SESSION_TIMEOUT):
                     await asyncio.wait(
-                        [from_proxy, from_peer], return_when=asyncio.FIRST_COMPLETED
+                        [from_proxy, from_peer],
+                        return_when=asyncio.FIRST_COMPLETED,
                     )
 
                 # From proxy

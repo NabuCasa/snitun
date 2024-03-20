@@ -12,10 +12,10 @@ class CryptoTransport:
 
     __slots__ = ["_cipher", "_encryptor", "_decryptor"]
 
-    def __init__(self, key: bytes, iv: bytes):
+    def __init__(self, key: bytes, iv: bytes) -> None:
         """Initialize crypto data."""
         self._cipher = Cipher(
-            algorithms.AES(key), modes.CBC(iv), backend=default_backend()
+            algorithms.AES(key), modes.CBC(iv), backend=default_backend(),
         )
         self._encryptor = self._cipher.encryptor()
         self._decryptor = self._cipher.decryptor()
@@ -29,4 +29,4 @@ class CryptoTransport:
         try:
             return self._decryptor.update(data)
         except InvalidTag:
-            raise MultiplexerTransportDecrypt() from None
+            raise MultiplexerTransportDecrypt from None

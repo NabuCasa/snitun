@@ -6,7 +6,7 @@ from contextlib import suppress
 import logging
 import socket
 import ssl
-from typing import Any, Coroutine, Optional
+from typing import Any, Coroutine
 
 from aiohttp.web import AppRunner, SockSite
 import async_timeout
@@ -25,8 +25,8 @@ class SniTunClientAioHttp:
         runner: AppRunner,
         context: ssl.SSLContext,
         snitun_server: str,
-        snitun_port=None,
-    ):
+        snitun_port: int | None=None,
+    )->None:
         """Initialize SniTunClient with aiohttp."""
         self._connector = None
         self._client = ClientPeer(snitun_server, snitun_port)
@@ -84,8 +84,7 @@ class SniTunClientAioHttp:
             self._socket.close()
 
         with suppress(RuntimeError):
-            # pylint: disable=protected-access
-            self._site._runner._unreg_site(self._site)
+            self._site._runner._unreg_site(self._site)  # noqa: SLF001
 
         if wait:
             # Wait for the socket to close
@@ -98,13 +97,13 @@ class SniTunClientAioHttp:
         fernet_key: bytes,
         aes_key: bytes,
         aes_iv: bytes,
-        throttling: Optional[int] = None,
+        throttling: int | None = None,
     ) -> None:
         """Connect to SniTun server."""
         if self._client.is_connected:
             return
         await self._client.start(
-            self._connector, fernet_key, aes_key, aes_iv, throttling=throttling
+            self._connector, fernet_key, aes_key, aes_iv, throttling=throttling,
         )
         _LOGGER.info("AioHTTP snitun client connected to: %s", self._server_name)
 

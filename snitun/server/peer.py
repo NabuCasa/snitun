@@ -1,10 +1,12 @@
 """Represent a single Peer."""
+from __future__ import annotations
+
 import asyncio
 from datetime import datetime, timezone
 import hashlib
 import logging
 import os
-from typing import Optional, Coroutine, List
+from typing import Coroutine
 
 import async_timeout
 
@@ -24,9 +26,9 @@ class Peer:
         valid: datetime,
         aes_key: bytes,
         aes_iv: bytes,
-        throttling: Optional[int] = None,
-        alias: Optional[List[str]] = None,
-    ):
+        throttling: int | None = None,
+        alias: list[str] | None = None,
+    ) -> None:
         """Initialize a Peer."""
         self._hostname = hostname
         self._valid = valid
@@ -41,12 +43,12 @@ class Peer:
         return self._hostname
 
     @property
-    def alias(self) -> List[str]:
+    def alias(self) -> list[str]:
         """Return the alias."""
         return self._alias
 
     @property
-    def all_hostnames(self) -> List[str]:
+    def all_hostnames(self) -> list[str]:
         """Return a list of the base hostname and any alias."""
         return [self._hostname, *self._alias]
 
@@ -63,7 +65,7 @@ class Peer:
         return self._valid > datetime.now(tz=timezone.utc)
 
     @property
-    def multiplexer(self) -> Optional[Multiplexer]:
+    def multiplexer(self) -> Multiplexer | None:
         """Return Multiplexer object."""
         return self._multiplexer
 
@@ -77,7 +79,7 @@ class Peer:
         return True
 
     async def init_multiplexer_challenge(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter,
     ) -> None:
         """Initialize multiplexer."""
         try:
@@ -103,7 +105,7 @@ class Peer:
 
         # Start Multiplexer
         self._multiplexer = Multiplexer(
-            self._crypto, reader, writer, throttling=self._throttling
+            self._crypto, reader, writer, throttling=self._throttling,
         )
 
     def wait_disconnect(self) -> Coroutine:
