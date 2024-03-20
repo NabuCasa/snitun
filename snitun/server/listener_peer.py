@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 from contextlib import suppress
 import logging
-from typing import Optional
 
 import async_timeout
 
@@ -19,7 +18,12 @@ CHECK_VALID_EXPIRE = 14400
 class PeerListener:
     """Peer Listener class."""
 
-    def __init__(self, peer_manager: PeerManager, host:str|None=None, port:int|None=None) -> None:
+    def __init__(
+        self,
+        peer_manager: PeerManager,
+        host: str | None = None,
+        port: int | None = None,
+    ) -> None:
         """Initialize SNI Proxy interface."""
         self._peer_manager = peer_manager
         self._host = host
@@ -29,7 +33,9 @@ class PeerListener:
     async def start(self) -> None:
         """Start peer server."""
         self._server = await asyncio.start_server(
-            self.handle_connection, host=self._host, port=self._port,
+            self.handle_connection,
+            host=self._host,
+            port=self._port,
         )
 
     async def stop(self) -> None:
@@ -41,7 +47,7 @@ class PeerListener:
         self,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-        data: Optional[bytes] = None,
+        data: bytes | None = None,
     ) -> None:
         """Handle incoming requests."""
         if not data:

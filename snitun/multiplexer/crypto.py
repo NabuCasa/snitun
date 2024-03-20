@@ -29,4 +29,4 @@ class CryptoTransport:
         try:
             return self._decryptor.update(data)
         except InvalidTag:
-            raise MultiplexerTransportDecrypt() from None
+            raise MultiplexerTransportDecrypt from None

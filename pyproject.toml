@@ -139,23 +139,13 @@ ignore = [
   "N818", # https://docs.astral.sh/ruff/rules/error-suffix-on-exception-name/
   "PLR2004", # https://docs.astral.sh/ruff/rules/magic-value-comparison/
   "S101", # https://docs.astral.sh/ruff/rules/assert/
+  "S104", # https://docs.astral.sh/ruff/rules/hardcoded-bind-all-interfaces/
+  "TCH001", # https://docs.astral.sh/ruff/rules/typing-only-first-party-import/
   "TCH003", # https://docs.astral.sh/ruff/rules/typing-only-standard-library-import/
   "TID252", # https://docs.astral.sh/ruff/rules/relative-imports/
   "TRY003", # https://docs.astral.sh/ruff/rules/raise-vanilla-args/
   "TRY301", # https://docs.astral.sh/ruff/rules/raise-within-try/
   "TRY400", # https://docs.astral.sh/ruff/rules/error-instead-of-exception/
-
-  # TODO:
-  "E501",
-  "FA100",
-  "I001",
-  "PERF203",
-  "RSE102",
-  "S104",
-  "SIM105",
-  "SLF001",
-  "TCH001",
-  "UP007",
 ]
 
 select = [

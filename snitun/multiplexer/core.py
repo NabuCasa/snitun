@@ -7,7 +7,7 @@ from contextlib import suppress
 import ipaddress
 import logging
 import os
-from typing import Any, Optional
+from typing import Any
 
 import async_timeout
 
@@ -55,7 +55,7 @@ class Multiplexer:
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
         new_connections: Coroutine[Any, Any, None] | None =None,
-        throttling: Optional[int] = None,
+        throttling: int | None = None,
     ) -> None:
         """Initialize Multiplexer."""
         self._crypto = crypto
@@ -113,7 +113,7 @@ class Multiplexer:
         except (OSError, asyncio.TimeoutError):
             _LOGGER.error("Ping fails, no response from peer")
             self._loop.call_soon(self.shutdown)
-            raise MultiplexerTransportError() from None
+            raise MultiplexerTransportError from None
 
     async def _runner(self) -> None:
         """Runner task of processing stream."""
@@ -205,12 +205,12 @@ class Multiplexer:
         try:
             self._writer.write(data)
         except RuntimeError:
-            raise MultiplexerTransportClose() from None
+            raise MultiplexerTransportClose from None
 
     async def _read_message(self, header: bytes) -> None:
         """Read message from peer."""
         if not header:
-            raise MultiplexerTransportClose()
+            raise MultiplexerTransportClose
 
         try:
             header = self._crypto.decrypt(header)
@@ -307,7 +307,7 @@ class Multiplexer:
             async with async_timeout.timeout(5):
                 await self._queue.put(message)
         except asyncio.TimeoutError:
-            raise MultiplexerTransportError() from None
+            raise MultiplexerTransportError from None
 
         self._channels[channel.id] = channel
 
@@ -321,6 +321,6 @@ class Multiplexer:
             async with async_timeout.timeout(5):
                 await self._queue.put(message)
         except asyncio.TimeoutError:
-            raise MultiplexerTransportError() from None
+            raise MultiplexerTransportError from None
         finally:
             self._channels.pop(channel.id, None)
