@@ -19,7 +19,12 @@ CHECK_VALID_EXPIRE = 14400
 class PeerListener:
     """Peer Listener class."""
 
-    def __init__(self, peer_manager: PeerManager, host:str|None=None, port:int|None=None) -> None:
+    def __init__(
+        self,
+        peer_manager: PeerManager,
+        host: str | None = None,
+        port: int | None = None,
+    ) -> None:
         """Initialize SNI Proxy interface."""
         self._peer_manager = peer_manager
         self._host = host
@@ -29,7 +34,9 @@ class PeerListener:
     async def start(self) -> None:
         """Start peer server."""
         self._server = await asyncio.start_server(
-            self.handle_connection, host=self._host, port=self._port,
+            self.handle_connection,
+            host=self._host,
+            port=self._port,
         )
 
     async def stop(self) -> None:
