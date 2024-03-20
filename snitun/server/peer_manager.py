@@ -1,10 +1,12 @@
 """Manage peer connections."""
+from __future__ import annotations
+
 import asyncio
 from datetime import datetime, timezone
+from enum import Enum
 import json
 import logging
-from typing import Callable, List, Optional
-from enum import Enum
+from typing import Callable
 
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
@@ -26,9 +28,9 @@ class PeerManager:
 
     def __init__(
         self,
-        fernet_tokens: List[str],
-        throttling: Optional[int] = None,
-        event_callback: Optional[Callable[[Peer, PeerManagerEvent], None]] = None,
+        fernet_tokens: list[str],
+        throttling: int | None = None,
+        event_callback: Callable[[Peer, PeerManagerEvent], None] | None = None,
     ) -> None:
         """Initialize Peer Manager."""
         self._fernet = MultiFernet([Fernet(key) for key in fernet_tokens])
@@ -103,6 +105,6 @@ class PeerManager:
             return self._peers[hostname].is_ready
         return False
 
-    def get_peer(self, hostname: str) -> Optional[Peer]:
+    def get_peer(self, hostname: str) -> Peer | None:
         """Get peer."""
         return self._peers.get(hostname)

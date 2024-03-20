@@ -1,13 +1,14 @@
 """Utils for server handling."""
+from __future__ import annotations
+
 from datetime import datetime, timedelta, timezone
-from typing import List
 import json
 
 from cryptography.fernet import Fernet, MultiFernet
 
 
 def generate_client_token(
-    tokens: List[str],
+    tokens: list[str],
     valid_delta: timedelta,
     hostname: str,
     aes_key: bytes,

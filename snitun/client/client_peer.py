@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
-from typing import Optional
 
 import async_timeout
 
@@ -50,7 +49,7 @@ class ClientPeer:
         fernet_token: bytes,
         aes_key: bytes,
         aes_iv: bytes,
-        throttling: Optional[int] = None,
+        throttling: int | None = None,
     ) -> None:
         """Connect an start ClientPeer."""
         if self._multiplexer:
@@ -67,11 +66,13 @@ class ClientPeer:
                 )
         except asyncio.TimeoutError:
             raise SniTunConnectionError(
-                f"Connection timeout for SniTun server {self._snitun_host}:{self._snitun_port}",
+                "Connection timeout for SniTun server "
+                f"{self._snitun_host}:{self._snitun_port}",
             ) from None
         except OSError as err:
             raise SniTunConnectionError(
-                f"Can't connect to SniTun server {self._snitun_host}:{self._snitun_port} with: {err}",
+                "Can't connect to SniTun server "
+                f"{self._snitun_host}:{self._snitun_port} with: {err}",
             ) from err
 
         # Send fernet token
@@ -127,13 +128,15 @@ class ClientPeer:
 
     async def _handler(self) -> None:
         """Wait until connection is closed."""
+        async def _wait_with_timeout() -> None:
+            try:
+                async with async_timeout.timeout(50):
+                    await self._multiplexer.wait()
+            except asyncio.TimeoutError:
+                await self._multiplexer.ping()
         try:
             while self._multiplexer.is_connected:
-                try:
-                    async with async_timeout.timeout(50):
-                        await self._multiplexer.wait()
-                except asyncio.TimeoutError:
-                    await self._multiplexer.ping()
+                await _wait_with_timeout()
 
         except MultiplexerTransportError:
             pass

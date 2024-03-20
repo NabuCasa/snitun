@@ -1,8 +1,10 @@
 """Multiplexer channel."""
+from __future__ import annotations
+
 import asyncio
+from contextlib import suppress
 from ipaddress import IPv4Address
 import logging
-from typing import Optional
 
 import async_timeout
 
@@ -28,8 +30,8 @@ class MultiplexerChannel:
         self,
         output: asyncio.Queue,
         ip_address: IPv4Address,
-        channel_id: Optional[MultiplexerChannelId] = None,
-        throttling: Optional[float] = None,
+        channel_id: MultiplexerChannelId | None = None,
+        throttling: float | None = None,
     ) -> None:
         """Initialize Multiplexer Channel."""
         self._input = asyncio.Queue(8000)
@@ -62,17 +64,15 @@ class MultiplexerChannel:
     def close(self) -> None:
         """Close channel on next run."""
         self._closing = True
-        try:
+        with suppress(asyncio.QueueFull):
             self._input.put_nowait(None)
-        except asyncio.QueueFull:
-            pass
 
     async def write(self, data: bytes) -> None:
         """Send data to peer."""
         if not data:
-            raise MultiplexerTransportError()
+            raise MultiplexerTransportError
         if self._closing:
-            raise MultiplexerTransportClose()
+            raise MultiplexerTransportClose
 
         # Create message
         message = MultiplexerMessage(self._id, CHANNEL_FLOW_DATA, data)
@@ -82,7 +82,7 @@ class MultiplexerChannel:
                 await self._output.put(message)
         except asyncio.TimeoutError:
             _LOGGER.debug("Can't write to peer transport")
-            raise MultiplexerTransportError() from None
+            raise MultiplexerTransportError from None
 
         if not self._throttling:
             return
@@ -100,7 +100,7 @@ class MultiplexerChannel:
             return message.data
 
         _LOGGER.debug("Read a close message for channel %s", self._id)
-        raise MultiplexerTransportClose()
+        raise MultiplexerTransportClose
 
     def init_close(self) -> MultiplexerMessage:
         """Init close message for transport."""

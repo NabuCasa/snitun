@@ -5,7 +5,6 @@ import asyncio
 from contextlib import suppress
 import ipaddress
 import logging
-from typing import Optional
 
 import async_timeout
 
@@ -56,8 +55,8 @@ class SNIProxy:
         self,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-        data: Optional[bytes] = None,
-        sni: Optional[str] = None,
+        data: bytes | None = None,
+        sni: str | None = None,
     ) -> None:
         """Handle incoming requests."""
         if data is None:

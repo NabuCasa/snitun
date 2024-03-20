@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 from contextlib import suppress
 import logging
-from typing import Optional
 
 import async_timeout
 
@@ -48,7 +47,7 @@ class PeerListener:
         self,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-        data: Optional[bytes] = None,
+        data: bytes | None = None,
     ) -> None:
         """Handle incoming requests."""
         if not data:

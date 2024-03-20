@@ -75,23 +75,24 @@ disable = [
   "cyclic-import",
   "duplicate-code",
   "global-statement",
+  "line-too-long",
   "locally-disabled",
+  "missing-docstring",
   "not-context-manager",
+  "protected-access",
+  "too-few-public-methods",
   "too-few-public-methods",
   "too-many-arguments",
   "too-many-branches",
+  "too-many-branches",
   "too-many-instance-attributes",
   "too-many-lines",
+  "too-many-locals",
   "too-many-locals",
   "too-many-public-methods",
   "too-many-return-statements",
   "too-many-statements",
   "unused-argument",
-  "missing-docstring",
-  "line-too-long",
-  "too-few-public-methods",
-  "too-many-locals",
-  "too-many-branches",
 ]
 generated-members=[
   "botocore.errorfactory",
@@ -138,24 +139,15 @@ ignore = [
   "FBT", # https://docs.astral.sh/ruff/rules/#flake8-boolean-trap-fbt
   "N818", # https://docs.astral.sh/ruff/rules/error-suffix-on-exception-name/
   "PLR2004", # https://docs.astral.sh/ruff/rules/magic-value-comparison/
+  "PERF203", # https://docs.astral.sh/ruff/rules/try-except-in-loop/
   "S101", # https://docs.astral.sh/ruff/rules/assert/
+  "S104", # https://docs.astral.sh/ruff/rules/hardcoded-bind-all-interfaces/
+  "TCH001", # https://docs.astral.sh/ruff/rules/typing-only-first-party-import/
   "TCH003", # https://docs.astral.sh/ruff/rules/typing-only-standard-library-import/
   "TID252", # https://docs.astral.sh/ruff/rules/relative-imports/
   "TRY003", # https://docs.astral.sh/ruff/rules/raise-vanilla-args/
   "TRY301", # https://docs.astral.sh/ruff/rules/raise-within-try/
   "TRY400", # https://docs.astral.sh/ruff/rules/error-instead-of-exception/
-
-  # TODO:
-  "E501",
-  "FA100",
-  "I001",
-  "PERF203",
-  "RSE102",
-  "S104",
-  "SIM105",
-  "SLF001",
-  "TCH001",
-  "UP007",
 ]
 
 select = [
