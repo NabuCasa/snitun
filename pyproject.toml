@@ -138,6 +138,7 @@ ignore = [
   "FBT", # https://docs.astral.sh/ruff/rules/#flake8-boolean-trap-fbt
   "N818", # https://docs.astral.sh/ruff/rules/error-suffix-on-exception-name/
   "PLR2004", # https://docs.astral.sh/ruff/rules/magic-value-comparison/
+  "PERF203", # https://docs.astral.sh/ruff/rules/try-except-in-loop/
   "S101", # https://docs.astral.sh/ruff/rules/assert/
   "S104", # https://docs.astral.sh/ruff/rules/hardcoded-bind-all-interfaces/
   "TCH001", # https://docs.astral.sh/ruff/rules/typing-only-first-party-import/
