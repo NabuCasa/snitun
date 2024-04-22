@@ -1,4 +1,5 @@
 """SniTun reference implementation."""
+
 from __future__ import annotations
 
 import asyncio
@@ -15,6 +16,7 @@ from typing import Awaitable, Iterable
 
 import async_timeout
 
+from ..utils.server import MAX_READ_SIZE
 from .listener_peer import PeerListener
 from .listener_sni import SNIProxy
 from .peer_manager import PeerManager
@@ -272,7 +274,7 @@ class SniTunServerWorker(Thread):
         """Process connection & helo."""
         data = b""
         try:
-            data = con.recv(2048)
+            data = con.recv(MAX_READ_SIZE)
         except OSError as err:
             _LOGGER.warning("Receive fails: %s", err)
             self._close_socket(con, shutdown=False)
