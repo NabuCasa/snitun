@@ -1,4 +1,5 @@
 """Public proxy interface with SNI."""
+
 from __future__ import annotations
 
 import asyncio
@@ -14,6 +15,7 @@ from ..exceptions import (
     ParseSNIError,
 )
 from ..multiplexer.core import Multiplexer
+from ..utils.server import MAX_READ_SIZE
 from .peer_manager import PeerManager
 from .sni import parse_tls_sni
 
@@ -62,7 +64,7 @@ class SNIProxy:
         if data is None:
             try:
                 async with async_timeout.timeout(2):
-                    client_hello = await reader.read(1024)
+                    client_hello = await reader.read(MAX_READ_SIZE)
             except asyncio.TimeoutError:
                 _LOGGER.warning("Abort SNI handshake")
                 writer.close()
