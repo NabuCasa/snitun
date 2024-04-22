@@ -32,7 +32,7 @@ keywords = ["sni", "proxy", "multiplexer", "tls"]
 license = {text = "GPL v3"}
 name = "snitun"
 requires-python = ">=3.8"
-version = "0.36.2"
+version = "0.37.0"
 
 [project.optional-dependencies]
 lint = [
