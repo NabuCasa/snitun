@@ -1,10 +1,13 @@
 """Utils for server handling."""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import json
 
 from cryptography.fernet import Fernet, MultiFernet
+
+MAX_READ_SIZE = 4096
 
 
 def generate_client_token(
@@ -13,7 +16,7 @@ def generate_client_token(
     hostname: str,
     aes_key: bytes,
     aes_iv: bytes,
-)-> bytes:
+) -> bytes:
     """Generate a token for client."""
     fernet = MultiFernet([Fernet(key) for key in tokens])
     valid = datetime.now(tz=timezone.utc) + valid_delta
