@@ -12,9 +12,10 @@ import select
 import signal
 import socket
 from threading import Thread
-from typing import Awaitable, Iterable, TypedDict
+from typing import Awaitable, Iterable
 
 import async_timeout
+import attr
 
 from ..exceptions import ParseSNIIncompleteError
 from ..utils.server import MAX_READ_SIZE
@@ -29,11 +30,12 @@ _LOGGER = logging.getLogger(__name__)
 WORKER_STALE_MAX = 30
 
 
-class PartialData(TypedDict):
+@attr.s(slots=True)
+class PartialData:
     """Partial data class."""
 
-    data: bytes
-    count: int
+    data: bytes = attr.ib(default=b"")
+    count: int = attr.ib(default=1)
 
 
 class SniTunServer:
@@ -237,12 +239,12 @@ class SniTunServerWorker(Thread):
         def _register_parial(fileno: int, data: bytes) -> bool:
             """Register partial data."""
             if current := partial.get(fileno):
-                current["data"] = data
-                current["count"] += 1
+                current.data = data
+                current.count += 1
             else:
-                partial[fileno] = current = PartialData(data=data, count=1)
+                partial[fileno] = current = PartialData(data=data)
 
-            return len(current["data"]) < MAX_READ_SIZE and current["count"] < 4
+            return len(current.data) < MAX_READ_SIZE and current.count < 4
 
         _LOGGER.warning("Server started, fd: %s", fd_server)
 
@@ -263,7 +265,7 @@ class SniTunServerWorker(Thread):
 
                 # Read hello & forward to worker
                 elif event & select.EPOLLIN:
-                    partialdata = partial[fileno]["data"] if fileno in partial else b""
+                    partialdata = partial[fileno].data if fileno in partial else b""
                     if data := self._process(con, worker_lb, partialdata):
                         if _register_parial(fileno, data):
                             continue
@@ -277,6 +279,7 @@ class SniTunServerWorker(Thread):
                 else:
                     self._poller.unregister(fileno)
                     con = connections.pop(fileno)
+                    partial.pop(fileno, None)
                     self._close_socket(con, shutdown=False)
 
             # cleanup stale connection
@@ -286,6 +289,7 @@ class SniTunServerWorker(Thread):
                 elif stale[fileno] >= WORKER_STALE_MAX:
                     self._poller.unregister(fileno)
                     con = connections.pop(fileno)
+                    partial.pop(fileno, None)
                     self._close_socket(con)
                 else:
                     stale[fileno] += 1
