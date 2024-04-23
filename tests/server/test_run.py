@@ -1,4 +1,7 @@
 """Test runner of SniTun Server."""
+
+from __future__ import annotations
+
 import asyncio
 from datetime import datetime, timedelta, timezone
 import hashlib
@@ -23,7 +26,10 @@ IP_ADDR = ipaddress.ip_address("127.0.0.1")
 async def test_snitun_runner_updown():
     """Test SniTun Server runner object."""
     server = SniTunServer(
-        FERNET_TOKENS, peer_host="127.0.0.1", sni_host="127.0.0.1", sni_port=32000
+        FERNET_TOKENS,
+        peer_host="127.0.0.1",
+        sni_host="127.0.0.1",
+        sni_port=32000,
     )
 
     await server.start()
@@ -47,7 +53,10 @@ async def test_snitun_single_runner_updown():
 def test_snitun_worker_runner_updown(event_loop):
     """Test SniTun Worker Server runner object."""
     server = SniTunServerWorker(
-        FERNET_TOKENS, host="127.0.0.1", port=32001, worker_size=2
+        FERNET_TOKENS,
+        host="127.0.0.1",
+        port=32001,
+        worker_size=2,
     )
 
     server.start()
@@ -66,7 +75,8 @@ async def test_snitun_single_runner():
     await server.start()
 
     reader_peer, writer_peer = await asyncio.open_connection(
-        host="127.0.0.1", port="32000"
+        host="127.0.0.1",
+        port="32000",
     )
 
     valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
@@ -125,7 +135,8 @@ async def test_snitun_single_runner_timeout(raise_timeout):
     await server.start()
 
     reader_peer, writer_peer = await asyncio.open_connection(
-        host="127.0.0.1", port="32000"
+        host="127.0.0.1",
+        port="32000",
     )
 
     valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
@@ -158,7 +169,8 @@ async def test_snitun_single_runner_invalid_payload(raise_timeout):
     await server.start()
 
     reader_peer, writer_peer = await asyncio.open_connection(
-        host="127.0.0.1", port="32000"
+        host="127.0.0.1",
+        port="32000",
     )
 
     aes_key = os.urandom(32)
@@ -189,12 +201,16 @@ async def test_snitun_single_runner_throttling():
     peer_address = []
 
     server = SniTunServerSingle(
-        FERNET_TOKENS, host="127.0.0.1", port="32000", throttling=500
+        FERNET_TOKENS,
+        host="127.0.0.1",
+        port="32000",
+        throttling=500,
     )
     await server.start()
 
     reader_peer, writer_peer = await asyncio.open_connection(
-        host="127.0.0.1", port="32000"
+        host="127.0.0.1",
+        port="32000",
     )
 
     valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
@@ -250,14 +266,26 @@ async def test_snitun_single_runner_throttling():
     await server.stop()
 
 
-def test_snitun_worker_runner(event_loop):
+@pytest.mark.parametrize(
+    "payloads",
+    [
+        [TLS_1_2],
+        [TLS_1_2[:6], TLS_1_2[6:]],
+        [TLS_1_2[:6], TLS_1_2[6:20], TLS_1_2[20:]],
+        [TLS_1_2[:6], TLS_1_2[6:20], TLS_1_2[20:32], TLS_1_2[32:]],
+    ],
+)
+def test_snitun_worker_runner(event_loop, payloads: list[bytes]):
     """Test SniTunWorker Server runner object."""
     loop = event_loop
     peer_messages = []
     peer_address = []
 
     server = SniTunServerWorker(
-        FERNET_TOKENS, host="127.0.0.1", port=32001, worker_size=2
+        FERNET_TOKENS,
+        host="127.0.0.1",
+        port=32001,
+        worker_size=2,
     )
     server.start()
 
@@ -293,14 +321,15 @@ def test_snitun_worker_runner(event_loop):
     sock_ssl.connect(("127.0.0.1", 32001))
 
     async def _create_multiplexer() -> Multiplexer:
-        """create and return the peer multiplexer."""
+        """Create and return the peer multiplexer."""
         reader_peer, writer_peer = await asyncio.open_connection(sock=sock)
         return Multiplexer(crypto, reader_peer, writer_peer, mock_new_channel)
 
     multiplexer = loop.run_until_complete(_create_multiplexer())
 
-    sock_ssl.sendall(TLS_1_2)
-    loop.run_until_complete(asyncio.sleep(0.5))
+    for payload in payloads:
+        sock_ssl.sendall(payload)
+        loop.run_until_complete(asyncio.sleep(0.1))
 
     assert peer_messages
     assert peer_messages[0] == TLS_1_2
@@ -323,7 +352,10 @@ def test_snitun_worker_timeout(event_loop):
 
     run.WORKER_STALE_MAX = 1
     server = SniTunServerWorker(
-        FERNET_TOKENS, host="127.0.0.1", port=32001, worker_size=2
+        FERNET_TOKENS,
+        host="127.0.0.1",
+        port=32001,
+        worker_size=2,
     )
 
     server.start()
@@ -353,7 +385,10 @@ def test_snitun_worker_timeout(event_loop):
 def test_snitun_worker_runner_invalid_payload(event_loop):
     """Test SniTunWorker Server runner invalid payload."""
     server = SniTunServerWorker(
-        FERNET_TOKENS, host="127.0.0.1", port=32001, worker_size=2
+        FERNET_TOKENS,
+        host="127.0.0.1",
+        port=32001,
+        worker_size=2,
     )
     server.start()
 
@@ -379,7 +414,10 @@ def test_snitun_worker_runner_invalid_payload(event_loop):
 def test_snitun_worker_crash(kill, event_loop):
     """Test SniTunWorker Server runner object with crashing worker."""
     server = SniTunServerWorker(
-        FERNET_TOKENS, host="127.0.0.1", port=32001, worker_size=2
+        FERNET_TOKENS,
+        host="127.0.0.1",
+        port=32001,
+        worker_size=2,
     )
 
     server.start()

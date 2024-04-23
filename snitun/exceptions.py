@@ -17,6 +17,10 @@ class ParseSNIError(SniTunError):
     """Invalid ClientHello data."""
 
 
+class ParseSNIIncompleteError(ParseSNIError):
+    """Incomplete ClientHello data."""
+
+
 class MultiplexerTransportError(SniTunError):
     """Raise if multiplexer have an problem with peer."""
 

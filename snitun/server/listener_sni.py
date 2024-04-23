@@ -15,9 +15,8 @@ from ..exceptions import (
     ParseSNIError,
 )
 from ..multiplexer.core import Multiplexer
-from ..utils.server import MAX_READ_SIZE
 from .peer_manager import PeerManager
-from .sni import parse_tls_sni
+from .sni import parse_tls_sni, payload_reader
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,7 +63,7 @@ class SNIProxy:
         if data is None:
             try:
                 async with async_timeout.timeout(2):
-                    client_hello = await reader.read(MAX_READ_SIZE)
+                    client_hello = await payload_reader(reader)
             except asyncio.TimeoutError:
                 _LOGGER.warning("Abort SNI handshake")
                 writer.close()
