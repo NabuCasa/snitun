@@ -1,6 +1,11 @@
 """Test for SSL SNI proxy."""
+
+from __future__ import annotations
+
 import asyncio
 import ipaddress
+
+import pytest
 
 from snitun.server.listener_sni import SNIProxy
 
@@ -17,9 +22,24 @@ async def test_proxy_up_down():
     await proxy.stop()
 
 
-async def test_sni_proxy_flow(multiplexer_client, test_client_ssl):
+@pytest.mark.parametrize(
+    "payloads",
+    [
+        [TLS_1_2],
+        [TLS_1_2[:6], TLS_1_2[6:]],
+        [TLS_1_2[:6], TLS_1_2[6:20], TLS_1_2[20:]],
+        [TLS_1_2[:6], TLS_1_2[6:20], TLS_1_2[20:32], TLS_1_2[32:]],
+    ],
+)
+async def test_sni_proxy_flow(
+    multiplexer_client,
+    test_client_ssl,
+    payloads: list[bytes],
+):
     """Test a normal flow of connection and exchange data."""
-    test_client_ssl.writer.write(TLS_1_2)
+    for payload in payloads:
+        test_client_ssl.writer.write(payload)
+        await asyncio.sleep(0.1)
     await test_client_ssl.writer.drain()
     await asyncio.sleep(0.1)
 
@@ -42,7 +62,9 @@ async def test_sni_proxy_flow(multiplexer_client, test_client_ssl):
 
 
 async def test_sni_proxy_flow_close_by_client(
-    multiplexer_client, test_client_ssl, event_loop
+    multiplexer_client,
+    test_client_ssl,
+    event_loop,
 ):
     """Test a normal flow of connection data and close by client."""
     loop = event_loop
@@ -74,7 +96,9 @@ async def test_sni_proxy_flow_close_by_client(
 
 
 async def test_sni_proxy_flow_close_by_server(
-    multiplexer_client, test_client_ssl, event_loop
+    multiplexer_client,
+    test_client_ssl,
+    event_loop,
 ):
     """Test a normal flow of connection data and close by server."""
     loop = event_loop

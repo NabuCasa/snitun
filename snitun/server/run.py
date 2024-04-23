@@ -12,10 +12,11 @@ import select
 import signal
 import socket
 from threading import Thread
-from typing import Awaitable, Iterable
+from typing import Awaitable, Iterable, TypedDict
 
 import async_timeout
 
+from ..exceptions import ParseSNIIncompleteError
 from ..utils.server import MAX_READ_SIZE
 from .listener_peer import PeerListener
 from .listener_sni import SNIProxy
@@ -26,6 +27,13 @@ from .worker import ServerWorker
 _LOGGER = logging.getLogger(__name__)
 
 WORKER_STALE_MAX = 30
+
+
+class PartialData(TypedDict):
+    """Partial data class."""
+
+    data: bytes
+    count: int
 
 
 class SniTunServer:
@@ -224,6 +232,19 @@ class SniTunServerWorker(Thread):
         connections: dict[int, socket.socket] = {}
         worker_lb = cycle(self._workers)
         stale: dict[int, int] = {}
+        partial: dict[int, PartialData] = {}
+
+        def _register_parial(fileno: int, data: bytes) -> bool:
+            """Register partial data."""
+            if current := partial.get(fileno):
+                current["data"] = data
+                current["count"] += 1
+            else:
+                partial[fileno] = current = PartialData(data=data, count=1)
+
+            return len(current["data"]) < MAX_READ_SIZE and current["count"] < 4
+
+        _LOGGER.warning("Server started, fd: %s", fd_server)
 
         while self._running:
             events = self._poller.poll(1)
@@ -242,9 +263,15 @@ class SniTunServerWorker(Thread):
 
                 # Read hello & forward to worker
                 elif event & select.EPOLLIN:
+                    partialdata = partial[fileno]["data"] if fileno in partial else b""
+                    if data := self._process(con, worker_lb, partialdata):
+                        if _register_parial(fileno, data):
+                            continue
+                        self._close_socket(con, shutdown=False)
+
                     self._poller.unregister(fileno)
                     con = connections.pop(fileno)
-                    self._process(con, worker_lb)
+                    partial.pop(fileno, None)
 
                 # Close
                 else:
@@ -270,37 +297,44 @@ class SniTunServerWorker(Thread):
                 _LOGGER.critical("Worker '%s' crashed!", worker.name)
                 os.kill(os.getpid(), signal.SIGINT)
 
-    def _process(self, con: socket.socket, workers_lb: Iterable[ServerWorker]) -> None:
+    def _process(
+        self,
+        con: socket.socket,
+        workers_lb: Iterable[ServerWorker],
+        data: bytes,
+    ) -> None | bytes:
         """Process connection & helo."""
-        data = b""
         try:
-            data = con.recv(MAX_READ_SIZE)
+            data += con.recv(MAX_READ_SIZE)
         except OSError as err:
             _LOGGER.warning("Receive fails: %s", err)
             self._close_socket(con, shutdown=False)
-            return
+            return None
 
         # No data received
         if not data:
             self._close_socket(con)
-            return
+            return None
 
         # Peer connection
         if data.startswith(b"gA"):
             next(workers_lb).handover_connection(con, data)
             _LOGGER.debug("Handover new peer connection: %s", data)
-            return
+            return None
 
         # TLS/SSL connection
         if data[0] != 0x16:
             _LOGGER.warning("No valid ClientHello found: %s", data)
             self._close_socket(con)
-            return
+            return None
 
         try:
             hostname = parse_tls_sni(data)
+        except ParseSNIIncompleteError:
+            return data
         except ParseSNIError:
             _LOGGER.warning("Receive invalid ClientHello on public Interface")
+            return None
         else:
             for worker in self._workers:
                 if not worker.is_responsible_peer(hostname):
@@ -308,10 +342,11 @@ class SniTunServerWorker(Thread):
                 worker.handover_connection(con, data, sni=hostname)
 
                 _LOGGER.info("Handover %s to %s", hostname, worker.name)
-                return
+                return None
             _LOGGER.debug("No responsible worker for %s", hostname)
 
         self._close_socket(con)
+        return None
 
     @staticmethod
     def _close_socket(con: socket.socket, shutdown: bool = True) -> None:
