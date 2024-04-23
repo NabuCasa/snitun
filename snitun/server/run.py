@@ -335,15 +335,14 @@ class SniTunServerWorker(Thread):
         except ParseSNIError:
             _LOGGER.warning("Receive invalid ClientHello on public Interface")
             return None
-        else:
-            for worker in self._workers:
-                if not worker.is_responsible_peer(hostname):
-                    continue
-                worker.handover_connection(con, data, sni=hostname)
+        for worker in self._workers:
+            if not worker.is_responsible_peer(hostname):
+                continue
+            worker.handover_connection(con, data, sni=hostname)
 
-                _LOGGER.info("Handover %s to %s", hostname, worker.name)
-                return None
-            _LOGGER.debug("No responsible worker for %s", hostname)
+            _LOGGER.info("Handover %s to %s", hostname, worker.name)
+            return None
+        _LOGGER.debug("No responsible worker for %s", hostname)
 
         self._close_socket(con)
         return None
