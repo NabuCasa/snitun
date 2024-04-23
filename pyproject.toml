@@ -31,8 +31,9 @@ description = "SNI proxy with TCP multiplexer"
 keywords = ["sni", "proxy", "multiplexer", "tls"]
 license = {text = "GPL v3"}
 name = "snitun"
+readme = "README.md"
 requires-python = ">=3.8"
-version = "0.37.0"
+version = "0.37.1"
 
 [project.optional-dependencies]
 lint = [
