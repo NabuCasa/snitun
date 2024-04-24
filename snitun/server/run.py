@@ -165,7 +165,7 @@ class Connection:
     @property
     def fileno(self) -> int:
         """Return filehanle ID."""
-        return sock.fileno()
+        return self.sock.fileno()
 
 
 class SniTunServerWorker(Thread):
