@@ -323,10 +323,6 @@ class SniTunServerWorker(Thread):
         if not data:
             return connection_cleanup(con.fileno())
 
-        if len(data) >= MAX_BUFFER_SIZE:
-            _LOGGER.warning("Connection %d exceed buffer size", con.fileno())
-            return connection_cleanup(con.fileno())
-
         # Peer connection
         if data.startswith(b"gA"):
             self._poller.unregister(con.fileno())
@@ -337,6 +333,10 @@ class SniTunServerWorker(Thread):
                 unregister=False,
                 close_socket=False,
             )
+
+        if len(data) >= MAX_BUFFER_SIZE:
+            _LOGGER.warning("Connection %d exceed buffer size", con.fileno())
+            return connection_cleanup(con.fileno())
 
         # TLS/SSL connection
         if data[0] != 0x16:
