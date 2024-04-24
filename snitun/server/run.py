@@ -18,7 +18,7 @@ import async_timeout
 import attr
 
 from ..exceptions import ParseSNIIncompleteError
-from ..utils.server import MAX_READ_SIZE
+from ..utils.server import MAX_BUFFER_SIZE, MAX_READ_SIZE
 from .listener_peer import PeerListener
 from .listener_sni import SNIProxy
 from .peer_manager import PeerManager
@@ -236,6 +236,17 @@ class SniTunServerWorker(Thread):
         stale: dict[int, int] = {}
         partial: dict[int, PartialData] = {}
 
+        def _connection_cleanup(fileno: int, shutdown: bool = True) -> None:
+            """Gracefull cleanup a connection."""
+            partial.pop(fileno, None)
+            stale.pop(fileno, None)
+
+            with suppress(OSError):
+                self._poller.unregister(fileno)
+
+            if con := connections.pop(fileno, None):
+                self._close_socket(con, shutdown=shutdown)
+
         def _register_parial(fileno: int, data: bytes) -> bool:
             """Register partial data."""
             if current := partial.get(fileno):
@@ -244,9 +255,7 @@ class SniTunServerWorker(Thread):
             else:
                 partial[fileno] = current = PartialData(data=data)
 
-            return len(current.data) < MAX_READ_SIZE and current.count < 4
-
-        _LOGGER.warning("Server started, fd: %s", fd_server)
+            return len(current.data) <= MAX_BUFFER_SIZE
 
         while self._running:
             events = self._poller.poll(1)
@@ -262,35 +271,28 @@ class SniTunServerWorker(Thread):
                     )
                     connections[con.fileno()] = con
                     stale[con.fileno()] = 0
+                    partial.pop(con.fileno(), None)
 
                 # Read hello & forward to worker
                 elif event & select.EPOLLIN:
+                    stale[fileno] = 0  # Reset stale counter
                     partialdata = partial[fileno].data if fileno in partial else b""
-                    if data := self._process(con, worker_lb, partialdata):
-                        if _register_parial(fileno, data):
-                            continue
-                        self._close_socket(con, shutdown=False)
-
-                    self._poller.unregister(fileno)
-                    con = connections.pop(fileno)
-                    partial.pop(fileno, None)
+                    if (
+                        data := self._process(con, worker_lb, partialdata)
+                    ) and _register_parial(fileno, data):
+                        continue
+                    _connection_cleanup(fileno, shutdown=False)
 
                 # Close
                 else:
-                    self._poller.unregister(fileno)
-                    con = connections.pop(fileno)
-                    partial.pop(fileno, None)
-                    self._close_socket(con, shutdown=False)
+                    _connection_cleanup(fileno, shutdown=False)
 
             # cleanup stale connection
             for fileno in tuple(stale):
                 if fileno not in connections:
                     stale.pop(fileno)
                 elif stale[fileno] >= WORKER_STALE_MAX:
-                    self._poller.unregister(fileno)
-                    con = connections.pop(fileno)
-                    partial.pop(fileno, None)
-                    self._close_socket(con)
+                    _connection_cleanup(fileno, shutdown=True)
                 else:
                     stale[fileno] += 1
 

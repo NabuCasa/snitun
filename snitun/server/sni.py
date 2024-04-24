@@ -6,7 +6,7 @@ import asyncio
 import logging
 
 from ..exceptions import ParseSNIError, ParseSNIIncompleteError
-from ..utils.server import MAX_READ_SIZE
+from ..utils.server import MAX_BUFFER_SIZE, MAX_READ_SIZE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ async def payload_reader(reader: asyncio.StreamReader) -> bytes | None:
 
     tls_size = (header[3] << 8) + header[4] + TLS_HEADER_LEN
     data = header
-    while (data_size := len(data)) < tls_size and data_size < MAX_READ_SIZE:
+    while (data_size := len(data)) < tls_size and data_size <= MAX_BUFFER_SIZE:
         try:
             data += await reader.read(MAX_READ_SIZE)
         except ConnectionResetError:
