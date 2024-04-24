@@ -15,7 +15,6 @@ from threading import Thread
 from typing import Awaitable, Iterable
 
 import async_timeout
-import attr
 
 from ..exceptions import ParseSNIIncompleteError
 from ..utils.server import MAX_BUFFER_SIZE, MAX_READ_SIZE
@@ -28,14 +27,6 @@ from .worker import ServerWorker
 _LOGGER = logging.getLogger(__name__)
 
 WORKER_STALE_MAX = 30
-
-
-@attr.s(slots=True)
-class PartialData:
-    """Partial data class."""
-
-    data: bytes = attr.ib(default=b"")
-    count: int = attr.ib(default=1)
 
 
 class SniTunServer:
@@ -234,7 +225,7 @@ class SniTunServerWorker(Thread):
         connections: dict[int, socket.socket] = {}
         worker_lb = cycle(self._workers)
         stale: dict[int, int] = {}
-        partial: dict[int, PartialData] = {}
+        partial: dict[int, bytes] = {}
 
         def _connection_cleanup(fileno: int, shutdown: bool = True) -> None:
             """Gracefull cleanup a connection."""
@@ -249,13 +240,12 @@ class SniTunServerWorker(Thread):
 
         def _register_parial(fileno: int, data: bytes) -> bool:
             """Register partial data."""
-            if current := partial.get(fileno):
-                current.data = data
-                current.count += 1
-            else:
-                partial[fileno] = current = PartialData(data=data)
+            if len(data) >= MAX_BUFFER_SIZE:
+                _LOGGER.warning("Connection %d exceed buffer size", fileno)
+                return False
 
-            return len(current.data) <= MAX_BUFFER_SIZE
+            partial[fileno] = data
+            return True
 
         while self._running:
             events = self._poller.poll(1)
@@ -276,9 +266,8 @@ class SniTunServerWorker(Thread):
                 # Read hello & forward to worker
                 elif event & select.EPOLLIN:
                     stale[fileno] = 0  # Reset stale counter
-                    partialdata = partial[fileno].data if fileno in partial else b""
                     if (
-                        data := self._process(con, worker_lb, partialdata)
+                        data := self._process(con, worker_lb, partial.get(fileno, b""))
                     ) and _register_parial(fileno, data):
                         continue
                     _connection_cleanup(fileno, shutdown=False)
