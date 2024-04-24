@@ -181,7 +181,7 @@ convention = "pep257"
 [tool.ruff.lint.pylint]
 max-args = 15
 max-branches = 30
-max-returns = 8
+max-returns = 9
 max-statements = 80
 
 [tool.setuptools]

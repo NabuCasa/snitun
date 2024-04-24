@@ -12,7 +12,7 @@ import select
 import signal
 import socket
 from threading import Thread
-from typing import Awaitable, Iterable
+from typing import TYPE_CHECKING, Awaitable, Iterable, Protocol
 
 import async_timeout
 
@@ -27,6 +27,20 @@ from .worker import ServerWorker
 _LOGGER = logging.getLogger(__name__)
 
 WORKER_STALE_MAX = 30
+
+if TYPE_CHECKING:
+
+    class ConnectionCleanupHandlerType(Protocol):
+        """Connection cleanup handler type."""
+
+        def __call__(
+            self,
+            fileno: int,
+            shutdown: bool = True,
+            close_socket: bool = True,
+            unregister: bool = True,
+        ) -> None:
+            """Gracefull cleanup a connection."""
 
 
 class SniTunServer:
@@ -231,11 +245,14 @@ class SniTunServerWorker(Thread):
             fileno: int,
             shutdown: bool = True,
             close_socket: bool = True,
+            unregister: bool = True,
         ) -> None:
             """Gracefull cleanup a connection."""
             partial.pop(fileno, None)
             stale.pop(fileno, None)
-            self._poller.unregister(fileno)
+
+            if unregister:
+                self._poller.unregister(fileno)
 
             if (con := connections.pop(fileno, None)) and close_socket:
                 self._close_socket(con, shutdown=shutdown)
@@ -259,11 +276,14 @@ class SniTunServerWorker(Thread):
                 # Read hello & forward to worker
                 elif event & select.EPOLLIN:
                     stale[fileno] = 0  # Reset stale counter
-                    if data := self._process(con, worker_lb, partial.get(fileno, b"")):
+                    if data := self._process(
+                        con,
+                        worker_lb,
+                        partial.get(fileno, b""),
+                        _connection_cleanup,
+                    ):
                         partial[fileno] = data
                         continue
-
-                    _connection_cleanup(fileno, close_socket=False)
 
                 # Close
                 else:
@@ -290,35 +310,38 @@ class SniTunServerWorker(Thread):
         con: socket.socket,
         workers_lb: Iterable[ServerWorker],
         data: bytes,
+        connection_cleanup: ConnectionCleanupHandlerType,
     ) -> None | bytes:
         """Process connection & helo."""
         try:
             data += con.recv(MAX_READ_SIZE)
         except OSError as err:
             _LOGGER.warning("Receive fails: %s", err)
-            self._close_socket(con, shutdown=False)
-            return None
+            return connection_cleanup(con.fileno(), shutdown=False)
 
         # No data received
         if not data:
-            self._close_socket(con)
-            return None
+            return connection_cleanup(con.fileno())
 
         if len(data) >= MAX_BUFFER_SIZE:
             _LOGGER.warning("Connection %d exceed buffer size", con.fileno())
-            return None
+            return connection_cleanup(con.fileno())
 
         # Peer connection
         if data.startswith(b"gA"):
+            self._poller.unregister(con.fileno())
             next(workers_lb).handover_connection(con, data)
             _LOGGER.debug("Handover new peer connection: %s", data)
-            return None
+            return connection_cleanup(
+                con.fileno(),
+                unregister=False,
+                close_socket=False,
+            )
 
         # TLS/SSL connection
         if data[0] != 0x16:
             _LOGGER.warning("No valid ClientHello found: %s", data)
-            self._close_socket(con)
-            return None
+            return connection_cleanup(con.fileno())
 
         try:
             hostname = parse_tls_sni(data)
@@ -326,18 +349,22 @@ class SniTunServerWorker(Thread):
             return data
         except ParseSNIError:
             _LOGGER.warning("Receive invalid ClientHello on public Interface")
-            return None
+            return connection_cleanup(con.fileno())
+        self._poller.unregister(con.fileno())
         for worker in self._workers:
             if not worker.is_responsible_peer(hostname):
                 continue
             worker.handover_connection(con, data, sni=hostname)
 
             _LOGGER.info("Handover %s to %s", hostname, worker.name)
-            return None
+            return connection_cleanup(
+                con.fileno(),
+                unregister=False,
+                close_socket=False,
+            )
         _LOGGER.debug("No responsible worker for %s", hostname)
 
-        self._close_socket(con)
-        return None
+        return connection_cleanup(con.fileno(), unregister=False)
 
     @staticmethod
     def _close_socket(con: socket.socket, shutdown: bool = True) -> None:
