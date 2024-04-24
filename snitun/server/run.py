@@ -291,7 +291,8 @@ class SniTunServerWorker(Thread):
                     client.close_socket(shutdown=False)
 
             # cleanup stale connection
-            for client in connections.values():
+            for client_id in [connections.keys()]:
+                client = connections.get(client_id)
                 if client.stale >= WORKER_STALE_MAX:
                     connections.pop(client.fileno)
                     client.close_socket()
