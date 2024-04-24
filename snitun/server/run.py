@@ -364,11 +364,3 @@ class SniTunServerWorker(Thread):
 
         client.close_socket()
         return
-
-    @staticmethod
-    def _close_socket(con: socket.socket, shutdown: bool = True) -> None:
-        """Gracefull shutdown a socket or free the handle."""
-        with suppress(OSError):
-            if shutdown:
-                con.shutdown(socket.SHUT_RDWR)
-            con.close()
