@@ -240,15 +240,6 @@ class SniTunServerWorker(Thread):
             if (con := connections.pop(fileno, None)) and close_socket:
                 self._close_socket(con, shutdown=shutdown)
 
-        def _register_parial(fileno: int, data: bytes) -> bool:
-            """Register partial data."""
-            if len(data) >= MAX_BUFFER_SIZE:
-                _LOGGER.warning("Connection %d exceed buffer size", fileno)
-                return False
-
-            partial[fileno] = data
-            return True
-
         while self._running:
             events = self._poller.poll(1)
             for fileno, event in events:
@@ -268,10 +259,10 @@ class SniTunServerWorker(Thread):
                 # Read hello & forward to worker
                 elif event & select.EPOLLIN:
                     stale[fileno] = 0  # Reset stale counter
-                    if (
-                        data := self._process(con, worker_lb, partial.get(fileno, b""))
-                    ) and _register_parial(fileno, data):
+                    if data := self._process(con, worker_lb, partial.get(fileno, b"")):
+                        partial[fileno] = data
                         continue
+
                     _connection_cleanup(fileno, close_socket=False)
 
                 # Close
@@ -311,6 +302,10 @@ class SniTunServerWorker(Thread):
         # No data received
         if not data:
             self._close_socket(con)
+            return None
+
+        if len(data) >= MAX_BUFFER_SIZE:
+            _LOGGER.warning("Connection %d exceed buffer size", con.fileno())
             return None
 
         # Peer connection
