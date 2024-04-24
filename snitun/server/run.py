@@ -161,11 +161,20 @@ class Connection:
     sock: socket.socket = attr.ib()
     buffer: bytes = attr.ib(default=b"")
     stale: int = attr.ib(default=0)
+    close: bool = attr.ib(default=False)
 
     @property
     def fileno(self) -> int:
         """Return filehanle ID."""
         return self.sock.fileno()
+
+    def close_socket(self, shutdown: bool = True) -> None:
+        """Gracefull shutdown a socket or free the handle."""
+        self.close = True
+        with suppress(OSError):
+            if shutdown:
+                self.sock.shutdown(socket.SHUT_RDWR)
+            self.sock.close()
 
 
 class SniTunServerWorker(Thread):
@@ -259,8 +268,13 @@ class SniTunServerWorker(Thread):
                 # Read hello & forward to worker
                 elif event & select.EPOLLIN:
                     client = connections.get(fileno)
-                    if not self._process(client, worker_lb):
-                        client.stale = 0  # reset stale count
+                    client.stale = 0  # reset stale count
+
+                    # Process connection
+                    self._process(client, worker_lb)
+
+                    # Partial read
+                    if not client.close:
                         continue
 
                     self._poller.unregister(fileno)
@@ -270,14 +284,14 @@ class SniTunServerWorker(Thread):
                 else:
                     self._poller.unregister(fileno)
                     client = connections.pop(fileno)
-                    self._close_socket(client.sock, shutdown=False)
+                    client.close_socket(shutdown=False)
 
             # cleanup stale connection
             for client in connections.values():
                 if client.stale >= WORKER_STALE_MAX:
                     self._poller.unregister(client.fileno)
                     connections.pop(client.fileno)
-                    self._close_socket(client.sock)
+                    client.close_socket()
                 else:
                     client.stale += 1
 
@@ -292,31 +306,32 @@ class SniTunServerWorker(Thread):
         self,
         client: Connection,
         workers_lb: Iterable[ServerWorker],
-    ) -> bool:
+    ) -> None:
         """Process connection & helo."""
         try:
             client.buffer += client.sock.recv(MAX_READ_SIZE)
         except OSError as err:
             _LOGGER.warning("Receive fails: %s", err)
-            self._close_socket(client.sock, shutdown=False)
-            return True
+            client.close_socket(shutdown=False)
+            return
 
         # No data received
         if not client.buffer:
-            self._close_socket(client.sock)
-            return True
+            client.close_socket()
+            return
 
         # Peer connection
         if client.buffer.startswith(b"gA"):
             next(workers_lb).handover_connection(client.sock, client.buffer)
             _LOGGER.debug("Handover new peer connection: %s", client.buffer)
-            return True
+            client.close = True
+            return
 
         # TLS/SSL connection
         if client.buffer[0] != 0x16:
             _LOGGER.warning("No valid ClientHello found: %s", client.buffer)
-            self._close_socket(client.sock)
-            return True
+            client.close_socket()
+            return
 
         # Get Hostname
         try:
@@ -325,26 +340,26 @@ class SniTunServerWorker(Thread):
             # Check Buffer Size
             if len(client.buffer) >= MAX_BUFFER_SIZE:
                 _LOGGER.warning("Connection %d exceed buffer size", client.fileno)
-                self._close_socket(client.sock)
-                return True
-            return False
+                client.close_socket()
+            return
         except ParseSNIError:
             _LOGGER.warning("Receive invalid ClientHello on public Interface")
-            self._close_socket(client.sock)
-            return True
+            client.close_socket()
+            return
 
         # Distribute to child worker
         for worker in self._workers:
             if not worker.is_responsible_peer(hostname):
                 continue
             worker.handover_connection(client.sock, client.buffer, sni=hostname)
+            client.close = True
 
             _LOGGER.info("Handover %s to %s", hostname, worker.name)
-            return True
+            return
         _LOGGER.debug("No responsible worker for %s", hostname)
 
-        self._close_socket(client.sock)
-        return True
+        client.close_socket()
+        return
 
     @staticmethod
     def _close_socket(con: socket.socket, shutdown: bool = True) -> None:
