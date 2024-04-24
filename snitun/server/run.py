@@ -227,15 +227,17 @@ class SniTunServerWorker(Thread):
         stale: dict[int, int] = {}
         partial: dict[int, bytes] = {}
 
-        def _connection_cleanup(fileno: int, shutdown: bool = True) -> None:
+        def _connection_cleanup(
+            fileno: int,
+            shutdown: bool = True,
+            close_socket: bool = True,
+        ) -> None:
             """Gracefull cleanup a connection."""
             partial.pop(fileno, None)
             stale.pop(fileno, None)
+            self._poller.unregister(fileno)
 
-            with suppress(OSError):
-                self._poller.unregister(fileno)
-
-            if con := connections.pop(fileno, None):
+            if (con := connections.pop(fileno, None)) and close_socket:
                 self._close_socket(con, shutdown=shutdown)
 
         def _register_parial(fileno: int, data: bytes) -> bool:
@@ -270,7 +272,7 @@ class SniTunServerWorker(Thread):
                         data := self._process(con, worker_lb, partial.get(fileno, b""))
                     ) and _register_parial(fileno, data):
                         continue
-                    _connection_cleanup(fileno, shutdown=False)
+                    _connection_cleanup(fileno, close_socket=False)
 
                 # Close
                 else:
