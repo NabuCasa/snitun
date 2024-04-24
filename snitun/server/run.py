@@ -159,6 +159,7 @@ class Connection:
     """Partial data class."""
 
     sock: socket.socket = attr.ib()
+    epoll: select.epoll = attr.ib()
     buffer: bytes = attr.ib(default=b"")
     stale: int = attr.ib(default=0)
     close: bool = attr.ib(default=False)
@@ -168,9 +169,14 @@ class Connection:
         """Return filehanle ID."""
         return self.sock.fileno()
 
+    def soft_close(self) -> None:
+        """Socket got handled over."""
+        self.close = True
+        self.epoll.unregister(self.fileno)
+
     def close_socket(self, shutdown: bool = True) -> None:
         """Gracefull shutdown a socket or free the handle."""
-        self.close = True
+        self.soft_close()
         with suppress(OSError):
             if shutdown:
                 self.sock.shutdown(socket.SHUT_RDWR)
@@ -263,7 +269,7 @@ class SniTunServerWorker(Thread):
                         con.fileno(),
                         select.EPOLLIN | select.EPOLLHUP | select.EPOLLERR,
                     )
-                    connections[con.fileno()] = Connection(con)
+                    connections[con.fileno()] = Connection(con, self._poller)
 
                 # Read hello & forward to worker
                 elif event & select.EPOLLIN:
@@ -277,19 +283,16 @@ class SniTunServerWorker(Thread):
                     if not client.close:
                         continue
 
-                    self._poller.unregister(fileno)
                     connections.pop(fileno)
 
                 # Close
                 else:
-                    self._poller.unregister(fileno)
                     client = connections.pop(fileno)
                     client.close_socket(shutdown=False)
 
             # cleanup stale connection
             for client in connections.values():
                 if client.stale >= WORKER_STALE_MAX:
-                    self._poller.unregister(client.fileno)
                     connections.pop(client.fileno)
                     client.close_socket()
                 else:
@@ -324,7 +327,7 @@ class SniTunServerWorker(Thread):
         if client.buffer.startswith(b"gA"):
             next(workers_lb).handover_connection(client.sock, client.buffer)
             _LOGGER.debug("Handover new peer connection: %s", client.buffer)
-            client.close = True
+            client.soft_close()
             return
 
         # TLS/SSL connection
@@ -352,7 +355,7 @@ class SniTunServerWorker(Thread):
             if not worker.is_responsible_peer(hostname):
                 continue
             worker.handover_connection(client.sock, client.buffer, sni=hostname)
-            client.close = True
+            client.soft_close()
 
             _LOGGER.info("Handover %s to %s", hostname, worker.name)
             return
