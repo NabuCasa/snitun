@@ -255,7 +255,7 @@ class SniTunServerWorker(Thread):
         connections: dict[int, Connection] = {}
         worker_lb = cycle(self._workers)
 
-        _LOGGER.warning("Server started, fd: %s", fd_server)
+        _LOGGER.info("Server started, fd: %s", fd_server)
 
         while self._running:
             events = self._poller.poll(1)
@@ -291,7 +291,7 @@ class SniTunServerWorker(Thread):
                     client.close_socket(shutdown=False)
 
             # cleanup stale connection
-            for client_id in list(connections.keys()):
+            for client_id in tuple(connections.keys()):
                 client = connections.get(client_id)
                 if client.stale >= WORKER_STALE_MAX:
                     connections.pop(client.fileno)
@@ -326,9 +326,9 @@ class SniTunServerWorker(Thread):
 
         # Peer connection
         if client.buffer.startswith(b"gA"):
+            client.soft_close()
             next(workers_lb).handover_connection(client.sock, client.buffer)
             _LOGGER.debug("Handover new peer connection: %s", client.buffer)
-            client.soft_close()
             return
 
         # TLS/SSL connection
@@ -355,8 +355,8 @@ class SniTunServerWorker(Thread):
         for worker in self._workers:
             if not worker.is_responsible_peer(hostname):
                 continue
-            worker.handover_connection(client.sock, client.buffer, sni=hostname)
             client.soft_close()
+            worker.handover_connection(client.sock, client.buffer, sni=hostname)
 
             _LOGGER.info("Handover %s to %s", hostname, worker.name)
             return
