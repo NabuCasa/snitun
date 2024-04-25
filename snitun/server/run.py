@@ -18,7 +18,7 @@ import async_timeout
 import attr
 
 from ..exceptions import ParseSNIIncompleteError
-from ..utils.server import MAX_READ_SIZE
+from ..utils.server import MAX_BUFFER_SIZE, MAX_READ_SIZE
 from .listener_peer import PeerListener
 from .listener_sni import SNIProxy
 from .peer_manager import PeerManager
@@ -28,14 +28,6 @@ from .worker import ServerWorker
 _LOGGER = logging.getLogger(__name__)
 
 WORKER_STALE_MAX = 30
-
-
-@attr.s(slots=True)
-class PartialData:
-    """Partial data class."""
-
-    data: bytes = attr.ib(default=b"")
-    count: int = attr.ib(default=1)
 
 
 class SniTunServer:
@@ -162,6 +154,35 @@ class SniTunServerSingle:
             return
 
 
+@attr.s(slots=True)
+class Connection:
+    """Connection data class."""
+
+    sock: socket.socket = attr.ib()
+    epoll: select.epoll = attr.ib()
+    buffer: bytes = attr.ib(default=b"")
+    stale: int = attr.ib(default=0)
+    close: bool = attr.ib(default=False)
+
+    @property
+    def fileno(self) -> int:
+        """Return filehanle ID."""
+        return self.sock.fileno()
+
+    def soft_close(self) -> None:
+        """Socket got handled over."""
+        self.close = True
+        self.epoll.unregister(self.fileno)
+
+    def close_socket(self, shutdown: bool = True) -> None:
+        """Gracefull shutdown a socket or free the handle."""
+        self.soft_close()
+        with suppress(OSError):
+            if shutdown:
+                self.sock.shutdown(socket.SHUT_RDWR)
+            self.sock.close()
+
+
 class SniTunServerWorker(Thread):
     """SniTunServer helper class for Worker."""
 
@@ -231,22 +252,10 @@ class SniTunServerWorker(Thread):
     def run(self) -> None:
         """Handle incoming connection."""
         fd_server = self._server.fileno()
-        connections: dict[int, socket.socket] = {}
+        connections: dict[int, Connection] = {}
         worker_lb = cycle(self._workers)
-        stale: dict[int, int] = {}
-        partial: dict[int, PartialData] = {}
 
-        def _register_parial(fileno: int, data: bytes) -> bool:
-            """Register partial data."""
-            if current := partial.get(fileno):
-                current.data = data
-                current.count += 1
-            else:
-                partial[fileno] = current = PartialData(data=data)
-
-            return len(current.data) < MAX_READ_SIZE and current.count < 4
-
-        _LOGGER.warning("Server started, fd: %s", fd_server)
+        _LOGGER.info("Server started, fd: %s", fd_server)
 
         while self._running:
             events = self._poller.poll(1)
@@ -260,39 +269,35 @@ class SniTunServerWorker(Thread):
                         con.fileno(),
                         select.EPOLLIN | select.EPOLLHUP | select.EPOLLERR,
                     )
-                    connections[con.fileno()] = con
-                    stale[con.fileno()] = 0
+                    connections[con.fileno()] = Connection(con, self._poller)
 
                 # Read hello & forward to worker
                 elif event & select.EPOLLIN:
-                    partialdata = partial[fileno].data if fileno in partial else b""
-                    if data := self._process(con, worker_lb, partialdata):
-                        if _register_parial(fileno, data):
-                            continue
-                        self._close_socket(con, shutdown=False)
+                    client = connections.get(fileno)
+                    client.stale = 0  # reset stale count
 
-                    self._poller.unregister(fileno)
-                    con = connections.pop(fileno)
-                    partial.pop(fileno, None)
+                    # Process connection
+                    self._process(client, worker_lb)
+
+                    # Partial read
+                    if not client.close:
+                        continue
+
+                    connections.pop(fileno)
 
                 # Close
                 else:
-                    self._poller.unregister(fileno)
-                    con = connections.pop(fileno)
-                    partial.pop(fileno, None)
-                    self._close_socket(con, shutdown=False)
+                    client = connections.pop(fileno)
+                    client.close_socket(shutdown=False)
 
             # cleanup stale connection
-            for fileno in tuple(stale):
-                if fileno not in connections:
-                    stale.pop(fileno)
-                elif stale[fileno] >= WORKER_STALE_MAX:
-                    self._poller.unregister(fileno)
-                    con = connections.pop(fileno)
-                    partial.pop(fileno, None)
-                    self._close_socket(con)
+            for client_id in tuple(connections.keys()):
+                client = connections.get(client_id)
+                if client.stale >= WORKER_STALE_MAX:
+                    connections.pop(client.fileno)
+                    client.close_socket()
                 else:
-                    stale[fileno] += 1
+                    client.stale += 1
 
             # Check if worker are running
             for worker in self._workers:
@@ -303,58 +308,59 @@ class SniTunServerWorker(Thread):
 
     def _process(
         self,
-        con: socket.socket,
+        client: Connection,
         workers_lb: Iterable[ServerWorker],
-        data: bytes,
-    ) -> None | bytes:
+    ) -> None:
         """Process connection & helo."""
         try:
-            data += con.recv(MAX_READ_SIZE)
+            client.buffer += client.sock.recv(MAX_READ_SIZE)
         except OSError as err:
             _LOGGER.warning("Receive fails: %s", err)
-            self._close_socket(con, shutdown=False)
-            return None
+            client.close_socket(shutdown=False)
+            return
 
         # No data received
-        if not data:
-            self._close_socket(con)
-            return None
+        if not client.buffer:
+            client.close_socket()
+            return
 
         # Peer connection
-        if data.startswith(b"gA"):
-            next(workers_lb).handover_connection(con, data)
-            _LOGGER.debug("Handover new peer connection: %s", data)
-            return None
+        if client.buffer.startswith(b"gA"):
+            client.soft_close()
+            next(workers_lb).handover_connection(client.sock, client.buffer)
+            _LOGGER.debug("Handover new peer connection: %s", client.buffer)
+            return
 
         # TLS/SSL connection
-        if data[0] != 0x16:
-            _LOGGER.warning("No valid ClientHello found: %s", data)
-            self._close_socket(con)
-            return None
+        if client.buffer[0] != 0x16:
+            _LOGGER.warning("No valid ClientHello found: %s", client.buffer)
+            client.close_socket()
+            return
 
+        # Get Hostname
         try:
-            hostname = parse_tls_sni(data)
+            hostname = parse_tls_sni(client.buffer)
         except ParseSNIIncompleteError:
-            return data
+            # Check Buffer Size
+            if len(client.buffer) >= MAX_BUFFER_SIZE:
+                _LOGGER.warning("Connection %d exceed buffer size", client.fileno)
+                client.close_socket()
+            return
         except ParseSNIError:
             _LOGGER.warning("Receive invalid ClientHello on public Interface")
-            return None
+            client.close_socket()
+            return
+
+        # Distribute to child worker
         for worker in self._workers:
             if not worker.is_responsible_peer(hostname):
                 continue
-            worker.handover_connection(con, data, sni=hostname)
+            client.soft_close()
+            worker.handover_connection(client.sock, client.buffer, sni=hostname)
 
             _LOGGER.info("Handover %s to %s", hostname, worker.name)
-            return None
+            return
         _LOGGER.debug("No responsible worker for %s", hostname)
 
-        self._close_socket(con)
-        return None
-
-    @staticmethod
-    def _close_socket(con: socket.socket, shutdown: bool = True) -> None:
-        """Gracefull shutdown a socket or free the handle."""
-        with suppress(OSError):
-            if shutdown:
-                con.shutdown(socket.SHUT_RDWR)
-            con.close()
+        client.close_socket()
+        return
