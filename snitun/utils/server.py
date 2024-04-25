@@ -7,7 +7,8 @@ import json
 
 from cryptography.fernet import Fernet, MultiFernet
 
-MAX_READ_SIZE = 4096
+MAX_READ_SIZE = 4_096
+MAX_BUFFER_SIZE = 1_024_000
 
 
 def generate_client_token(
