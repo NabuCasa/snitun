@@ -18,7 +18,7 @@ import async_timeout
 import attr
 
 from ..exceptions import ParseSNIIncompleteError
-from ..utils.server import MAX_READ_SIZE, MAX_BUFFER_SIZE
+from ..utils.server import MAX_BUFFER_SIZE, MAX_READ_SIZE
 from .listener_peer import PeerListener
 from .listener_sni import SNIProxy
 from .peer_manager import PeerManager
