@@ -156,7 +156,7 @@ class SniTunServerSingle:
 
 @attr.s(slots=True)
 class Connection:
-    """Partial data class."""
+    """Connection data class."""
 
     sock: socket.socket = attr.ib()
     epoll: select.epoll = attr.ib()
