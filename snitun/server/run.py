@@ -358,7 +358,7 @@ class SniTunServerWorker(Thread):
             client.soft_close()
             worker.handover_connection(client.sock, client.buffer, sni=hostname)
 
-            _LOGGER.info("Handover %s to %s", hostname, worker.name)
+            _LOGGER.debug("Handover %s to %s", hostname, worker.name)
             return
         _LOGGER.debug("No responsible worker for %s", hostname)
 
