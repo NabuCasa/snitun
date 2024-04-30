@@ -112,8 +112,14 @@ class PeerManager:
         """Get peer."""
         return self._peers.get(hostname)
 
-    def close_connections(self) -> None:
+    async def close_connections(self, timeout: int = 10) -> None:
         """Close all peer connections."""
-        for peer in list(self._peers.values()):
+        peers = list(self._peers.values())
+        for peer in peers:
             if peer.is_connected:
                 peer.multiplexer.shutdown()
+
+        await asyncio.wait_for(
+            [peer.wait_disconnect() for peer in peers],
+            timeout=timeout,
+        )

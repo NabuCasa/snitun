@@ -120,7 +120,10 @@ class ServerWorker(Process):
 
         # Shutdown worker
         _LOGGER.info("Stoping worker: %s", self.name)
-        self._peers.close_connections()
+        asyncio.run_coroutine_threadsafe(
+            self._peers.close_connections(),
+            loop=self._loop,
+        )
         self._loop.call_soon_threadsafe(self._loop.stop)
         running_loop.join(10)
 
