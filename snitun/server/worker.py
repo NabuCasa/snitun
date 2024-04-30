@@ -123,7 +123,7 @@ class ServerWorker(Process):
         asyncio.run_coroutine_threadsafe(
             self._peers.close_connections(),
             loop=self._loop,
-        )
+        ).result()
         self._loop.call_soon_threadsafe(self._loop.stop)
         running_loop.join(10)
 

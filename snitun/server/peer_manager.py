@@ -9,6 +9,7 @@ import json
 import logging
 from typing import Callable
 
+import async_timeout
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
 from ..exceptions import SniTunInvalidPeer
@@ -113,13 +114,18 @@ class PeerManager:
         return self._peers.get(hostname)
 
     async def close_connections(self, timeout: int = 10) -> None:
-        """Close all peer connections."""
+        """Close all peer connections.
+
+        Use this function only if you do not controll the server socket.
+        """
         peers = list(self._peers.values())
         for peer in peers:
             if peer.is_connected:
                 peer.multiplexer.shutdown()
 
-        await asyncio.wait_for(
-            [peer.wait_disconnect() for peer in peers],
-            timeout=timeout,
-        )
+        if waiters := [peer.wait_disconnect() for peer in peers]:
+            try:
+                async with async_timeout.timeout(timeout):
+                    await asyncio.gather(*waiters, return_exceptions=True)
+            except asyncio.TimeoutError:
+                _LOGGER.error("Timeout while waiting for peer disconnect")
