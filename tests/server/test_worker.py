@@ -1,4 +1,5 @@
 """Tests for the server worker."""
+
 from datetime import datetime, timedelta, timezone
 import hashlib
 import os
@@ -49,6 +50,8 @@ def test_peer_connection(test_server_sync, test_client_sync, event_loop):
 
     worker.shutdown()
 
+    assert worker.peer_size == 0
+
 
 def test_peer_connection_disconnect(test_server_sync, test_client_sync, event_loop):
     """Run a full flow of with a peer & disconnect."""
@@ -81,7 +84,10 @@ def test_peer_connection_disconnect(test_server_sync, test_client_sync, event_lo
 
 
 def test_sni_connection(
-    test_server_sync, test_client_sync, test_client_ssl_sync, event_loop
+    test_server_sync,
+    test_client_sync,
+    test_client_ssl_sync,
+    event_loop,
 ):
     """Run a full flow of with a peer."""
     worker = ServerWorker(FERNET_TOKENS)
@@ -91,7 +97,11 @@ def test_sni_connection(
     hostname = "localhost"
     alias = ["localhost.custom"]
     fernet_token = create_peer_config(
-        valid.timestamp(), hostname, aes_key, aes_iv, alias=alias
+        valid.timestamp(),
+        hostname,
+        aes_key,
+        aes_iv,
+        alias=alias,
     )
 
     worker.start()
@@ -111,4 +121,7 @@ def test_sni_connection(
     worker.handover_connection(test_server_sync[1], TLS_1_2, hostname)
     assert len(test_client_sync.recv(1048)) == 32
 
+    assert worker.peer_size == 1
     worker.shutdown()
+
+    assert worker.peer_size == 0

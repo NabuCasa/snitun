@@ -1,4 +1,5 @@
 """Manage peer connections."""
+
 from __future__ import annotations
 
 import asyncio
@@ -8,6 +9,7 @@ import json
 import logging
 from typing import Callable
 
+import async_timeout
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
 from ..exceptions import SniTunInvalidPeer
@@ -37,7 +39,7 @@ class PeerManager:
         self._loop = asyncio.get_event_loop()
         self._throttling = throttling
         self._event_callback = event_callback
-        self._peers = {}
+        self._peers: dict[str, Peer] = {}
 
     @property
     def connections(self) -> int:
@@ -96,7 +98,9 @@ class PeerManager:
 
         if self._event_callback:
             self._loop.call_soon(
-                self._event_callback, peer, PeerManagerEvent.DISCONNECTED,
+                self._event_callback,
+                peer,
+                PeerManagerEvent.DISCONNECTED,
             )
 
     def peer_available(self, hostname: str) -> bool:
@@ -108,3 +112,20 @@ class PeerManager:
     def get_peer(self, hostname: str) -> Peer | None:
         """Get peer."""
         return self._peers.get(hostname)
+
+    async def close_connections(self, timeout: int = 10) -> None:
+        """Close all peer connections.
+
+        Use this function only if you do not controll the server socket.
+        """
+        peers = list(self._peers.values())
+        for peer in peers:
+            if peer.is_connected:
+                peer.multiplexer.shutdown()
+
+        if waiters := [peer.wait_disconnect() for peer in peers]:
+            try:
+                async with async_timeout.timeout(timeout):
+                    await asyncio.gather(*waiters, return_exceptions=True)
+            except asyncio.TimeoutError:
+                _LOGGER.error("Timeout while waiting for peer disconnect")
