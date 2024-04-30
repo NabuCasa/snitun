@@ -1,4 +1,5 @@
 """SniTun worker for traffics."""
+
 from __future__ import annotations
 
 import asyncio
@@ -83,7 +84,10 @@ class ServerWorker(Process):
         self.join(10)
 
     def handover_connection(
-        self, con: socket, data: bytes, sni: str | None = None,
+        self,
+        con: socket,
+        data: bytes,
+        sni: str | None = None,
     ) -> None:
         """Move new connection to worker."""
         self._new.put_nowait((con, data, sni))
@@ -110,16 +114,22 @@ class ServerWorker(Process):
 
             new[0].setblocking(False)
             asyncio.run_coroutine_threadsafe(
-                self._async_new_connection(*new), loop=self._loop,
+                self._async_new_connection(*new),
+                loop=self._loop,
             )
 
         # Shutdown worker
-        _LOGGER.info("Stop worker: %s", self.name)
+        _LOGGER.info("Stoping worker: %s", self.name)
+        self._loop.call_soon_threadsafe(self._list_peer.stop)
+        self._loop.call_soon_threadsafe(self._list_sni.stop)
         self._loop.call_soon_threadsafe(self._loop.stop)
         running_loop.join(10)
 
     async def _async_new_connection(
-        self, con: socket, data: bytes, sni: str | None,
+        self,
+        con: socket,
+        data: bytes,
+        sni: str | None,
     ) -> None:
         """Handle incoming connection."""
         try:
