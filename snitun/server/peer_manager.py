@@ -1,4 +1,5 @@
 """Manage peer connections."""
+
 from __future__ import annotations
 
 import asyncio
@@ -37,7 +38,7 @@ class PeerManager:
         self._loop = asyncio.get_event_loop()
         self._throttling = throttling
         self._event_callback = event_callback
-        self._peers = {}
+        self._peers: dict[str, Peer] = {}
 
     @property
     def connections(self) -> int:
@@ -96,7 +97,9 @@ class PeerManager:
 
         if self._event_callback:
             self._loop.call_soon(
-                self._event_callback, peer, PeerManagerEvent.DISCONNECTED,
+                self._event_callback,
+                peer,
+                PeerManagerEvent.DISCONNECTED,
             )
 
     def peer_available(self, hostname: str) -> bool:
@@ -108,3 +111,9 @@ class PeerManager:
     def get_peer(self, hostname: str) -> Peer | None:
         """Get peer."""
         return self._peers.get(hostname)
+
+    def close_connections(self) -> None:
+        """Close all peer connections."""
+        for peer in list(self._peers.values()):
+            if peer.is_connected:
+                peer.multiplexer.shutdown()
