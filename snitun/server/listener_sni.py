@@ -116,7 +116,7 @@ class SNIProxy:
         transport = writer.transport
         try:
             ip_address = ipaddress.ip_address(writer.get_extra_info("peername")[0])
-        except TypeError:
+        except (TypeError, AttributeError):
             _LOGGER.error("Can't read source IP")
             return
 
