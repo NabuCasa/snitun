@@ -12,7 +12,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.1.2
+      - uses: actions/checkout@v4.1.4
       - name: Set up Python 3.8
         uses: actions/setup-python@v5.1.0
         with:
@@ -38,7 +38,7 @@ jobs:
           - "3.11"
           - "3.12"
     steps:
-      - uses: actions/checkout@v4.1.2
+      - uses: actions/checkout@v4.1.4
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5.1.0
         with:
