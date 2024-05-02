@@ -16,8 +16,6 @@ classifiers = [
     "Topic :: Internet :: Proxy Servers",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Development Status :: 5 - Production/Stable",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -33,7 +31,7 @@ keywords = ["sni", "proxy", "multiplexer", "tls"]
 license = {text = "GPL v3"}
 name = "snitun"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 version = "0.38.3"
 
 [project.optional-dependencies]
@@ -130,7 +128,7 @@ asyncio_mode = "auto"
 fix = true
 line-length = 88
 show-fixes = true
-target-version = "py38"
+target-version = "py310"
 
 [tool.ruff.lint]
 ignore = [
