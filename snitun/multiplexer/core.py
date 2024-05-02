@@ -159,7 +159,7 @@ class Multiplexer:
                     continue
                 await asyncio.sleep(self._throttling)
 
-        except (asyncio.CancelledError, asyncio.TimeoutError):
+        except (asyncio.CancelledError, asyncio.TimeoutError, TimeoutError):
             _LOGGER.debug("Receive canceling")
             with suppress(OSError):
                 self._writer.write_eof()

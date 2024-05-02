@@ -165,7 +165,7 @@ class SNIProxy:
                     # Flush buffer
                     await writer.drain()
 
-        except asyncio.TimeoutError:
+        except (asyncio.TimeoutError, TimeoutError):
             _LOGGER.debug("Close TCP session after timeout for %s", channel.id)
             with suppress(MultiplexerTransportError):
                 await multiplexer.delete_channel(channel)
