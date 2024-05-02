@@ -32,7 +32,7 @@ license = {text = "GPL v3"}
 name = "snitun"
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.38.3"
+version = "0.39.0"
 
 [project.optional-dependencies]
 lint = [
