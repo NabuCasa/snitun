@@ -23,6 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
+    "aiohttp>=3.9.3",
     "attrs>=18.2.0",
     "async_timeout>=3.0.1",
     "cryptography>=2.5",
@@ -37,7 +38,6 @@ version = "0.38.3"
 
 [project.optional-dependencies]
 lint = [
-    "aiohttp==3.9.3",
     "pylint==3.1.0",
     "ruff==0.4.2",
 ]
