@@ -170,13 +170,7 @@ class SNIProxy:
             with suppress(MultiplexerTransportError):
                 await multiplexer.delete_channel(channel)
 
-        except (
-            MultiplexerTransportError,
-            OSError,
-            RuntimeError,
-            ConnectionResetError,
-            asyncio.CancelledError,
-        ):
+        except (MultiplexerTransportError, OSError, RuntimeError, ConnectionResetError):
             _LOGGER.debug("Transport closed by Proxy for %s", channel.id)
             with suppress(MultiplexerTransportError):
                 await multiplexer.delete_channel(channel)
