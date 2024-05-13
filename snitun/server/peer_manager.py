@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from datetime import datetime, timezone
 from enum import Enum
 import json
 import logging
-from typing import Callable
 
 import async_timeout
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet

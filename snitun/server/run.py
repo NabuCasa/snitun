@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Iterable
 from contextlib import suppress
 from itertools import cycle
 import logging
@@ -12,7 +13,6 @@ import select
 import signal
 import socket
 from threading import Thread
-from typing import Awaitable, Iterable
 
 import async_timeout
 import attr

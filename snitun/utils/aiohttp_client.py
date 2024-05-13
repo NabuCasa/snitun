@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Coroutine
 from contextlib import suppress
 import logging
 import socket
 import ssl
-from typing import Any, Coroutine
+from typing import Any
 
 from aiohttp.web import AppRunner, SockSite
 import async_timeout
