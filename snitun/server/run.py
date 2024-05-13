@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Iterable
 from contextlib import suppress
 from itertools import cycle
 import logging
@@ -12,7 +13,6 @@ import select
 import signal
 import socket
 from threading import Thread
-from typing import Awaitable, Iterable
 
 import async_timeout
 import attr
@@ -313,16 +313,17 @@ class SniTunServerWorker(Thread):
     ) -> None:
         """Process connection & helo."""
         try:
-            client.buffer += client.sock.recv(MAX_READ_SIZE)
+            data = client.sock.recv(MAX_READ_SIZE)
         except OSError as err:
             _LOGGER.warning("Receive fails: %s", err)
             client.close_socket(shutdown=False)
             return
 
         # No data received
-        if not client.buffer:
+        if not data:
             client.close_socket()
             return
+        client.buffer += data
 
         # Peer connection
         if client.buffer.startswith(b"gA"):

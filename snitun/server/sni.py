@@ -6,7 +6,7 @@ import asyncio
 import logging
 
 from ..exceptions import ParseSNIError, ParseSNIIncompleteError
-from ..utils.server import MAX_READ_SIZE, MAX_BUFFER_SIZE
+from ..utils.server import MAX_BUFFER_SIZE, MAX_READ_SIZE
 
 _LOGGER = logging.getLogger(__name__)
 

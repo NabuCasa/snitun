@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Coroutine
 from datetime import datetime, timezone
 import hashlib
 import logging
 import os
-from typing import Coroutine
 
 import async_timeout
 
