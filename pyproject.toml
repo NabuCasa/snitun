@@ -36,7 +36,7 @@ version = "0.39.1"
 
 [project.optional-dependencies]
 lint = [
-    "pylint==3.1.0",
+    "pylint==3.2.2",
     "ruff==0.4.2",
 ]
 test = [
