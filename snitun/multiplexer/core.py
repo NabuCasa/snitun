@@ -110,8 +110,13 @@ class Multiplexer:
             async with async_timeout.timeout(PEER_TCP_TIMEOUT):
                 await self._healthy.wait()
 
-        except (OSError, asyncio.TimeoutError):
-            _LOGGER.error("Ping fails, no response from peer")
+        except asyncio.TimeoutError:
+            _LOGGER.error("Timeout error while pinging peer")
+            self._loop.call_soon(self.shutdown)
+            raise MultiplexerTransportError from None
+
+        except OSError as exception:
+            _LOGGER.error("Peer ping failed - %s", exception)
             self._loop.call_soon(self.shutdown)
             raise MultiplexerTransportError from None
 
