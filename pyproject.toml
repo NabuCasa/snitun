@@ -37,7 +37,7 @@ version = "0.39.1"
 [project.optional-dependencies]
 lint = [
     "pylint==3.2.7",
-    "ruff==0.6.3",
+    "ruff==0.6.8",
 ]
 test = [
     "pytest-aiohttp==1.0.5",
