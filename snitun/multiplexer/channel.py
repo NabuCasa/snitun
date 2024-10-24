@@ -68,7 +68,7 @@ class MultiplexerChannel:
         with suppress(asyncio.QueueFull):
             self._input.put_nowait(None)
 
-    async def write(self, data: bytes) -> None:
+    def write_no_wait(self, data: bytes) -> None:
         """Send data to peer."""
         if not data:
             raise MultiplexerTransportError
@@ -78,6 +78,10 @@ class MultiplexerChannel:
         # Create message
         message = MultiplexerMessage(self._id, CHANNEL_FLOW_DATA, data)
         self._output(message)
+
+    async def write(self, data: bytes) -> None:
+        """Send data to peer."""
+        self.write_no_wait(data)
         if not self._throttling:
             return
         await asyncio.sleep(self._throttling)
