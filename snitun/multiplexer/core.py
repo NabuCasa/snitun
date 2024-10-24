@@ -8,8 +8,7 @@ import ipaddress
 import logging
 import os
 from typing import Any
-
-import async_timeout
+from collections import deque
 
 from ..exceptions import (
     MultiplexerTransportClose,
@@ -31,7 +30,7 @@ from .message import (
 _LOGGER = logging.getLogger(__name__)
 
 PEER_TCP_TIMEOUT = 90
-
+MAX_QUEUED_MESSAGES = 12000
 
 class Multiplexer:
     """Multiplexer Socket wrapper."""
@@ -47,6 +46,7 @@ class Multiplexer:
         "_channels",
         "_new_connections",
         "_throttling",
+        "_queue_ready_future"
     ]
 
     def __init__(
@@ -62,12 +62,13 @@ class Multiplexer:
         self._reader = reader
         self._writer = writer
         self._loop = asyncio.get_event_loop()
-        self._queue = asyncio.Queue(12000)
+        self._queue = deque()
         self._healthy = asyncio.Event()
         self._processing_task = self._loop.create_task(self._runner())
         self._channels = {}
         self._new_connections = new_connections
         self._throttling = 1 / throttling if throttling else None
+        self._queue_ready_future: asyncio.Future[None] = self._loop.create_future()
 
     @property
     def is_connected(self) -> bool:
@@ -107,7 +108,7 @@ class Multiplexer:
             )
 
             # Wait until pong is received
-            async with async_timeout.timeout(PEER_TCP_TIMEOUT):
+            async with asyncio.timeout(PEER_TCP_TIMEOUT):
                 await self._healthy.wait()
 
         except asyncio.TimeoutError:
@@ -123,8 +124,7 @@ class Multiplexer:
     async def _runner(self) -> None:
         """Runner task of processing stream."""
         transport = self._writer.transport
-        from_peer = None
-        to_peer = None
+        from_peer: asyncio.Task[bytes] | None = None
 
         # Process stream
         self._healthy.set()
@@ -133,13 +133,10 @@ class Multiplexer:
                 if not from_peer:
                     from_peer = self._loop.create_task(self._reader.readexactly(32))
 
-                if not to_peer:
-                    to_peer = self._loop.create_task(self._queue.get())
-
                 # Wait until data need to be processed
-                async with async_timeout.timeout(PEER_TCP_TIMEOUT):
+                async with asyncio.timeout(PEER_TCP_TIMEOUT):
                     await asyncio.wait(
-                        [from_peer, to_peer], return_when=asyncio.FIRST_COMPLETED,
+                        [from_peer, self._queue_ready_future], return_when=asyncio.FIRST_COMPLETED,
                     )
 
                 # From peer
@@ -150,11 +147,11 @@ class Multiplexer:
                     from_peer = None
 
                 # To peer
-                if to_peer.done():
-                    if to_peer.exception():
-                        raise to_peer.exception()
-                    self._write_message(to_peer.result())
-                    to_peer = None
+                if self._queue_ready_future.done():
+                    message = self._queue.popleft()
+                    if not self._queue:
+                        self._queue_ready_future = self._loop.create_future()
+                    self._write_message(message)
 
                     # Flush buffer
                     await self._writer.drain()
@@ -180,8 +177,7 @@ class Multiplexer:
 
         finally:
             # Cleanup peer writer
-            if to_peer and not to_peer.done():
-                to_peer.cancel()
+            self._queue_ready_future = None
 
             # Cleanup peer reader
             if from_peer:
@@ -307,25 +303,19 @@ class Multiplexer:
             self._queue, ip_address, throttling=self._throttling,
         )
         message = channel.init_new()
-
-        try:
-            async with async_timeout.timeout(5):
-                await self._queue.put(message)
-        except asyncio.TimeoutError:
-            raise MultiplexerTransportError from None
-
+        if len(self._queue) > MAX_QUEUED_MESSAGES:
+            raise MultiplexerTransportError("Queue is full") from None
+        self._queue.append(message)
+        if not self._queue_ready_future.done():
+            self._queue_ready_future.set_result(None)
         self._channels[channel.id] = channel
-
         return channel
 
     async def delete_channel(self, channel: MultiplexerChannel) -> None:
         """Delete channel from transport."""
         message = channel.init_close()
-
-        try:
-            async with async_timeout.timeout(5):
-                await self._queue.put(message)
-        except asyncio.TimeoutError:
-            raise MultiplexerTransportError from None
-        finally:
-            self._channels.pop(channel.id, None)
+        self._queue.append(message)
+        if not self._queue_ready_future.done():
+            self._queue_ready_future.set_result(None)        
+        self._channels.pop(channel.id, None)
+      
