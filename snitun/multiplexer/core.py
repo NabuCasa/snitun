@@ -264,7 +264,7 @@ class Multiplexer:
 
             ip_address = bytes_to_ip_address(message.extra[1:5])
             channel = MultiplexerChannel(
-                self._queue,
+                self.queue_message,
                 ip_address,
                 channel_id=message.id,
                 throttling=self._throttling,
@@ -305,17 +305,20 @@ class Multiplexer:
         message = channel.init_new()
         if len(self._queue) > MAX_QUEUED_MESSAGES:
             raise MultiplexerTransportError("Queue is full") from None
-        self._queue.append(message)
-        if not self._queue_ready_future.done():
-            self._queue_ready_future.set_result(None)
+        self.queue_message(message)
         self._channels[channel.id] = channel
         return channel
 
     async def delete_channel(self, channel: MultiplexerChannel) -> None:
         """Delete channel from transport."""
         message = channel.init_close()
-        self._queue.append(message)
-        if not self._queue_ready_future.done():
-            self._queue_ready_future.set_result(None)        
+        self.queue_message(message, ignore_maximum=True)
         self._channels.pop(channel.id, None)
       
+    def queue_message(self, message: MultiplexerMessage, ignore_maximum: bool = False) -> None:
+        """Queue message to send."""
+        if not ignore_maximum and len(self._queue) > MAX_QUEUED_MESSAGES:
+            raise MultiplexerTransportError("Queue is full") from None
+        self._queue.append(message)
+        if not self._queue_ready_future.done():
+            self._queue_ready_future.set_result(None)

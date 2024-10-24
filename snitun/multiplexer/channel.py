@@ -5,6 +5,7 @@ import asyncio
 from contextlib import suppress
 from ipaddress import IPv4Address
 import logging
+from collections.abc import Callable
 
 import async_timeout
 
@@ -28,7 +29,7 @@ class MultiplexerChannel:
 
     def __init__(
         self,
-        output: asyncio.Queue,
+        output: Callable[[MultiplexerMessage], None],
         ip_address: IPv4Address,
         channel_id: MultiplexerChannelId | None = None,
         throttling: float | None = None,
@@ -76,14 +77,7 @@ class MultiplexerChannel:
 
         # Create message
         message = MultiplexerMessage(self._id, CHANNEL_FLOW_DATA, data)
-
-        try:
-            async with async_timeout.timeout(5):
-                await self._output.put(message)
-        except asyncio.TimeoutError:
-            _LOGGER.debug("Can't write to peer transport")
-            raise MultiplexerTransportError from None
-
+        self._output(message)
         if not self._throttling:
             return
         await asyncio.sleep(self._throttling)
