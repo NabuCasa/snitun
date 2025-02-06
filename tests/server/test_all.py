@@ -1,4 +1,5 @@
 """Tests for peer listener & manager."""
+
 import asyncio
 from datetime import datetime, timedelta, timezone
 import hashlib
@@ -15,7 +16,11 @@ IP_ADDR = ipaddress.ip_address("127.0.0.1")
 
 
 async def test_server_full(
-    peer_manager, peer_listener, test_client_peer, sni_proxy, test_client_ssl
+    peer_manager,
+    peer_listener,
+    test_client_peer,
+    sni_proxy,
+    test_client_ssl,
 ):
     """Run a full flow of with a peer after that disconnect."""
     peer_messages = []
@@ -49,7 +54,10 @@ async def test_server_full(
             peer_address.append(channel.ip_address)
 
     multiplexer = Multiplexer(
-        crypto, test_client_peer.reader, test_client_peer.writer, mock_new_channel
+        crypto,
+        test_client_peer.reader,
+        test_client_peer.writer,
+        mock_new_channel,
     )
 
     test_client_ssl.writer.write(TLS_1_2)

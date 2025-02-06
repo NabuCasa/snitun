@@ -10,12 +10,14 @@ from ..exceptions import MultiplexerTransportDecrypt
 class CryptoTransport:
     """Encrypt/Decrypt Transport flow."""
 
-    __slots__ = ["_cipher", "_encryptor", "_decryptor"]
+    __slots__ = ["_cipher", "_decryptor", "_encryptor"]
 
     def __init__(self, key: bytes, iv: bytes) -> None:
         """Initialize crypto data."""
         self._cipher = Cipher(
-            algorithms.AES(key), modes.CBC(iv), backend=default_backend(),
+            algorithms.AES(key),
+            modes.CBC(iv),
+            backend=default_backend(),
         )
         self._encryptor = self._cipher.encryptor()
         self._decryptor = self._cipher.decryptor()

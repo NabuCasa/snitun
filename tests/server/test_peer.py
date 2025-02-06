@@ -1,15 +1,16 @@
 """Test a Peer object."""
-from datetime import datetime, timedelta, timezone
+
 import asyncio
+from datetime import datetime, timedelta, timezone
 import hashlib
 import os
 
 import pytest
 
-from snitun.multiplexer.message import CHANNEL_FLOW_PING
-from snitun.multiplexer.crypto import CryptoTransport
-from snitun.server.peer import Peer
 from snitun.exceptions import SniTunChallengeError
+from snitun.multiplexer.crypto import CryptoTransport
+from snitun.multiplexer.message import CHANNEL_FLOW_PING
+from snitun.server.peer import Peer
 
 
 def test_init_peer():
@@ -44,7 +45,7 @@ async def test_init_peer_multiplexer(event_loop, test_client, test_server):
         await peer.wait_disconnect()
 
     init_task = loop.create_task(
-        peer.init_multiplexer_challenge(test_client.reader, test_client.writer)
+        peer.init_multiplexer_challenge(test_client.reader, test_client.writer),
     )
     await asyncio.sleep(0.1)
 
@@ -86,7 +87,7 @@ async def test_init_peer_multiplexer_crypto(event_loop, test_client, test_server
         await peer.wait_disconnect()
 
     init_task = loop.create_task(
-        peer.init_multiplexer_challenge(test_client.reader, test_client.writer)
+        peer.init_multiplexer_challenge(test_client.reader, test_client.writer),
     )
     await asyncio.sleep(0.1)
 
@@ -138,7 +139,7 @@ async def test_init_peer_wrong_challenge(event_loop, test_client, test_server):
         await peer.wait_disconnect()
 
     init_task = loop.create_task(
-        peer.init_multiplexer_challenge(test_client.reader, test_client.writer)
+        peer.init_multiplexer_challenge(test_client.reader, test_client.writer),
     )
     await asyncio.sleep(0.1)
 
@@ -182,7 +183,7 @@ async def test_init_peer_multiplexer_throttling(event_loop, test_client, test_se
         await peer.wait_disconnect()
 
     init_task = loop.create_task(
-        peer.init_multiplexer_challenge(test_client.reader, test_client.writer)
+        peer.init_multiplexer_challenge(test_client.reader, test_client.writer),
     )
     await asyncio.sleep(0.1)
 

@@ -1,4 +1,5 @@
 """Utils for handling IP address."""
+
 import ipaddress
 import socket
 

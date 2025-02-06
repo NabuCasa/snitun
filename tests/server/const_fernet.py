@@ -1,6 +1,6 @@
 """Const value for Fernet tests."""
+
 import json
-from typing import List, Optional
 
 from cryptography.fernet import Fernet, MultiFernet
 
@@ -15,7 +15,7 @@ def create_peer_config(
     hostname: str,
     aes_key: bytes,
     aes_iv: bytes,
-    alias: Optional[List[str]] = None,
+    alias: list[str] | None = None,
 ) -> bytes:
     """Create a fernet token."""
     fernet = MultiFernet([Fernet(key) for key in FERNET_TOKENS])
@@ -28,6 +28,6 @@ def create_peer_config(
                 "alias": alias or [],
                 "aes_key": aes_key.hex(),
                 "aes_iv": aes_iv.hex(),
-            }
-        ).encode()
+            },
+        ).encode(),
     )
