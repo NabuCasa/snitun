@@ -1,19 +1,20 @@
 """Test Multiplexer channels."""
+
 import asyncio
 import ipaddress
 
 import pytest
 
-from snitun.utils.ipaddress import ip_address_to_bytes
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
     CHANNEL_FLOW_NEW,
-    MultiplexerMessage,
     MultiplexerChannelId,
+    MultiplexerMessage,
 )
+from snitun.utils.ipaddress import ip_address_to_bytes
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
 

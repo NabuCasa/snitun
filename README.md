@@ -46,7 +46,6 @@ The header is encrypted using AES/CBC. The payload should be SSL. The ID changes
 
 The extra information could include the caller IP address for a new message. Otherwise, it is random bits.
 
-
 ```
 |________________________________________________________|
 |-----------------HEADER---------------------------------|______________________________________________|

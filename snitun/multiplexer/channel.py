@@ -1,4 +1,5 @@
 """Multiplexer channel."""
+
 from __future__ import annotations
 
 import asyncio
@@ -25,7 +26,7 @@ _LOGGER = logging.getLogger(__name__)
 class MultiplexerChannel:
     """Represent a multiplexer channel."""
 
-    __slots__ = ["_input", "_output", "_id", "_ip_address", "_throttling", "_closing"]
+    __slots__ = ["_closing", "_id", "_input", "_ip_address", "_output", "_throttling"]
 
     def __init__(
         self,

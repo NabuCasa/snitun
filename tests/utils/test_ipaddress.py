@@ -1,4 +1,5 @@
 """Test ipaddress module."""
+
 from ipaddress import ip_address
 
 from snitun.utils import ipaddress as ip_modul

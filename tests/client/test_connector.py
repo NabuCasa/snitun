@@ -1,4 +1,5 @@
 """Test client connector."""
+
 import asyncio
 import ipaddress
 from unittest.mock import AsyncMock, patch
@@ -59,7 +60,9 @@ async def test_flow_connector(test_endpoint, multiplexer_client, multiplexer_ser
 
 
 async def test_close_connector_remote(
-    test_endpoint, multiplexer_client, multiplexer_server
+    test_endpoint,
+    multiplexer_client,
+    multiplexer_server,
 ):
     """Test and init a connector with remote close."""
     assert not test_endpoint
@@ -91,7 +94,9 @@ async def test_close_connector_remote(
 
 
 async def test_close_connector_local(
-    test_endpoint, multiplexer_client, multiplexer_server
+    test_endpoint,
+    multiplexer_client,
+    multiplexer_server,
 ):
     """Test and init a connector."""
     assert not test_endpoint
@@ -124,7 +129,9 @@ async def test_close_connector_local(
 
 
 async def test_init_connector_whitelist(
-    test_endpoint, multiplexer_client, multiplexer_server
+    test_endpoint,
+    multiplexer_client,
+    multiplexer_server,
 ):
     """Test and init a connector with whitelist."""
     assert not test_endpoint
@@ -148,7 +155,9 @@ async def test_init_connector_whitelist(
 
 
 async def test_init_connector_whitelist_bad(
-    test_endpoint, multiplexer_client, multiplexer_server
+    test_endpoint,
+    multiplexer_client,
+    multiplexer_server,
 ):
     """Test and init a connector with whitelist bad requests."""
     assert not test_endpoint

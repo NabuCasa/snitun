@@ -1,4 +1,5 @@
 """Helper for handle aiohttp internal server."""
+
 from __future__ import annotations
 
 import asyncio
@@ -26,8 +27,8 @@ class SniTunClientAioHttp:
         runner: AppRunner,
         context: ssl.SSLContext,
         snitun_server: str,
-        snitun_port: int | None=None,
-    )->None:
+        snitun_port: int | None = None,
+    ) -> None:
         """Initialize SniTunClient with aiohttp."""
         self._connector = None
         self._client = ClientPeer(snitun_server, snitun_port)
@@ -104,7 +105,11 @@ class SniTunClientAioHttp:
         if self._client.is_connected:
             return
         await self._client.start(
-            self._connector, fernet_key, aes_key, aes_iv, throttling=throttling,
+            self._connector,
+            fernet_key,
+            aes_key,
+            aes_iv,
+            throttling=throttling,
         )
         _LOGGER.info("AioHTTP snitun client connected to: %s", self._server_name)
 

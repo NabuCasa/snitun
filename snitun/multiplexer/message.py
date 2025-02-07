@@ -1,4 +1,5 @@
 """Multiplexer message handling."""
+
 import binascii
 import os
 
@@ -24,7 +25,8 @@ class MultiplexerChannelId:
     bytes: bytes = attr.ib(default=attr.Factory(lambda: os.urandom(16)), eq=True)
     hex: str = attr.ib(
         default=attr.Factory(
-            lambda self: binascii.hexlify(self.bytes).decode("utf-8"), takes_self=True,
+            lambda self: binascii.hexlify(self.bytes).decode("utf-8"),
+            takes_self=True,
         ),
         eq=False,
     )

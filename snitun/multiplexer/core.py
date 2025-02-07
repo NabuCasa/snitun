@@ -1,4 +1,5 @@
 """Multiplexer for SniTun."""
+
 from __future__ import annotations
 
 import asyncio
@@ -36,15 +37,14 @@ class Multiplexer:
     """Multiplexer Socket wrapper."""
 
     __slots__ = [
-        "_crypto",
-        "_reader",
-        "_writer",
-        "_loop",
-        "_queue",
-        "_healthy",
-        "_processing_task",
         "_channels",
+        "_crypto",
+        "_healthy",
+        "_loop",
         "_new_connections",
+        "_processing_task",
+        "_queue",
+        "_reader",
         "_throttling",
         "_queue_ready_future"
     ]
@@ -54,7 +54,7 @@ class Multiplexer:
         crypto: CryptoTransport,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-        new_connections: Coroutine[Any, Any, None] | None =None,
+        new_connections: Coroutine[Any, Any, None] | None = None,
         throttling: int | None = None,
     ) -> None:
         """Initialize Multiplexer."""
@@ -103,7 +103,10 @@ class Multiplexer:
         try:
             self._write_message(
                 MultiplexerMessage(
-                    MultiplexerChannelId(), CHANNEL_FLOW_PING, b"", b"ping",
+                    MultiplexerChannelId(),
+                    CHANNEL_FLOW_PING,
+                    b"",
+                    b"ping",
                 ),
             )
 
@@ -230,7 +233,10 @@ class Multiplexer:
             data = b""
 
         message = MultiplexerMessage(
-            MultiplexerChannelId(channel_id), flow_type, data, extra,
+            MultiplexerChannelId(channel_id),
+            flow_type,
+            data,
+            extra,
         )
 
         # Process message to queue
@@ -296,11 +302,14 @@ class Multiplexer:
             _LOGGER.warning("Receive unknown message type")
 
     async def create_channel(
-        self, ip_address: ipaddress.IPv4Address,
+        self,
+        ip_address: ipaddress.IPv4Address,
     ) -> MultiplexerChannel:
         """Create a new channel for transport."""
         channel = MultiplexerChannel(
-            self._queue, ip_address, throttling=self._throttling,
+            self._queue,
+            ip_address,
+            throttling=self._throttling,
         )
         message = channel.init_new()
         if len(self._queue) > MAX_QUEUED_MESSAGES:
