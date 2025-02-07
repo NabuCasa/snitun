@@ -78,7 +78,7 @@ async def test_endpoint() -> AsyncGenerator[list[Client], None]:
 
 
 @pytest.fixture
-async def test_client(test_server):
+async def test_client(test_server: list[Client]) -> AsyncGenerator[Client, None]:
     """Create a TCP test client."""
     reader, writer = await asyncio.open_connection(host="127.0.0.1", port="8866")
 
@@ -88,9 +88,9 @@ async def test_client(test_server):
 
 
 @pytest.fixture
-def test_server_sync(event_loop):
+def test_server_sync(event_loop: asyncio.AbstractEventLoop) -> Generator[list[socket.socket], None, None]:
     """Create a TCP test server."""
-    connections = []
+    connections: list[socket.socket] = []
     shutdown = False
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -123,7 +123,7 @@ def test_server_sync(event_loop):
 
 
 @pytest.fixture
-def test_client_sync(test_server_sync):
+def test_client_sync(test_server_sync: list[socket.socket]) -> Generator[socket.socket, None, None]:
     """Create a TCP test client."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(("127.0.0.1", 8366))
@@ -134,7 +134,7 @@ def test_client_sync(test_server_sync):
 
 
 @pytest.fixture
-def test_client_ssl_sync(test_server_sync):
+def test_client_ssl_sync(test_server_sync: list[socket.socket]) -> Generator[socket.socket, None, None]:
     """Create a TCP test client for SSL."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(("127.0.0.1", 8366))
