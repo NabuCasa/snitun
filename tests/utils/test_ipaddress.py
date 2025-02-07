@@ -5,7 +5,7 @@ from ipaddress import ip_address
 from snitun.utils import ipaddress as ip_modul
 
 
-def test_ipaddress_to_binary():
+def test_ipaddress_to_binary() -> None:
     """Test ip address to binary."""
     my_ip = ip_address("192.168.1.1")
     my_ip_bin = b"\xc0\xa8\x01\x01"
@@ -13,7 +13,7 @@ def test_ipaddress_to_binary():
     assert ip_modul.ip_address_to_bytes(my_ip) == my_ip_bin
 
 
-def test_binary_to_ipaddress():
+def test_binary_to_ipaddress() -> None:
     """Test ip address to binary."""
     my_ip = ip_address("192.168.1.1")
     my_ip_bin = b"\xc0\xa8\x01\x01"
