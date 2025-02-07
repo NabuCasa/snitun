@@ -1,7 +1,6 @@
 """Test crypto module for transport."""
-import os
 
-import pytest
+import os
 
 from snitun.multiplexer.crypto import CryptoTransport
 

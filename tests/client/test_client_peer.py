@@ -1,4 +1,5 @@
 """Test Client Peer connections."""
+
 import asyncio
 from datetime import datetime, timedelta, timezone
 import ipaddress
@@ -55,7 +56,11 @@ async def test_init_client_peer_with_alias(peer_listener, peer_manager, test_end
     aes_iv = os.urandom(16)
     hostname = "localhost"
     fernet_token = create_peer_config(
-        valid.timestamp(), hostname, aes_key, aes_iv, alias=["localhost.custom"]
+        valid.timestamp(),
+        hostname,
+        aes_key,
+        aes_iv,
+        alias=["localhost.custom"],
     )
 
     await client.start(connector, fernet_token, aes_key, aes_iv)
@@ -73,7 +78,9 @@ async def test_init_client_peer_with_alias(peer_listener, peer_manager, test_end
 
 
 async def test_init_client_peer_invalid_token(
-    peer_listener, peer_manager, test_endpoint
+    peer_listener,
+    peer_manager,
+    test_endpoint,
 ):
     """Test setup of ClientPeer."""
     client = ClientPeer("127.0.0.1", "8893")

@@ -1,4 +1,5 @@
 """Test server utils."""
+
 import asyncio
 from datetime import timedelta
 import os
@@ -7,8 +8,8 @@ import pytest
 
 from snitun.client.client_peer import ClientPeer
 from snitun.client.connector import Connector
-from snitun.utils import server
 from snitun.exceptions import SniTunConnectionError
+from snitun.utils import server
 
 from ..server.const_fernet import FERNET_TOKENS
 
@@ -25,7 +26,11 @@ async def test_fernet_token(peer_listener, peer_manager, test_endpoint):
     aes_iv = os.urandom(16)
     hostname = "localhost"
     fernet_token = server.generate_client_token(
-        FERNET_TOKENS, valid, hostname, aes_key, aes_iv
+        FERNET_TOKENS,
+        valid,
+        hostname,
+        aes_key,
+        aes_iv,
     )
 
     await client.start(connector, fernet_token, aes_key, aes_iv)
@@ -49,7 +54,11 @@ async def test_fernet_token_date(peer_listener, peer_manager, test_endpoint):
     aes_iv = os.urandom(16)
     hostname = "localhost"
     fernet_token = server.generate_client_token(
-        FERNET_TOKENS, valid, hostname, aes_key, aes_iv
+        FERNET_TOKENS,
+        valid,
+        hostname,
+        aes_key,
+        aes_iv,
     )
 
     with pytest.raises(SniTunConnectionError):

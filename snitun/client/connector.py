@@ -1,4 +1,5 @@
 """Connector to end resource."""
+
 from __future__ import annotations
 
 import asyncio
@@ -21,8 +22,8 @@ class Connector:
     def __init__(
         self,
         end_host: str,
-        end_port: int | None=None,
-        whitelist: bool=False,
+        end_port: int | None = None,
+        whitelist: bool = False,
         endpoint_connection_error_callback: Coroutine[Any, Any, None] | None = None,
     ) -> None:
         """Initialize Connector."""
@@ -45,14 +46,18 @@ class Connector:
         return True
 
     async def handler(
-        self, multiplexer: Multiplexer, channel: MultiplexerChannel,
+        self,
+        multiplexer: Multiplexer,
+        channel: MultiplexerChannel,
     ) -> None:
         """Handle new connection from SNIProxy."""
         from_endpoint = None
         from_peer = None
 
         _LOGGER.debug(
-            "Receive from %s a request for %s", channel.ip_address, self._end_host,
+            "Receive from %s a request for %s",
+            channel.ip_address,
+            self._end_host,
         )
 
         # Check policy
@@ -64,11 +69,14 @@ class Connector:
         # Open connection to endpoint
         try:
             reader, writer = await asyncio.open_connection(
-                host=self._end_host, port=self._end_port,
+                host=self._end_host,
+                port=self._end_port,
             )
         except OSError:
             _LOGGER.error(
-                "Can't connect to endpoint %s:%s", self._end_host, self._end_port,
+                "Can't connect to endpoint %s:%s",
+                self._end_host,
+                self._end_port,
             )
             await multiplexer.delete_channel(channel)
             if self._endpoint_connection_error_callback:
@@ -85,7 +93,8 @@ class Connector:
 
                 # Wait until data need to be processed
                 await asyncio.wait(
-                    [from_endpoint, from_peer], return_when=asyncio.FIRST_COMPLETED,
+                    [from_endpoint, from_peer],
+                    return_when=asyncio.FIRST_COMPLETED,
                 )
 
                 # From proxy

@@ -48,12 +48,12 @@ jobs:
     permissions:
       id-token: write
     steps:
-    - name: Download dists
-      uses: actions/download-artifact@v4.1.8
-      with:
-        name: "dist"
-        path: "dist/"
+      - name: Download dists
+        uses: actions/download-artifact@v4.1.8
+        with:
+          name: "dist"
+          path: "dist/"
 
-    - name: Publish dists to PyPI
-      # Pinned to a commit for security purposes
-      uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # v1.12.4
+      - name: Publish dists to PyPI
+        # Pinned to a commit for security purposes
+        uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # v1.12.4
