@@ -2,5 +2,5 @@
 
 cd "$(dirname "$0")/.."
 
-python3 -m ruff check snitun
-python3 -m ruff format --fix snitun
+python3 -m ruff check --fix snitun
+python3 -m ruff format --check snitun
