@@ -8,13 +8,20 @@ import pytest
 
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer.core import Multiplexer
+from snitun.multiplexer.crypto import CryptoTransport
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
 from snitun.utils.asyncio import asyncio_timeout
+
+from ..conftest import Client
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
 
-async def test_init_multiplexer_server(test_server, test_client, crypto_transport):
+async def test_init_multiplexer_server(
+    test_server: list[Client],
+    test_client: Client,
+    crypto_transport: CryptoTransport,
+) -> None:
     """Test to create a new Multiplexer from server socket."""
     client = test_server[0]
 
@@ -26,7 +33,10 @@ async def test_init_multiplexer_server(test_server, test_client, crypto_transpor
     client.close.set()
 
 
-async def test_init_multiplexer_client(test_client, crypto_transport):
+async def test_init_multiplexer_client(
+    test_client: Client,
+    crypto_transport: CryptoTransport,
+) -> None:
     """Test to create a new Multiplexer from client socket."""
     multiplexer = Multiplexer(crypto_transport, test_client.reader, test_client.writer)
 
@@ -36,10 +46,10 @@ async def test_init_multiplexer_client(test_client, crypto_transport):
 
 
 async def test_init_multiplexer_server_throttling(
-    test_server,
-    test_client,
-    crypto_transport,
-):
+    test_server: list[Client],
+    test_client: Client,
+    crypto_transport: CryptoTransport,
+) -> None:
     """Test to create a new Multiplexer from server socket."""
     client = test_server[0]
 
@@ -70,7 +80,10 @@ async def test_init_multiplexer_client_throttling(test_client, crypto_transport)
     multiplexer.shutdown()
 
 
-async def test_multiplexer_server_close(multiplexer_server, multiplexer_client):
+async def test_multiplexer_server_close(
+    multiplexer_server: Multiplexer,
+    multiplexer_client: Multiplexer,
+) -> None:
     """Test a close from server peers."""
     assert multiplexer_server.is_connected
     assert multiplexer_client.is_connected
@@ -82,7 +95,10 @@ async def test_multiplexer_server_close(multiplexer_server, multiplexer_client):
     assert not multiplexer_client.is_connected
 
 
-async def test_multiplexer_client_close(multiplexer_server, multiplexer_client):
+async def test_multiplexer_client_close(
+    multiplexer_server: Multiplexer,
+    multiplexer_client: Multiplexer,
+) -> None:
     """Test a close from client peers."""
     assert multiplexer_server.is_connected
     assert multiplexer_client.is_connected
@@ -94,7 +110,11 @@ async def test_multiplexer_client_close(multiplexer_server, multiplexer_client):
     assert not multiplexer_client.is_connected
 
 
-async def test_multiplexer_ping(event_loop, test_server, multiplexer_client):
+async def test_multiplexer_ping(
+    event_loop: asyncio.AbstractEventLoop,
+    test_server: list[Client],
+    multiplexer_client: Multiplexer,
+) -> None:
     """Test a ping between peers."""
     loop = event_loop
     client = test_server[0]
