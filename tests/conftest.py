@@ -254,7 +254,9 @@ async def peer(
 
 
 @pytest.fixture
-async def peer_listener(peer_manager, peer):
+async def peer_listener(
+    peer_manager: PeerManager, peer: Peer
+) -> AsyncGenerator[PeerListener, None]:
     """Create a Peer listener."""
     listener = PeerListener(peer_manager, "127.0.0.1", "8893")
     await listener.start()
@@ -267,7 +269,7 @@ async def peer_listener(peer_manager, peer):
 
 
 @pytest.fixture
-async def test_client_peer(peer_listener):
+async def test_client_peer(peer_listener: PeerListener) -> AsyncGenerator[Client, None]:
     """Create a TCP test client."""
     reader, writer = await asyncio.open_connection(host="127.0.0.1", port="8893")
 
