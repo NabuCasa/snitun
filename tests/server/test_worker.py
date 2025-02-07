@@ -97,7 +97,7 @@ def test_sni_connection(
     test_client_sync: socket.socket,
     test_client_ssl_sync: socket.socket,
     event_loop: asyncio.AbstractEventLoop,
-):
+) -> None:
     """Run a full flow of with a peer."""
     worker = ServerWorker(FERNET_TOKENS)
     valid = datetime.now(tz=timezone.utc) + timedelta(days=1)

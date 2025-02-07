@@ -6,6 +6,7 @@ import hashlib
 import ipaddress
 import os
 
+from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.server.listener_peer import PeerListener
@@ -50,7 +51,10 @@ async def test_server_full(
 
     assert peer_manager.peer_available(hostname)
 
-    async def mock_new_channel(multiplexer, channel):
+    async def mock_new_channel(
+        multiplexer: Multiplexer,
+        channel: MultiplexerChannel,
+    ) -> None:
         """Mock new channel."""
         while True:
             message = await channel.read()
