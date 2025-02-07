@@ -65,7 +65,7 @@ class Multiplexer:
         self._queue = asyncio.Queue(12000)
         self._healthy = asyncio.Event()
         self._processing_task = self._loop.create_task(self._runner())
-        self._channels = {}
+        self._channels: dict[MultiplexerChannelId, MultiplexerChannel] = {}
         self._new_connections = new_connections
         self._throttling = 1 / throttling if throttling else None
 
