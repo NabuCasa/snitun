@@ -60,11 +60,11 @@ async def test_server() -> AsyncGenerator[list[Client], None]:
 
 
 @pytest.fixture
-async def test_endpoint() -> Generator[list[Client], None, None]:
+async def test_endpoint() -> AsyncGenerator[list[Client], None]:
     """Create a TCP test endpoint."""
     connections = []
 
-    async def process_data(reader, writer):
+    async def process_data(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         """Read data from client."""
         client = Client(reader, writer)
         connections.append(client)
