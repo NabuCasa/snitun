@@ -7,14 +7,16 @@ import ipaddress
 
 import pytest
 
+from snitun.multiplexer.core import Multiplexer
 from snitun.server.listener_sni import SNIProxy
 
+from ..conftest import Client
 from .const_tls import TLS_1_2
 
 IP_ADDR = ipaddress.ip_address("127.0.0.1")
 
 
-async def test_proxy_up_down():
+async def test_proxy_up_down() -> None:
     """Simple start stop of proxy."""
     proxy = SNIProxy({}, "127.0.0.1", "8863")
 
@@ -32,10 +34,10 @@ async def test_proxy_up_down():
     ],
 )
 async def test_sni_proxy_flow(
-    multiplexer_client,
-    test_client_ssl,
+    multiplexer_client: Multiplexer,
+    test_client_ssl: Client,
     payloads: list[bytes],
-):
+) -> None:
     """Test a normal flow of connection and exchange data."""
     for payload in payloads:
         test_client_ssl.writer.write(payload)

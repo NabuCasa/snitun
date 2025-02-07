@@ -11,10 +11,11 @@ from snitun.multiplexer.crypto import CryptoTransport
 from snitun.server.listener_peer import PeerListener
 from snitun.server.peer_manager import PeerManager
 
+from ..conftest import Client
 from .const_fernet import create_peer_config
 
 
-async def test_init_listener(peer_manager: PeerManager):
+async def test_init_listener(peer_manager: PeerManager) -> None:
     """Create a PeerListener instance and start/stop it."""
     listener = PeerListener(peer_manager, "127.0.0.1", "8893")
     await listener.start()
@@ -27,8 +28,8 @@ async def test_init_listener(peer_manager: PeerManager):
 async def test_peer_listener(
     peer_manager: PeerManager,
     peer_listener: PeerListener,
-    test_client_peer,
-):
+    test_client_peer: Client,
+) -> None:
     """Run a full flow of with a peer."""
     valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     aes_key = os.urandom(32)
@@ -54,8 +55,8 @@ async def test_peer_listener(
 async def test_peer_listener_invalid(
     peer_manager: PeerManager,
     peer_listener: PeerListener,
-    test_client_peer,
-):
+    test_client_peer: Client,
+) -> None:
     """Run a full flow of with a peer."""
     valid = datetime.now(tz=timezone.utc) - timedelta(days=1)
     aes_key = os.urandom(32)
@@ -75,8 +76,8 @@ async def test_peer_listener_invalid(
 async def test_peer_listener_disconnect(
     peer_manager: PeerManager,
     peer_listener: PeerListener,
-    test_client_peer,
-):
+    test_client_peer: Client,
+) -> None:
     """Run a full flow of with a peer after that disconnect."""
     valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     aes_key = os.urandom(32)
@@ -105,11 +106,11 @@ async def test_peer_listener_disconnect(
 
 
 async def test_peer_listener_timeout(
-    raise_timeout,
+    raise_timeout: None,
     peer_manager: PeerManager,
     peer_listener: PeerListener,
-    test_client_peer,
-):
+    test_client_peer: Client,
+) -> None:
     """Run a full flow of with a peer."""
     valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     aes_key = os.urandom(32)
@@ -136,8 +137,8 @@ async def test_peer_listener_timeout(
 async def test_peer_listener_expire(
     peer_manager: PeerManager,
     peer_listener: PeerListener,
-    test_client_peer,
-):
+    test_client_peer: Client,
+) -> None:
     """Run a full flow of with a peer."""
     from snitun.server import listener_peer
 

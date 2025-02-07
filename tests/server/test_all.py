@@ -9,8 +9,10 @@ import os
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.server.listener_peer import PeerListener
+from snitun.server.listener_sni import SNIProxy
 from snitun.server.peer_manager import PeerManager
 
+from ..conftest import Client
 from .const_fernet import create_peer_config
 from .const_tls import TLS_1_2
 
@@ -20,10 +22,10 @@ IP_ADDR = ipaddress.ip_address("127.0.0.1")
 async def test_server_full(
     peer_manager: PeerManager,
     peer_listener: PeerListener,
-    test_client_peer,
-    sni_proxy,
-    test_client_ssl,
-):
+    test_client_peer: Client,
+    sni_proxy: SNIProxy,
+    test_client_ssl: Client,
+) -> None:
     """Run a full flow of with a peer after that disconnect."""
     peer_messages = []
     peer_address = []
