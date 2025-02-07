@@ -21,6 +21,7 @@ from snitun.server.peer_manager import PeerManager
 from snitun.utils.asyncio import asyncio_timeout
 from .server.const_fernet import FERNET_TOKENS
 from snitun.multiplexer.channel import MultiplexerChannel
+
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -40,13 +41,14 @@ def raise_timeout() -> Generator[None, None, None]:
         yield
 
 
-
 @pytest.fixture
 async def test_server() -> AsyncGenerator[list[Client], None]:
     """Create a TCP test server."""
     connections = []
 
-    async def process_data(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    async def process_data(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
         """Read data from client."""
         client = Client(reader, writer)
         connections.append(client)
@@ -64,7 +66,9 @@ async def test_endpoint() -> AsyncGenerator[list[Client], None]:
     """Create a TCP test endpoint."""
     connections = []
 
-    async def process_data(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    async def process_data(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
         """Read data from client."""
         client = Client(reader, writer)
         connections.append(client)
@@ -88,7 +92,9 @@ async def test_client(test_server: list[Client]) -> AsyncGenerator[Client, None]
 
 
 @pytest.fixture
-def test_server_sync(event_loop: asyncio.AbstractEventLoop) -> Generator[list[socket.socket], None, None]:
+def test_server_sync(
+    event_loop: asyncio.AbstractEventLoop,
+) -> Generator[list[socket.socket], None, None]:
     """Create a TCP test server."""
     connections: list[socket.socket] = []
     shutdown = False
@@ -123,7 +129,9 @@ def test_server_sync(event_loop: asyncio.AbstractEventLoop) -> Generator[list[so
 
 
 @pytest.fixture
-def test_client_sync(test_server_sync: list[socket.socket]) -> Generator[socket.socket, None, None]:
+def test_client_sync(
+    test_server_sync: list[socket.socket],
+) -> Generator[socket.socket, None, None]:
     """Create a TCP test client."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(("127.0.0.1", 8366))
@@ -134,7 +142,9 @@ def test_client_sync(test_server_sync: list[socket.socket]) -> Generator[socket.
 
 
 @pytest.fixture
-def test_client_ssl_sync(test_server_sync: list[socket.socket]) -> Generator[socket.socket, None, None]:
+def test_client_ssl_sync(
+    test_server_sync: list[socket.socket],
+) -> Generator[socket.socket, None, None]:
     """Create a TCP test client for SSL."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(("127.0.0.1", 8366))
@@ -145,11 +155,15 @@ def test_client_ssl_sync(test_server_sync: list[socket.socket]) -> Generator[soc
 
 
 @pytest.fixture
-async def multiplexer_server(test_server: list[Client], test_client: Client, crypto_transport: CryptoTransport) -> AsyncGenerator[Multiplexer, None]:
+async def multiplexer_server(
+    test_server: list[Client], test_client: Client, crypto_transport: CryptoTransport
+) -> AsyncGenerator[Multiplexer, None]:
     """Create a multiplexer client from server."""
     client = test_server[0]
 
-    async def mock_new_channel(multiplexer: Multiplexer, channel: MultiplexerChannel) -> None:
+    async def mock_new_channel(
+        multiplexer: Multiplexer, channel: MultiplexerChannel
+    ) -> None:
         """Mock new channel."""
 
     multiplexer = Multiplexer(
@@ -166,10 +180,14 @@ async def multiplexer_server(test_server: list[Client], test_client: Client, cry
 
 
 @pytest.fixture
-async def multiplexer_client(test_client: Client, crypto_transport: CryptoTransport) -> AsyncGenerator[Multiplexer, None]:
+async def multiplexer_client(
+    test_client: Client, crypto_transport: CryptoTransport
+) -> AsyncGenerator[Multiplexer, None]:
     """Create a multiplexer client from server."""
 
-    async def mock_new_channel(multiplexer: Multiplexer, channel: MultiplexerChannel) -> None:
+    async def mock_new_channel(
+        multiplexer: Multiplexer, channel: MultiplexerChannel
+    ) -> None:
         """Mock new channel."""
 
     multiplexer = Multiplexer(
@@ -223,7 +241,9 @@ def crypto_transport() -> CryptoTransport:
 
 
 @pytest.fixture
-async def peer(crypto_transport: CryptoTransport, multiplexer_server: Multiplexer) -> Peer:
+async def peer(
+    crypto_transport: CryptoTransport, multiplexer_server: Multiplexer
+) -> Peer:
     """Init a peer with transport."""
     valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     peer = Peer("localhost", valid, os.urandom(32), os.urandom(16))

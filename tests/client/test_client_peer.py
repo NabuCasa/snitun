@@ -13,10 +13,13 @@ from snitun.exceptions import SniTunConnectionError
 
 from ..server.const_fernet import create_peer_config
 from ..conftest import Client
+
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
 
-async def test_init_client_peer(peer_listener, peer_manager, test_endpoint: list[Client]) -> None:
+async def test_init_client_peer(
+    peer_listener, peer_manager, test_endpoint: list[Client]
+) -> None:
     """Test setup of ClientPeer."""
     client = ClientPeer("127.0.0.1", "8893")
     connector = Connector("127.0.0.1", "8822")
@@ -42,7 +45,9 @@ async def test_init_client_peer(peer_listener, peer_manager, test_endpoint: list
     assert not peer_manager.peer_available("localhost")
 
 
-async def test_init_client_peer_with_alias(peer_listener, peer_manager, test_endpoint: list[Client]) -> None:
+async def test_init_client_peer_with_alias(
+    peer_listener, peer_manager, test_endpoint: list[Client]
+) -> None:
     """Test setup of ClientPeer with custom tomain."""
     client = ClientPeer("127.0.0.1", "8893")
     connector = Connector("127.0.0.1", "8822")
@@ -100,7 +105,9 @@ async def test_init_client_peer_invalid_token(
     assert not peer_manager.peer_available("localhost")
 
 
-async def test_flow_client_peer(peer_listener, peer_manager, test_endpoint: list[Client]) -> None:
+async def test_flow_client_peer(
+    peer_listener, peer_manager, test_endpoint: list[Client]
+) -> None:
     """Test setup of ClientPeer, test flow."""
     client = ClientPeer("127.0.0.1", "8893")
     connector = Connector("127.0.0.1", "8822")
@@ -144,7 +151,9 @@ async def test_flow_client_peer(peer_listener, peer_manager, test_endpoint: list
     test_connection.close.set()
 
 
-async def test_close_client_peer(peer_listener, peer_manager, test_endpoint: list[Client]) -> None:
+async def test_close_client_peer(
+    peer_listener, peer_manager, test_endpoint: list[Client]
+) -> None:
     """Test setup of ClientPeer, test flow - close it."""
     client = ClientPeer("127.0.0.1", "8893")
     connector = Connector("127.0.0.1", "8822")
@@ -191,7 +200,9 @@ async def test_close_client_peer(peer_listener, peer_manager, test_endpoint: lis
     test_connection.close.set()
 
 
-async def test_init_client_peer_wait(peer_listener, peer_manager, test_endpoint: list[Client]) -> None:
+async def test_init_client_peer_wait(
+    peer_listener, peer_manager, test_endpoint: list[Client]
+) -> None:
     """Test setup of ClientPeer."""
     client = ClientPeer("127.0.0.1", "8893")
     connector = Connector("127.0.0.1", "8822")
@@ -221,7 +232,9 @@ async def test_init_client_peer_wait(peer_listener, peer_manager, test_endpoint:
         assert client.wait().done()
 
 
-async def test_init_client_peer_throttling(peer_listener, peer_manager, test_endpoint: list[Client]) -> None:
+async def test_init_client_peer_throttling(
+    peer_listener, peer_manager, test_endpoint: list[Client]
+) -> None:
     """Test setup of ClientPeer."""
     client = ClientPeer("127.0.0.1", "8893")
     connector = Connector("127.0.0.1", "8822")
