@@ -8,9 +8,9 @@ from typing import TypeVar
 _T = TypeVar("_T")
 
 if sys.version_info >= (3, 11):
-    pass
+    from asyncio import timeout as asyncio_timeout
 else:
-    pass
+    from async_timeout import timeout as asyncio_timeout  # noqa: F401
 
 
 if sys.version_info >= (3, 12, 0):
