@@ -9,6 +9,7 @@ import sys
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
+from snitun.utils import asyncio as asyncio_utils
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
@@ -217,12 +218,7 @@ async def test_multiplexer_close_channel_full(multiplexer_client):
 
     assert multiplexer_client._channels
 
-    if sys.version_info >= (3, 11):
-        patch_target = "asyncio.timeout"
-    else:
-        patch_target = "async_timeout.timeout"
-
-    with patch(patch_target, side_effect=asyncio.TimeoutError()):
+    with patch.object(asyncio_utils, "asyncio_timeout", side_effect=asyncio.TimeoutError()):
         with pytest.raises(MultiplexerTransportError):
             channel = await multiplexer_client.delete_channel(channel)
     await asyncio.sleep(0.1)
