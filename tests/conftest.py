@@ -23,8 +23,6 @@ from .server.const_fernet import FERNET_TOKENS
 
 logging.basicConfig(level=logging.DEBUG)
 
-# pylint: disable=redefined-outer-name
-
 
 @attr.s
 class Client:

@@ -36,7 +36,6 @@ version = "0.40.0"
 
 [project.optional-dependencies]
 lint = [
-    "pylint==3.2.7",
     "ruff==0.9.5",
 ]
 test = [
@@ -67,61 +66,6 @@ sections = [
     "LOCALFOLDER",
 ]
 use_parentheses = true
-
-[tool.pylint.BASIC]
-disable = [
-  "abstract-method",
-  "broad-exception-caught",
-  "cyclic-import",
-  "duplicate-code",
-  "global-statement",
-  "line-too-long",
-  "locally-disabled",
-  "missing-docstring",
-  "not-context-manager",
-  "protected-access",
-  "too-few-public-methods",
-  "too-few-public-methods",
-  "too-many-arguments",
-  "too-many-branches",
-  "too-many-branches",
-  "too-many-instance-attributes",
-  "too-many-lines",
-  "too-many-locals",
-  "too-many-locals",
-  "too-many-public-methods",
-  "too-many-return-statements",
-  "too-many-statements",
-  "unused-argument",
-  "wrong-import-position",
-]
-generated-members=[
-  "botocore.errorfactory",
-]
-good-names= [
-  "_",
-  "ex",
-  "fp",
-  "i",
-  "id",
-  "iv",
-  "j",
-  "k",
-  "Run",
-  "T",
-]
-
-
-[tool.pylint.EXCEPTIONS]
-overgeneral-exceptions=[
-  "builtins.Exception",
-]
-
-[tool.pylint.MAIN]
-ignore=[
-  "tests_*",
-]
-reports=false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
