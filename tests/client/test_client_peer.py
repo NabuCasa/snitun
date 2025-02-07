@@ -92,7 +92,7 @@ async def test_init_client_peer_invalid_token(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
     test_endpoint: list[Client],
-):
+) -> None:
     """Test setup of ClientPeer."""
     client = ClientPeer("127.0.0.1", "8893")
     connector = Connector("127.0.0.1", "8822")

@@ -172,7 +172,7 @@ async def test_init_peer_wrong_challenge(
     client.close.set()
 
 
-def test_init_peer_invalid():
+def test_init_peer_invalid() -> None:
     """Test simple init of peer with invalid date."""
     valid = datetime.now(tz=timezone.utc) - timedelta(days=1)
     peer = Peer("localhost", valid, os.urandom(32), os.urandom(16))
