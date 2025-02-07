@@ -6,10 +6,10 @@ import asyncio
 import ipaddress
 
 import pytest
-from snitun.server.peer import Peer
 
 from snitun.multiplexer.core import Multiplexer
 from snitun.server.listener_sni import SNIProxy
+from snitun.server.peer import Peer
 
 from ..conftest import Client
 from .const_tls import TLS_1_2
@@ -133,7 +133,11 @@ async def test_sni_proxy_flow_close_by_server(
     assert client_read.done()
 
 
-async def test_sni_proxy_flow_peer_not(peer: Peer, multiplexer_client: Multiplexer, test_client_ssl: Client) -> None:
+async def test_sni_proxy_flow_peer_not(
+    peer: Peer,
+    multiplexer_client: Multiplexer,
+    test_client_ssl: Client,
+) -> None:
     """Test a normal flow of connection with peer is not ready."""
     peer._multiplexer = None  # Fake peer state
 
@@ -144,7 +148,11 @@ async def test_sni_proxy_flow_peer_not(peer: Peer, multiplexer_client: Multiplex
     assert not multiplexer_client._channels
 
 
-async def test_sni_proxy_timeout(multiplexer_client: Multiplexer, test_client_ssl:Client, raise_timeout: None) -> None:
+async def test_sni_proxy_timeout(
+    multiplexer_client: Multiplexer,
+    test_client_ssl: Client,
+    raise_timeout: None,
+) -> None:
     """Test a normal flow of connection and exchange data."""
     test_client_ssl.writer.write(TLS_1_2)
     await test_client_ssl.writer.drain()
@@ -153,7 +161,10 @@ async def test_sni_proxy_timeout(multiplexer_client: Multiplexer, test_client_ss
     assert not multiplexer_client._channels
 
 
-async def test_sni_proxy_flow_timeout(multiplexer_client: Multiplexer, test_client_ssl: Client) -> None:
+async def test_sni_proxy_flow_timeout(
+    multiplexer_client: Multiplexer,
+    test_client_ssl: Client,
+) -> None:
     """Test a normal flow of connection and exchange data."""
     from snitun.server import listener_sni
 
