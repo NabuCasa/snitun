@@ -11,14 +11,14 @@ from snitun.client.client_peer import ClientPeer
 from snitun.client.connector import Connector
 from snitun.exceptions import SniTunConnectionError
 
-from ..server.const_fernet import create_peer_config
 from ..conftest import Client
+from ..server.const_fernet import create_peer_config
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
 
 async def test_init_client_peer(
-    peer_listener, peer_manager, test_endpoint: list[Client]
+    peer_listener, peer_manager, test_endpoint: list[Client],
 ) -> None:
     """Test setup of ClientPeer."""
     client = ClientPeer("127.0.0.1", "8893")
@@ -46,7 +46,7 @@ async def test_init_client_peer(
 
 
 async def test_init_client_peer_with_alias(
-    peer_listener, peer_manager, test_endpoint: list[Client]
+    peer_listener, peer_manager, test_endpoint: list[Client],
 ) -> None:
     """Test setup of ClientPeer with custom tomain."""
     client = ClientPeer("127.0.0.1", "8893")
@@ -106,7 +106,7 @@ async def test_init_client_peer_invalid_token(
 
 
 async def test_flow_client_peer(
-    peer_listener, peer_manager, test_endpoint: list[Client]
+    peer_listener, peer_manager, test_endpoint: list[Client],
 ) -> None:
     """Test setup of ClientPeer, test flow."""
     client = ClientPeer("127.0.0.1", "8893")
@@ -152,7 +152,7 @@ async def test_flow_client_peer(
 
 
 async def test_close_client_peer(
-    peer_listener, peer_manager, test_endpoint: list[Client]
+    peer_listener, peer_manager, test_endpoint: list[Client],
 ) -> None:
     """Test setup of ClientPeer, test flow - close it."""
     client = ClientPeer("127.0.0.1", "8893")
@@ -201,7 +201,7 @@ async def test_close_client_peer(
 
 
 async def test_init_client_peer_wait(
-    peer_listener, peer_manager, test_endpoint: list[Client]
+    peer_listener, peer_manager, test_endpoint: list[Client],
 ) -> None:
     """Test setup of ClientPeer."""
     client = ClientPeer("127.0.0.1", "8893")
@@ -233,7 +233,7 @@ async def test_init_client_peer_wait(
 
 
 async def test_init_client_peer_throttling(
-    peer_listener, peer_manager, test_endpoint: list[Client]
+    peer_listener, peer_manager, test_endpoint: list[Client],
 ) -> None:
     """Test setup of ClientPeer."""
     client = ClientPeer("127.0.0.1", "8893")

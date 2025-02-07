@@ -1,8 +1,10 @@
 """Tests for asyncio utils."""
 
 import asyncio
-from snitun.utils.asyncio import asyncio_timeout, create_eager_task
+
 import pytest
+
+from snitun.utils.asyncio import asyncio_timeout, create_eager_task
 
 
 async def test_asyncio_timeout() -> None:
