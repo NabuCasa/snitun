@@ -75,9 +75,7 @@ class Peer:
         """Return true if the Peer is ready to process data."""
         if self.multiplexer is None:
             return False
-        if not self.multiplexer.is_connected:
-            return False
-        return True
+        return self.multiplexer.is_connected
 
     async def init_multiplexer_challenge(
         self,
