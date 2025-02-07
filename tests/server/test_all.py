@@ -8,6 +8,7 @@ import os
 
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
+from snitun.server.peer_manager import PeerManager
 
 from .const_fernet import create_peer_config
 from .const_tls import TLS_1_2
@@ -16,7 +17,7 @@ IP_ADDR = ipaddress.ip_address("127.0.0.1")
 
 
 async def test_server_full(
-    peer_manager,
+    peer_manager: PeerManager,
     peer_listener,
     test_client_peer,
     sni_proxy,

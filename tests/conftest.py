@@ -49,7 +49,8 @@ async def test_server() -> AsyncGenerator[list[Client], None]:
     connections = []
 
     async def process_data(
-        reader: asyncio.StreamReader, writer: asyncio.StreamWriter,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
     ) -> None:
         """Read data from client."""
         client = Client(reader, writer)
@@ -69,7 +70,8 @@ async def test_endpoint() -> AsyncGenerator[list[Client], None]:
     connections = []
 
     async def process_data(
-        reader: asyncio.StreamReader, writer: asyncio.StreamWriter,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
     ) -> None:
         """Read data from client."""
         client = Client(reader, writer)
@@ -158,13 +160,16 @@ def test_client_ssl_sync(
 
 @pytest.fixture
 async def multiplexer_server(
-    test_server: list[Client], test_client: Client, crypto_transport: CryptoTransport,
+    test_server: list[Client],
+    test_client: Client,
+    crypto_transport: CryptoTransport,
 ) -> AsyncGenerator[Multiplexer, None]:
     """Create a multiplexer client from server."""
     client = test_server[0]
 
     async def mock_new_channel(
-        multiplexer: Multiplexer, channel: MultiplexerChannel,
+        multiplexer: Multiplexer,
+        channel: MultiplexerChannel,
     ) -> None:
         """Mock new channel."""
 
@@ -183,12 +188,14 @@ async def multiplexer_server(
 
 @pytest.fixture
 async def multiplexer_client(
-    test_client: Client, crypto_transport: CryptoTransport,
+    test_client: Client,
+    crypto_transport: CryptoTransport,
 ) -> AsyncGenerator[Multiplexer, None]:
     """Create a multiplexer client from server."""
 
     async def mock_new_channel(
-        multiplexer: Multiplexer, channel: MultiplexerChannel,
+        multiplexer: Multiplexer,
+        channel: MultiplexerChannel,
     ) -> None:
         """Mock new channel."""
 
@@ -244,7 +251,8 @@ def crypto_transport() -> CryptoTransport:
 
 @pytest.fixture
 async def peer(
-    crypto_transport: CryptoTransport, multiplexer_server: Multiplexer,
+    crypto_transport: CryptoTransport,
+    multiplexer_server: Multiplexer,
 ) -> Peer:
     """Init a peer with transport."""
     valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
@@ -257,7 +265,8 @@ async def peer(
 
 @pytest.fixture
 async def peer_listener(
-    peer_manager: PeerManager, peer: Peer,
+    peer_manager: PeerManager,
+    peer: Peer,
 ) -> AsyncGenerator[PeerListener, None]:
     """Create a Peer listener."""
     listener = PeerListener(peer_manager, "127.0.0.1", "8893")

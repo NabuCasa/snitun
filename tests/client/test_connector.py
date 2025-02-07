@@ -16,7 +16,9 @@ BAD_ADDR = ipaddress.ip_address("8.8.1.1")
 
 
 async def test_init_connector(
-    test_endpoint: list[Client], multiplexer_client, multiplexer_server,
+    test_endpoint: list[Client],
+    multiplexer_client,
+    multiplexer_server,
 ) -> None:
     """Test and init a connector."""
     assert not test_endpoint
@@ -38,7 +40,9 @@ async def test_init_connector(
 
 
 async def test_flow_connector(
-    test_endpoint: list[Client], multiplexer_client, multiplexer_server,
+    test_endpoint: list[Client],
+    multiplexer_client,
+    multiplexer_server,
 ) -> None:
     """Test and and perform a connector flow."""
     assert not test_endpoint
