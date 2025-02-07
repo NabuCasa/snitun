@@ -217,7 +217,7 @@ async def test_multiplexer_close_channel_full(multiplexer_client):
 
     assert multiplexer_client._channels
 
-    with patch("async_timeout.timeout", side_effect=asyncio.TimeoutError()):
+    with patch("snitun.utils.asyncio.asyncio_timeout", side_effect=asyncio.TimeoutError()):
         with pytest.raises(MultiplexerTransportError):
             channel = await multiplexer_client.delete_channel(channel)
     await asyncio.sleep(0.1)

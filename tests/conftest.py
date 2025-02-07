@@ -36,7 +36,7 @@ class Client:
 @pytest.fixture
 def raise_timeout():
     """Raise timeout on async-timeout."""
-    with patch("async_timeout.timeout", side_effect=asyncio.TimeoutError()):
+    with patch("snitun.utils.asyncio.asyncio_timeout", side_effect=asyncio.TimeoutError()):
         yield
 
 

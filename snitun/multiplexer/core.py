@@ -10,13 +10,12 @@ import logging
 import os
 from typing import Any
 
-import async_timeout
-
 from ..exceptions import (
     MultiplexerTransportClose,
     MultiplexerTransportDecrypt,
     MultiplexerTransportError,
 )
+from ..utils.asyncio import asyncio_timeout
 from ..utils.ipaddress import bytes_to_ip_address
 from .channel import MultiplexerChannel
 from .crypto import CryptoTransport
@@ -111,7 +110,7 @@ class Multiplexer:
             )
 
             # Wait until pong is received
-            async with async_timeout.timeout(PEER_TCP_TIMEOUT):
+            async with asyncio_timeout(PEER_TCP_TIMEOUT):
                 await self._healthy.wait()
 
         except asyncio.TimeoutError:
@@ -141,7 +140,7 @@ class Multiplexer:
                     to_peer = self._loop.create_task(self._queue.get())
 
                 # Wait until data need to be processed
-                async with async_timeout.timeout(PEER_TCP_TIMEOUT):
+                async with asyncio_timeout(PEER_TCP_TIMEOUT):
                     await asyncio.wait(
                         [from_peer, to_peer],
                         return_when=asyncio.FIRST_COMPLETED,
@@ -320,7 +319,7 @@ class Multiplexer:
         message = channel.init_new()
 
         try:
-            async with async_timeout.timeout(5):
+            async with asyncio_timeout(5):
                 await self._queue.put(message)
         except asyncio.TimeoutError:
             raise MultiplexerTransportError from None
@@ -334,7 +333,7 @@ class Multiplexer:
         message = channel.init_close()
 
         try:
-            async with async_timeout.timeout(5):
+            async with asyncio_timeout(5):
                 await self._queue.put(message)
         except asyncio.TimeoutError:
             raise MultiplexerTransportError from None

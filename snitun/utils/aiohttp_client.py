@@ -11,10 +11,10 @@ import ssl
 from typing import Any
 
 from aiohttp.web import AppRunner, SockSite
-import async_timeout
 
 from ..client.client_peer import ClientPeer
 from ..client.connector import Connector
+from .asyncio import asyncio_timeout
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -127,7 +127,7 @@ async def _async_waitfor_socket_closed(sock: socket.socket | None = None) -> Non
         return
     loop = asyncio.get_event_loop()
     try:
-        async with async_timeout.timeout(60):
+        async with asyncio_timeout(60):
             while (await loop.run_in_executor(None, sock.fileno)) != -1:
                 await asyncio.sleep(1)
     except asyncio.TimeoutError:

@@ -7,9 +7,8 @@ from contextlib import suppress
 from ipaddress import IPv4Address
 import logging
 
-import async_timeout
-
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
+from ..utils.asyncio import asyncio_timeout
 from ..utils.ipaddress import ip_address_to_bytes
 from .message import (
     CHANNEL_FLOW_CLOSE,
@@ -79,7 +78,7 @@ class MultiplexerChannel:
         message = MultiplexerMessage(self._id, CHANNEL_FLOW_DATA, data)
 
         try:
-            async with async_timeout.timeout(5):
+            async with asyncio_timeout(5):
                 await self._output.put(message)
         except asyncio.TimeoutError:
             _LOGGER.debug("Can't write to peer transport")
