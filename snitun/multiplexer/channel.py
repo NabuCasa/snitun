@@ -9,7 +9,6 @@ from ipaddress import IPv4Address
 import logging
 
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
-from ..utils.asyncio import asyncio_timeout
 from ..utils.ipaddress import ip_address_to_bytes
 from .message import (
     CHANNEL_FLOW_CLOSE,
