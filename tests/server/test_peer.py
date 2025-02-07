@@ -12,8 +12,10 @@ from snitun.multiplexer.crypto import CryptoTransport
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
 from snitun.server.peer import Peer
 
+from ..conftest import Client
 
-def test_init_peer():
+
+def test_init_peer() -> None:
     """Test simple init of peer."""
     valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     peer = Peer(
@@ -30,7 +32,11 @@ def test_init_peer():
     assert peer.alias == "localhost.custom"
 
 
-async def test_init_peer_multiplexer(event_loop, test_client, test_server):
+async def test_init_peer_multiplexer(
+    event_loop: asyncio.AbstractEventLoop,
+    test_client: Client,
+    test_server: list[Client],
+) -> None:
     """Test setup multiplexer."""
     loop = event_loop
     client = test_server[0]
@@ -72,7 +78,11 @@ async def test_init_peer_multiplexer(event_loop, test_client, test_server):
     assert not peer.multiplexer.is_connected
 
 
-async def test_init_peer_multiplexer_crypto(event_loop, test_client, test_server):
+async def test_init_peer_multiplexer_crypto(
+    event_loop: asyncio.AbstractEventLoop,
+    test_client: Client,
+    test_server: list[Client],
+) -> None:
     """Test setup multiplexer with crypto."""
     loop = event_loop
     client = test_server[0]
@@ -124,7 +134,11 @@ async def test_init_peer_multiplexer_crypto(event_loop, test_client, test_server
     assert peer.multiplexer.wait().done()
 
 
-async def test_init_peer_wrong_challenge(event_loop, test_client, test_server):
+async def test_init_peer_wrong_challenge(
+    event_loop: asyncio.AbstractEventLoop,
+    test_client: Client,
+    test_server: list[Client],
+) -> None:
     """Test setup multiplexer wrong challenge."""
     loop = event_loop
     client = test_server[0]
@@ -168,7 +182,11 @@ def test_init_peer_invalid():
     assert peer.multiplexer is None
 
 
-async def test_init_peer_multiplexer_throttling(event_loop, test_client, test_server):
+async def test_init_peer_multiplexer_throttling(
+    event_loop: asyncio.AbstractEventLoop,
+    test_client: Client,
+    test_server: list[Client],
+) -> None:
     """Test setup multiplexer."""
     loop = event_loop
     client = test_server[0]

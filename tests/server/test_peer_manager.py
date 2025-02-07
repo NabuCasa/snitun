@@ -7,13 +7,14 @@ import os
 import pytest
 
 from snitun.exceptions import SniTunInvalidPeer
+from snitun.multiplexer.core import Multiplexer
 from snitun.server.peer import Peer
 from snitun.server.peer_manager import PeerManager, PeerManagerEvent
 
 from .const_fernet import FERNET_TOKENS, create_peer_config
 
 
-async def test_simple_init_peer_manager():
+async def test_simple_init_peer_manager() -> None:
     """Simple init a peer manager."""
     manager = PeerManager(FERNET_TOKENS)
 
@@ -22,7 +23,7 @@ async def test_simple_init_peer_manager():
     assert manager._throttling is None
 
 
-async def test_init_new_peer():
+async def test_init_new_peer() -> None:
     """Init a new peer."""
     manager = PeerManager(FERNET_TOKENS)
 
@@ -47,7 +48,7 @@ async def test_init_new_peer():
     assert manager.connections == 1
 
 
-async def test_init_new_peer_with_alias():
+async def test_init_new_peer_with_alias() -> None:
     """Init a new peer with custom domain."""
     manager = PeerManager(FERNET_TOKENS)
 
@@ -86,7 +87,7 @@ async def test_init_new_peer_with_alias():
     assert manager.connections == 2
 
 
-async def test_init_new_peer_not_valid_time():
+async def test_init_new_peer_not_valid_time() -> None:
     """Init a new peer."""
     manager = PeerManager(FERNET_TOKENS)
 
@@ -100,7 +101,7 @@ async def test_init_new_peer_not_valid_time():
         manager.create_peer(fernet_token)
 
 
-async def test_init_new_peer_invalid_fernet():
+async def test_init_new_peer_invalid_fernet() -> None:
     """Init a new peer."""
     manager = PeerManager(FERNET_TOKENS)
 
@@ -108,7 +109,7 @@ async def test_init_new_peer_invalid_fernet():
         manager.create_peer(os.urandom(100))
 
 
-async def test_init_new_peer_with_removing():
+async def test_init_new_peer_with_removing() -> None:
     """Init a new peer."""
     manager = PeerManager(FERNET_TOKENS)
 
@@ -134,7 +135,7 @@ async def test_init_new_peer_with_removing():
     assert hostname not in manager._peers
 
 
-async def test_init_new_peer_with_events():
+async def test_init_new_peer_with_events() -> None:
     """Init a new peer and remove with events."""
     events = []
 
@@ -173,7 +174,7 @@ async def test_init_new_peer_with_events():
     assert events[-1][1] == PeerManagerEvent.DISCONNECTED
 
 
-async def test_init_new_peer_throttling():
+async def test_init_new_peer_throttling() -> None:
     """Init a new peer."""
     manager = PeerManager(FERNET_TOKENS, throttling=500)
 
@@ -195,7 +196,7 @@ async def test_init_new_peer_throttling():
     assert manager.connections == 1
 
 
-async def test_init_dual_peer_with_removing():
+async def test_init_dual_peer_with_removing() -> None:
     """Init a new peer."""
     manager = PeerManager(FERNET_TOKENS)
 
@@ -236,7 +237,7 @@ async def test_init_dual_peer_with_removing():
     assert hostname not in manager._peers
 
 
-async def test_init_dual_peer_with_multiplexer(multiplexer_client):
+async def test_init_dual_peer_with_multiplexer(multiplexer_client: Multiplexer) -> None:
     """Init a new peer."""
     manager = PeerManager(FERNET_TOKENS)
 
