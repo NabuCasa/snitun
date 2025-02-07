@@ -5,7 +5,7 @@ import os
 from snitun.multiplexer.crypto import CryptoTransport
 
 
-def test_setup_crypto_transport():
+def test_setup_crypto_transport() -> None:
     """Test crypto transport setup."""
     key = os.urandom(32)
     iv = os.urandom(16)
