@@ -1,6 +1,6 @@
 """Utils for asyncio."""
 
-from asyncio import AbstractEventLoop, Task, get_running_loop
+import asyncio
 from collections.abc import Awaitable
 import sys
 from typing import TypeVar
@@ -8,9 +8,9 @@ from typing import TypeVar
 _T = TypeVar("_T")
 
 if sys.version_info >= (3, 11):
-    from asyncio import timeout as asyncio_timeout
+    asyncio_timeout = asyncio
 else:
-    from async_timeout import timeout as asyncio_timeout  # noqa: F401
+    import async_timeout as asyncio_timeout  # noqa: F401
 
 
 if sys.version_info >= (3, 12, 0):
@@ -19,12 +19,12 @@ if sys.version_info >= (3, 12, 0):
         coro: Awaitable[_T],
         *,
         name: str | None = None,
-        loop: AbstractEventLoop | None = None,
-    ) -> Task[_T]:
+        loop: asyncio.AbstractEventLoop | None = None,
+    ) -> asyncio.Task[_T]:
         """Create a task from a coroutine and schedule it to run immediately."""
-        return Task(
+        return asyncio.Task(
             coro,
-            loop=loop or get_running_loop(),
+            loop=loop or asyncio.get_running_loop(),
             name=name,
             eager_start=True,  # type: ignore[call-arg]
         )
@@ -34,11 +34,11 @@ else:
         coro: Awaitable[_T],
         *,
         name: str | None = None,
-        loop: AbstractEventLoop | None = None,
-    ) -> Task[_T]:
+        loop: asyncio.AbstractEventLoop | None = None,
+    ) -> asyncio.Task[_T]:
         """Create a task from a coroutine and schedule it to run immediately."""
-        return Task(
+        return asyncio.Task(
             coro,
-            loop=loop or get_running_loop(),
+            loop=loop or asyncio.get_running_loop(),
             name=name,
         )

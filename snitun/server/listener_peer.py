@@ -52,7 +52,7 @@ class PeerListener:
         """Handle incoming requests."""
         if not data:
             try:
-                async with asyncio_timeout(2):
+                async with asyncio_timeout.timeout(2):
                     fernet_data = await reader.read(2048)
             except asyncio.TimeoutError:
                 _LOGGER.warning("Abort peer handshake")
@@ -76,7 +76,7 @@ class PeerListener:
             self._peer_manager.add_peer(peer)
             while peer.is_connected:
                 try:
-                    async with asyncio_timeout(CHECK_VALID_EXPIRE):
+                    async with asyncio_timeout.timeout(CHECK_VALID_EXPIRE):
                         await peer.wait_disconnect()
                 except asyncio.TimeoutError:
                     if not peer.is_valid:

@@ -125,7 +125,7 @@ class PeerManager:
 
         if waiters := [peer.wait_disconnect() for peer in peers]:
             try:
-                async with asyncio_timeout(timeout):
+                async with asyncio_timeout.timeout(timeout):
                     await asyncio.gather(*waiters, return_exceptions=True)
             except asyncio.TimeoutError:
                 _LOGGER.error("Timeout while waiting for peer disconnect")

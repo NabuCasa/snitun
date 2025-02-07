@@ -61,7 +61,7 @@ class ClientPeer:
             self._snitun_port,
         )
         try:
-            async with asyncio_timeout(CONNECTION_TIMEOUT):
+            async with asyncio_timeout.timeout(CONNECTION_TIMEOUT):
                 reader, writer = await asyncio.open_connection(
                     host=self._snitun_host,
                     port=self._snitun_port,
@@ -80,7 +80,7 @@ class ClientPeer:
         # Send fernet token
         writer.write(fernet_token)
         try:
-            async with asyncio_timeout(CONNECTION_TIMEOUT):
+            async with asyncio_timeout.timeout(CONNECTION_TIMEOUT):
                 await writer.drain()
         except asyncio.TimeoutError:
             raise SniTunConnectionError(
@@ -90,7 +90,7 @@ class ClientPeer:
         # Challenge/Response
         crypto = CryptoTransport(aes_key, aes_iv)
         try:
-            async with asyncio_timeout(CONNECTION_TIMEOUT):
+            async with asyncio_timeout.timeout(CONNECTION_TIMEOUT):
                 challenge = await reader.readexactly(32)
                 answer = hashlib.sha256(crypto.decrypt(challenge)).digest()
 
@@ -133,7 +133,7 @@ class ClientPeer:
 
         async def _wait_with_timeout() -> None:
             try:
-                async with asyncio_timeout(50):
+                async with asyncio_timeout.timeout(50):
                     await self._multiplexer.wait()
             except asyncio.TimeoutError:
                 await self._multiplexer.ping()

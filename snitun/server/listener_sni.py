@@ -61,7 +61,7 @@ class SNIProxy:
         """Handle incoming requests."""
         if data is None:
             try:
-                async with asyncio_timeout(2):
+                async with asyncio_timeout.timeout(2):
                     client_hello = await payload_reader(reader)
             except asyncio.TimeoutError:
                 _LOGGER.warning("Abort SNI handshake")
@@ -139,7 +139,7 @@ class SNIProxy:
                     from_peer = self._loop.create_task(channel.read())
 
                 # Wait until data need to be processed
-                async with asyncio_timeout(TCP_SESSION_TIMEOUT):
+                async with asyncio_timeout.timeout(TCP_SESSION_TIMEOUT):
                     await asyncio.wait(
                         [from_proxy, from_peer],
                         return_when=asyncio.FIRST_COMPLETED,

@@ -78,7 +78,7 @@ class MultiplexerChannel:
         message = MultiplexerMessage(self._id, CHANNEL_FLOW_DATA, data)
 
         try:
-            async with asyncio_timeout(5):
+            async with asyncio_timeout.timeout(5):
                 await self._output.put(message)
         except asyncio.TimeoutError:
             _LOGGER.debug("Can't write to peer transport")
