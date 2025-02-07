@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from contextlib import suppress
 from ipaddress import IPv4Address
 import logging
-from collections.abc import Callable
-
-import async_timeout
 
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from ..utils.ipaddress import ip_address_to_bytes

@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 from collections.abc import Coroutine
 from contextlib import suppress
 import ipaddress
 import logging
 import os
 from typing import Any
-from collections import deque
 
 from ..exceptions import (
     MultiplexerTransportClose,
@@ -33,6 +33,7 @@ _LOGGER = logging.getLogger(__name__)
 PEER_TCP_TIMEOUT = 90
 MAX_QUEUED_MESSAGES = 12000
 
+
 class Multiplexer:
     """Multiplexer Socket wrapper."""
 
@@ -44,9 +45,10 @@ class Multiplexer:
         "_new_connections",
         "_processing_task",
         "_queue",
+        "_queue_ready_future",
         "_reader",
         "_throttling",
-        "_queue_ready_future"
+        "_writer",
     ]
 
     def __init__(
@@ -139,7 +141,8 @@ class Multiplexer:
                 # Wait until data need to be processed
                 async with asyncio.timeout(PEER_TCP_TIMEOUT):
                     await asyncio.wait(
-                        [from_peer, self._queue_ready_future], return_when=asyncio.FIRST_COMPLETED,
+                        [from_peer, self._queue_ready_future],
+                        return_when=asyncio.FIRST_COMPLETED,
                     )
 
                 # From peer
@@ -323,8 +326,12 @@ class Multiplexer:
         message = channel.init_close()
         self.queue_message(message, ignore_maximum=True)
         self._channels.pop(channel.id, None)
-      
-    def queue_message(self, message: MultiplexerMessage, ignore_maximum: bool = False) -> None:
+
+    def queue_message(
+        self,
+        message: MultiplexerMessage,
+        ignore_maximum: bool = False,
+    ) -> None:
         """Queue message to send."""
         if not ignore_maximum and len(self._queue) > MAX_QUEUED_MESSAGES:
             raise MultiplexerTransportError("Queue is full") from None
