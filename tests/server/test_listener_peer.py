@@ -26,7 +26,7 @@ async def test_init_listener(peer_manager: PeerManager):
 
 async def test_peer_listener(
     peer_manager: PeerManager,
-    peer_listener,
+    peer_listener: PeerListener,
     test_client_peer,
 ):
     """Run a full flow of with a peer."""
@@ -53,7 +53,7 @@ async def test_peer_listener(
 
 async def test_peer_listener_invalid(
     peer_manager: PeerManager,
-    peer_listener,
+    peer_listener: PeerListener,
     test_client_peer,
 ):
     """Run a full flow of with a peer."""
@@ -74,7 +74,7 @@ async def test_peer_listener_invalid(
 
 async def test_peer_listener_disconnect(
     peer_manager: PeerManager,
-    peer_listener,
+    peer_listener: PeerListener,
     test_client_peer,
 ):
     """Run a full flow of with a peer after that disconnect."""
@@ -107,7 +107,7 @@ async def test_peer_listener_disconnect(
 async def test_peer_listener_timeout(
     raise_timeout,
     peer_manager: PeerManager,
-    peer_listener,
+    peer_listener: PeerListener,
     test_client_peer,
 ):
     """Run a full flow of with a peer."""
@@ -135,7 +135,7 @@ async def test_peer_listener_timeout(
 
 async def test_peer_listener_expire(
     peer_manager: PeerManager,
-    peer_listener,
+    peer_listener: PeerListener,
     test_client_peer,
 ):
     """Run a full flow of with a peer."""

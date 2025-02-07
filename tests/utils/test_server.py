@@ -9,6 +9,7 @@ import pytest
 from snitun.client.client_peer import ClientPeer
 from snitun.client.connector import Connector
 from snitun.exceptions import SniTunConnectionError
+from snitun.server.listener_peer import PeerListener
 from snitun.server.peer_manager import PeerManager
 from snitun.utils import server
 
@@ -17,7 +18,7 @@ from ..server.const_fernet import FERNET_TOKENS
 
 
 async def test_fernet_token(
-    peer_listener,
+    peer_listener: PeerListener,
     peer_manager: PeerManager,
     test_endpoint: list[Client],
 ) -> None:
@@ -49,7 +50,7 @@ async def test_fernet_token(
 
 
 async def test_fernet_token_date(
-    peer_listener,
+    peer_listener: PeerListener,
     peer_manager: PeerManager,
     test_endpoint: list[Client],
 ) -> None:
