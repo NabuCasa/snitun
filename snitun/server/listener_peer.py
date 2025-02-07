@@ -6,9 +6,8 @@ import asyncio
 from contextlib import suppress
 import logging
 
-import async_timeout
-
 from ..exceptions import SniTunChallengeError, SniTunInvalidPeer
+from ..utils.asyncio import asyncio_timeout
 from .peer_manager import PeerManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,7 +52,7 @@ class PeerListener:
         """Handle incoming requests."""
         if not data:
             try:
-                async with async_timeout.timeout(2):
+                async with asyncio_timeout.timeout(2):
                     fernet_data = await reader.read(2048)
             except asyncio.TimeoutError:
                 _LOGGER.warning("Abort peer handshake")
@@ -77,7 +76,7 @@ class PeerListener:
             self._peer_manager.add_peer(peer)
             while peer.is_connected:
                 try:
-                    async with async_timeout.timeout(CHECK_VALID_EXPIRE):
+                    async with asyncio_timeout.timeout(CHECK_VALID_EXPIRE):
                         await peer.wait_disconnect()
                 except asyncio.TimeoutError:
                     if not peer.is_valid:

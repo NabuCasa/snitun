@@ -14,10 +14,10 @@ import signal
 import socket
 from threading import Thread
 
-import async_timeout
 import attr
 
 from ..exceptions import ParseSNIIncompleteError
+from ..utils.asyncio import asyncio_timeout
 from ..utils.server import MAX_BUFFER_SIZE, MAX_READ_SIZE
 from .listener_peer import PeerListener
 from .listener_sni import SNIProxy
@@ -125,7 +125,7 @@ class SniTunServerSingle:
     ) -> None:
         """Handle incoming connection."""
         try:
-            async with async_timeout.timeout(10):
+            async with asyncio_timeout.timeout(10):
                 data = await reader.read(2048)
         except asyncio.TimeoutError:
             _LOGGER.warning("Abort connection initializing")
