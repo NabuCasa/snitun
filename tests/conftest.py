@@ -8,7 +8,7 @@ import select
 import socket
 from threading import Thread
 from unittest.mock import patch
-from typing import Generator
+from typing import Generator, AsyncGenerator
 import attr
 import pytest
 
@@ -34,7 +34,7 @@ class Client:
 
 
 @pytest.fixture
-def raise_timeout():
+def raise_timeout() -> Generator[None, None, None]:
     """Raise timeout on async-timeout."""
     with patch.object(asyncio_timeout, "timeout", side_effect=asyncio.TimeoutError()):
         yield
@@ -42,11 +42,11 @@ def raise_timeout():
 
 
 @pytest.fixture
-async def test_server():
+async def test_server() -> AsyncGenerator[list[Client], None]:
     """Create a TCP test server."""
     connections = []
 
-    async def process_data(reader, writer):
+    async def process_data(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         """Read data from client."""
         client = Client(reader, writer)
         connections.append(client)
@@ -213,7 +213,7 @@ async def test_client_ssl(sni_proxy):
 
 
 @pytest.fixture
-def crypto_transport():
+def crypto_transport() -> CryptoTransport:
     """Create a CryptoTransport object."""
     key = os.urandom(32)
     iv = os.urandom(16)
