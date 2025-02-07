@@ -71,6 +71,7 @@ use_parentheses = true
 [tool.pylint.BASIC]
 disable = [
   "abstract-method",
+  "broad-exception-caught",
   "cyclic-import",
   "duplicate-code",
   "global-statement",
@@ -92,6 +93,7 @@ disable = [
   "too-many-return-statements",
   "too-many-statements",
   "unused-argument",
+  "wrong-import-position",
 ]
 generated-members=[
   "botocore.errorfactory",
