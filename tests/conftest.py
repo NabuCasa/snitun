@@ -18,9 +18,9 @@ from snitun.server.listener_peer import PeerListener
 from snitun.server.listener_sni import SNIProxy
 from snitun.server.peer import Peer
 from snitun.server.peer_manager import PeerManager
-from snitun.utils import asyncio as asyncio_utils
+from snitun.utils.asyncio import asyncio_timeout
 from .server.const_fernet import FERNET_TOKENS
-import sys
+
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -36,7 +36,7 @@ class Client:
 @pytest.fixture
 def raise_timeout():
     """Raise timeout on async-timeout."""
-    with patch.object(asyncio_utils, "asyncio_timeout", side_effect=asyncio.TimeoutError()):
+    with patch.object(asyncio_timeout, "timeout", side_effect=asyncio.TimeoutError()):
         yield
 
 
