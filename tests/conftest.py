@@ -8,7 +8,7 @@ import select
 import socket
 from threading import Thread
 from unittest.mock import patch
-
+from typing import Generator
 import attr
 import pytest
 
@@ -60,7 +60,7 @@ async def test_server():
 
 
 @pytest.fixture
-async def test_endpoint():
+async def test_endpoint() -> Generator[list[Client], None, None]:
     """Create a TCP test endpoint."""
     connections = []
 
