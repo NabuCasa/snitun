@@ -1,8 +1,8 @@
 """Test peer manager."""
+
 import asyncio
-import os
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
+import os
 
 import pytest
 
@@ -57,7 +57,11 @@ async def test_init_new_peer_with_alias():
     hostname = "localhost"
     alias = "localhost.custom"
     fernet_token = create_peer_config(
-        valid.timestamp(), hostname, aes_key, aes_iv, alias=[alias]
+        valid.timestamp(),
+        hostname,
+        aes_key,
+        aes_iv,
+        alias=[alias],
     )
 
     peer = manager.create_peer(fernet_token)
@@ -127,12 +131,11 @@ async def test_init_new_peer_with_removing():
     manager.remove_peer(peer)
     assert manager.get_peer(hostname) is None
     assert not manager.peer_available(hostname)
-    assert not hostname in manager._peers
+    assert hostname not in manager._peers
 
 
 async def test_init_new_peer_with_events():
     """Init a new peer and remove with events."""
-
     events = []
 
     def _events(ev_peer: Peer, type_event: PeerManagerEvent) -> None:
@@ -163,7 +166,7 @@ async def test_init_new_peer_with_events():
     manager.remove_peer(peer)
     assert manager.get_peer(hostname) is None
     assert not manager.peer_available(hostname)
-    assert not hostname in manager._peers
+    assert hostname not in manager._peers
 
     await asyncio.sleep(0.1)
     assert events[-1][0] == peer
@@ -230,7 +233,7 @@ async def test_init_dual_peer_with_removing():
     manager.remove_peer(peer2)
     assert manager.get_peer(hostname) is None
     assert not manager.peer_available(hostname)
-    assert not hostname in manager._peers
+    assert hostname not in manager._peers
 
 
 async def test_init_dual_peer_with_multiplexer(multiplexer_client):
@@ -277,4 +280,4 @@ async def test_init_dual_peer_with_multiplexer(multiplexer_client):
     manager.remove_peer(peer2)
     assert manager.get_peer(hostname) is None
     assert not manager.peer_available(hostname)
-    assert not hostname in manager._peers
+    assert hostname not in manager._peers

@@ -1,4 +1,5 @@
 """Tests for peer listener & manager."""
+
 import asyncio
 from datetime import datetime, timedelta, timezone
 import hashlib
@@ -91,7 +92,10 @@ async def test_peer_listener_disconnect(peer_manager, peer_listener, test_client
 
 
 async def test_peer_listener_timeout(
-    raise_timeout, peer_manager, peer_listener, test_client_peer
+    raise_timeout,
+    peer_manager,
+    peer_listener,
+    test_client_peer,
 ):
     """Run a full flow of with a peer."""
     valid = datetime.now(tz=timezone.utc) + timedelta(days=1)

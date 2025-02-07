@@ -25,7 +25,8 @@ def test_good_client_hello(test_package: bytes):
 
 
 @pytest.mark.parametrize(
-    "test_package", [raw.BAD_DATA1, raw.BAD_DATA2, raw.SSL_2_0, raw.SSL_3_0]
+    "test_package",
+    [raw.BAD_DATA1, raw.BAD_DATA2, raw.SSL_2_0, raw.SSL_3_0],
 )
 def test_bad_client_hello(test_package: bytes):
     """Test bad client hello."""

@@ -1,7 +1,7 @@
 """Test aes generator function."""
 
-from snitun.utils import aes
 from snitun.multiplexer.crypto import CryptoTransport
+from snitun.utils import aes
 
 
 def test_aes_function():

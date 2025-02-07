@@ -1,15 +1,17 @@
 """Pytest fixtures for SniTun."""
+
 import asyncio
 from datetime import datetime, timedelta, timezone
 import logging
 import os
-from unittest.mock import patch
 import select
 import socket
 from threading import Thread
+from unittest.mock import patch
 
 import attr
 import pytest
+
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.server.listener_peer import PeerListener
@@ -79,7 +81,6 @@ async def test_endpoint():
 @pytest.fixture
 async def test_client(test_server):
     """Create a TCP test client."""
-
     reader, writer = await asyncio.open_connection(host="127.0.0.1", port="8866")
 
     yield Client(reader, writer)
@@ -153,7 +154,10 @@ async def multiplexer_server(test_server, test_client, crypto_transport):
         """Mock new channel."""
 
     multiplexer = Multiplexer(
-        crypto_transport, client.reader, client.writer, mock_new_channel
+        crypto_transport,
+        client.reader,
+        client.writer,
+        mock_new_channel,
     )
 
     yield multiplexer
@@ -170,7 +174,10 @@ async def multiplexer_client(test_client, crypto_transport):
         """Mock new channel."""
 
     multiplexer = Multiplexer(
-        crypto_transport, test_client.reader, test_client.writer, mock_new_channel
+        crypto_transport,
+        test_client.reader,
+        test_client.writer,
+        mock_new_channel,
     )
 
     yield multiplexer
@@ -183,7 +190,7 @@ async def peer_manager(multiplexer_server, peer):
     """Create a localhost peer for tests."""
     manager = PeerManager(FERNET_TOKENS)
     manager._peers[peer.hostname] = peer
-    yield manager
+    return manager
 
 
 @pytest.fixture
@@ -199,7 +206,6 @@ async def sni_proxy(peer_manager):
 @pytest.fixture
 async def test_client_ssl(sni_proxy):
     """Create a TCP test client."""
-
     reader, writer = await asyncio.open_connection(host="127.0.0.1", port="8863")
 
     yield Client(reader, writer)
@@ -214,7 +220,7 @@ def crypto_transport():
     iv = os.urandom(16)
     crypto = CryptoTransport(key, iv)
 
-    yield crypto
+    return crypto
 
 
 @pytest.fixture
@@ -225,7 +231,7 @@ async def peer(crypto_transport, multiplexer_server):
     peer._crypto = crypto_transport
     peer._multiplexer = multiplexer_server
 
-    yield peer
+    return peer
 
 
 @pytest.fixture
@@ -244,7 +250,6 @@ async def peer_listener(peer_manager, peer):
 @pytest.fixture
 async def test_client_peer(peer_listener):
     """Create a TCP test client."""
-
     reader, writer = await asyncio.open_connection(host="127.0.0.1", port="8893")
 
     yield Client(reader, writer)

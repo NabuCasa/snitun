@@ -57,12 +57,15 @@ class ClientPeer:
 
         # Connect to SniTun server
         _LOGGER.debug(
-            "Opening connection to %s:%s", self._snitun_host, self._snitun_port,
+            "Opening connection to %s:%s",
+            self._snitun_host,
+            self._snitun_port,
         )
         try:
             async with async_timeout.timeout(CONNECTION_TIMEOUT):
                 reader, writer = await asyncio.open_connection(
-                    host=self._snitun_host, port=self._snitun_port,
+                    host=self._snitun_host,
+                    port=self._snitun_port,
                 )
         except asyncio.TimeoutError:
             raise SniTunConnectionError(
@@ -128,12 +131,14 @@ class ClientPeer:
 
     async def _handler(self) -> None:
         """Wait until connection is closed."""
+
         async def _wait_with_timeout() -> None:
             try:
                 async with async_timeout.timeout(50):
                     await self._multiplexer.wait()
             except asyncio.TimeoutError:
                 await self._multiplexer.ping()
+
         try:
             while self._multiplexer.is_connected:
                 await _wait_with_timeout()
