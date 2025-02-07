@@ -24,7 +24,7 @@ classifiers = [
 dependencies = [
     "aiohttp>=3.9.3",
     "attrs>=18.2.0",
-    "async_timeout>=3.0.1;python_version>='3.12'",
+    "async_timeout>=3.0.1;python_version<'3.11'",
     "cryptography>=2.5",
 ]
 description = "SNI proxy with TCP multiplexer"
