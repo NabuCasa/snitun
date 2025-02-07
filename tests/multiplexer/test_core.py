@@ -201,7 +201,7 @@ async def test_multiplexer_close_channel(multiplexer_client, multiplexer_server)
     assert multiplexer_client._channels[channel.id].ip_address == IP_ADDR
     assert multiplexer_server._channels[channel.id].ip_address == IP_ADDR
 
-    await multiplexer_client.delete_channel(channel)
+    multiplexer_client.delete_channel(channel)
     await asyncio.sleep(0.1)
 
     assert not multiplexer_client._channels
@@ -219,7 +219,7 @@ async def test_multiplexer_close_channel_full(multiplexer_client):
 
     with patch.object(asyncio_timeout, "timeout", side_effect=asyncio.TimeoutError()):
         with pytest.raises(MultiplexerTransportError):
-            channel = await multiplexer_client.delete_channel(channel)
+            channel = multiplexer_client.delete_channel(channel)
     await asyncio.sleep(0.1)
 
     assert not multiplexer_client._channels

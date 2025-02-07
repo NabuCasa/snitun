@@ -322,7 +322,7 @@ class Multiplexer:
         self._channels[channel.id] = channel
         return channel
 
-    async def delete_channel(self, channel: MultiplexerChannel) -> None:
+    def delete_channel(self, channel: MultiplexerChannel) -> None:
         """Delete channel from transport."""
         message = channel.init_close()
         self.queue_message(message, ignore_maximum=True)

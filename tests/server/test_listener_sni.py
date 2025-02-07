@@ -89,7 +89,7 @@ async def test_sni_proxy_flow_close_by_client(
     await asyncio.sleep(0.1)
     assert not ssl_client_read.done()
 
-    await multiplexer_client.delete_channel(channel)
+    multiplexer_client.delete_channel(channel)
     await asyncio.sleep(0.1)
 
     assert ssl_client_read.done()

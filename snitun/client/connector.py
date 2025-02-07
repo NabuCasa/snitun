@@ -63,7 +63,7 @@ class Connector:
         # Check policy
         if not self._whitelist_policy(channel.ip_address):
             _LOGGER.warning("Block request from %s per policy", channel.ip_address)
-            await multiplexer.delete_channel(channel)
+            multiplexer.delete_channel(channel)
             return
 
         # Open connection to endpoint
@@ -78,7 +78,7 @@ class Connector:
                 self._end_host,
                 self._end_port,
             )
-            await multiplexer.delete_channel(channel)
+            multiplexer.delete_channel(channel)
             if self._endpoint_connection_error_callback:
                 await self._endpoint_connection_error_callback()
             return
@@ -119,7 +119,7 @@ class Connector:
         except (MultiplexerTransportError, OSError, RuntimeError):
             _LOGGER.debug("Transport closed by endpoint for %s", channel.id)
             with suppress(MultiplexerTransportError):
-                await multiplexer.delete_channel(channel)
+                multiplexer.delete_channel(channel)
 
         except MultiplexerTransportClose:
             _LOGGER.debug("Peer close connection for %s", channel.id)
