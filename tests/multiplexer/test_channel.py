@@ -118,7 +118,6 @@ async def test_write_data_empty(output: Callable[[MultiplexerMessage], None]) ->
 
 async def test_read_data(output: Callable[[MultiplexerMessage], None]) -> None:
     """Test send data over MultiplexerChannel."""
-    output = asyncio.Queue()
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -131,7 +130,6 @@ async def test_read_data(output: Callable[[MultiplexerMessage], None]) -> None:
 
 async def test_read_data_on_close(output: Callable[[MultiplexerMessage], None]) -> None:
     """Test send data over MultiplexerChannel on close."""
-    output = asyncio.Queue()
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
     assert not channel.closing
@@ -166,7 +164,7 @@ async def test_write_throttling(
     channel = MultiplexerChannel(output, IP_ADDR, throttling=0.1)
     assert isinstance(channel.id, MultiplexerChannelId)
 
-    async def _write_background():
+    async def _write_background() -> None:
         """Write message in background."""
         for _ in range(1, 10000):
             await channel.write(b"test")
