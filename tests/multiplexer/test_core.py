@@ -5,6 +5,7 @@ import ipaddress
 from unittest.mock import patch
 
 import pytest
+
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
