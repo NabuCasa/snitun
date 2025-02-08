@@ -3,15 +3,21 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Coroutine
+import asyncio.sslproto
+from collections.abc import Callable, Coroutine
 from contextlib import suppress
 import ipaddress
 import logging
-from typing import Any
+from ssl import SSLContext, SSLError
+from typing import TYPE_CHECKING, Any
 
-from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
+if TYPE_CHECKING:
+    from aiohttp.web import RequestHandler
+
+from ..exceptions import MultiplexerTransportError
 from ..multiplexer.channel import MultiplexerChannel
 from ..multiplexer.core import Multiplexer
+from ..multiplexer.transport import ChannelTransport
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,18 +27,18 @@ class Connector:
 
     def __init__(
         self,
-        end_host: str,
-        end_port: int | None = None,
+        protocol_factory: Callable[[], RequestHandler],
+        ssl_context: SSLContext,
         whitelist: bool = False,
         endpoint_connection_error_callback: Coroutine[Any, Any, None] | None = None,
     ) -> None:
         """Initialize Connector."""
-        self._loop = asyncio.get_event_loop()
-        self._end_host = end_host
-        self._end_port = end_port or 443
-        self._whitelist = set()
+        self._loop = asyncio.get_running_loop()
+        self._whitelist: set[ipaddress.IPv4Address] = set()
         self._whitelist_enabled = whitelist
         self._endpoint_connection_error_callback = endpoint_connection_error_callback
+        self._protocol_factory = protocol_factory
+        self._ssl_context = ssl_context
 
     @property
     def whitelist(self) -> set:
@@ -41,9 +47,7 @@ class Connector:
 
     def _whitelist_policy(self, ip_address: ipaddress.IPv4Address) -> bool:
         """Return True if the ip address can access to endpoint."""
-        if self._whitelist_enabled:
-            return ip_address in self._whitelist
-        return True
+        return not self._whitelist_enabled or ip_address in self._whitelist
 
     async def handler(
         self,
@@ -51,14 +55,7 @@ class Connector:
         channel: MultiplexerChannel,
     ) -> None:
         """Handle new connection from SNIProxy."""
-        from_endpoint = None
-        from_peer = None
-
-        _LOGGER.debug(
-            "Receive from %s a request for %s",
-            channel.ip_address,
-            self._end_host,
-        )
+        _LOGGER.debug("New connection from %s", channel.ip_address)
 
         # Check policy
         if not self._whitelist_policy(channel.ip_address):
@@ -66,78 +63,59 @@ class Connector:
             await multiplexer.delete_channel(channel)
             return
 
-        # Open connection to endpoint
+        transport = ChannelTransport(channel)
+        transport.start_reader()
+        # The request_handler is the aiohttp RequestHandler
+        # that is generated from the protocol_factory that
+        # was passed in the constructor.
+        request_handler_protocol = self._protocol_factory()
+
+        # Upgrade the transport to TLS
         try:
-            reader, writer = await asyncio.open_connection(
-                host=self._end_host,
-                port=self._end_port,
+            new_transport = await self._loop.start_tls(
+                transport,
+                request_handler_protocol,
+                self._ssl_context,
+                server_side=True,
             )
-        except OSError:
-            _LOGGER.error(
-                "Can't connect to endpoint %s:%s",
-                self._end_host,
-                self._end_port,
+        except (OSError, SSLError) as ex:
+            # This can can be just about any error, but mostly likely it's a TLS error
+            # or the connection gets dropped in the middle of the handshake
+            _LOGGER.debug(
+                "Cannot start TLS for %s (%s): %s",
+                channel.ip_address,
+                channel.id,
+                ex,
             )
-            await multiplexer.delete_channel(channel)
-            if self._endpoint_connection_error_callback:
-                await self._endpoint_connection_error_callback()
-            return
-
-        try:
-            # Process stream from multiplexer
-            while not writer.transport.is_closing():
-                if not from_endpoint:
-                    from_endpoint = self._loop.create_task(reader.read(4096))
-                if not from_peer:
-                    from_peer = self._loop.create_task(channel.read())
-
-                # Wait until data need to be processed
-                await asyncio.wait(
-                    [from_endpoint, from_peer],
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-
-                # From proxy
-                if from_endpoint.done():
-                    if from_endpoint.exception():
-                        raise from_endpoint.exception()
-
-                    await channel.write(from_endpoint.result())
-                    from_endpoint = None
-
-                # From peer
-                if from_peer.done():
-                    if from_peer.exception():
-                        raise from_peer.exception()
-
-                    writer.write(from_peer.result())
-                    from_peer = None
-
-                    # Flush buffer
-                    await writer.drain()
-
-        except (MultiplexerTransportError, OSError, RuntimeError):
-            _LOGGER.debug("Transport closed by endpoint for %s", channel.id)
             with suppress(MultiplexerTransportError):
                 await multiplexer.delete_channel(channel)
+            await transport.stop_reader()
+            return
 
-        except MultiplexerTransportClose:
-            _LOGGER.debug("Peer close connection for %s", channel.id)
-
+        # Now that we have the connection upgraded to TLS, we can
+        # start the request handler and serve the connection.
+        _LOGGER.info("Connected peer: %s (%s)", channel.ip_address, channel.id)
+        try:
+            request_handler_protocol.connection_made(new_transport)
+            await transport.wait_for_close()
+        except Exception as ex:  # noqa: BLE001
+            # Make sure we catch any exception that might be raised
+            # so it gets feed back to connection_lost
+            _LOGGER.error(
+                "Transport error for %s (%s): %s",
+                channel.ip_address,
+                channel.id,
+                ex,
+            )
+            with suppress(MultiplexerTransportError):
+                await multiplexer.delete_channel(channel)
+            request_handler_protocol.connection_lost(ex)
+        else:
+            _LOGGER.debug(
+                "Peer close connection for %s (%s)",
+                channel.ip_address,
+                channel.id,
+            )
+            request_handler_protocol.connection_lost(None)
         finally:
-            # Cleanup peer reader
-            if from_peer:
-                if not from_peer.done():
-                    from_peer.cancel()
-                else:
-                    # Avoid exception was never retrieved
-                    from_peer.exception()
-
-            # Cleanup endpoint reader
-            if from_endpoint and not from_endpoint.done():
-                from_endpoint.cancel()
-
-            # Close Transport
-            if not writer.transport.is_closing():
-                with suppress(OSError):
-                    writer.close()
+            new_transport.close()

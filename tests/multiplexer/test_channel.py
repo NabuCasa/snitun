@@ -137,6 +137,19 @@ async def test_write_data_peer_error(raise_timeout: None) -> None:
         await channel.write(b"test")
 
 
+async def test_write_data_no_wait_queue_full() -> None:
+    """Test send data over MultiplexerChannel when the queue is full."""
+    output = asyncio.Queue(1)
+    channel = MultiplexerChannel(output, IP_ADDR)
+    assert isinstance(channel.id, MultiplexerChannelId)
+
+    # fill peer queue
+    output.put_nowait(None)
+
+    with pytest.raises(MultiplexerTransportError):
+        await channel.write_no_wait(b"test")
+
+
 async def test_message_transport_never_lock() -> None:
     """Message transport should never lock down."""
     output = asyncio.Queue(1)
