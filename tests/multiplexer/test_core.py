@@ -5,15 +5,23 @@ import ipaddress
 from unittest.mock import patch
 
 import pytest
+
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer.core import Multiplexer
+from snitun.multiplexer.crypto import CryptoTransport
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
 from snitun.utils.asyncio import asyncio_timeout
+
+from ..conftest import Client
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
 
-async def test_init_multiplexer_server(test_server, test_client, crypto_transport):
+async def test_init_multiplexer_server(
+    test_server: list[Client],
+    test_client: Client,
+    crypto_transport: CryptoTransport,
+) -> None:
     """Test to create a new Multiplexer from server socket."""
     client = test_server[0]
 
@@ -25,7 +33,10 @@ async def test_init_multiplexer_server(test_server, test_client, crypto_transpor
     client.close.set()
 
 
-async def test_init_multiplexer_client(test_client, crypto_transport):
+async def test_init_multiplexer_client(
+    test_client: Client,
+    crypto_transport: CryptoTransport,
+) -> None:
     """Test to create a new Multiplexer from client socket."""
     multiplexer = Multiplexer(crypto_transport, test_client.reader, test_client.writer)
 
@@ -35,10 +46,10 @@ async def test_init_multiplexer_client(test_client, crypto_transport):
 
 
 async def test_init_multiplexer_server_throttling(
-    test_server,
-    test_client,
-    crypto_transport,
-):
+    test_server: list[Client],
+    test_client: Client,
+    crypto_transport: CryptoTransport,
+) -> None:
     """Test to create a new Multiplexer from server socket."""
     client = test_server[0]
 
@@ -55,7 +66,10 @@ async def test_init_multiplexer_server_throttling(
     client.close.set()
 
 
-async def test_init_multiplexer_client_throttling(test_client, crypto_transport):
+async def test_init_multiplexer_client_throttling(
+    test_client: Client,
+    crypto_transport: CryptoTransport,
+) -> None:
     """Test to create a new Multiplexer from client socket."""
     multiplexer = Multiplexer(
         crypto_transport,
@@ -69,7 +83,10 @@ async def test_init_multiplexer_client_throttling(test_client, crypto_transport)
     multiplexer.shutdown()
 
 
-async def test_multiplexer_server_close(multiplexer_server, multiplexer_client):
+async def test_multiplexer_server_close(
+    multiplexer_server: Multiplexer,
+    multiplexer_client: Multiplexer,
+) -> None:
     """Test a close from server peers."""
     assert multiplexer_server.is_connected
     assert multiplexer_client.is_connected
@@ -81,7 +98,10 @@ async def test_multiplexer_server_close(multiplexer_server, multiplexer_client):
     assert not multiplexer_client.is_connected
 
 
-async def test_multiplexer_client_close(multiplexer_server, multiplexer_client):
+async def test_multiplexer_client_close(
+    multiplexer_server: Multiplexer,
+    multiplexer_client: Multiplexer,
+) -> None:
     """Test a close from client peers."""
     assert multiplexer_server.is_connected
     assert multiplexer_client.is_connected
@@ -93,7 +113,11 @@ async def test_multiplexer_client_close(multiplexer_server, multiplexer_client):
     assert not multiplexer_client.is_connected
 
 
-async def test_multiplexer_ping(event_loop, test_server, multiplexer_client):
+async def test_multiplexer_ping(
+    event_loop: asyncio.AbstractEventLoop,
+    test_server: list[Client],
+    multiplexer_client: Multiplexer,
+) -> None:
     """Test a ping between peers."""
     loop = event_loop
     client = test_server[0]
@@ -110,7 +134,11 @@ async def test_multiplexer_ping(event_loop, test_server, multiplexer_client):
     ping_task.cancel()
 
 
-async def test_multiplexer_ping_error(event_loop, test_server, multiplexer_client):
+async def test_multiplexer_ping_error(
+    event_loop: asyncio.AbstractEventLoop,
+    test_server: list[Client],
+    multiplexer_client: Multiplexer,
+) -> None:
     """Test a ping between peers."""
     from snitun.multiplexer import core as multi_core
 
@@ -136,13 +164,19 @@ async def test_multiplexer_ping_error(event_loop, test_server, multiplexer_clien
     multi_core.PEER_TCP_TIMEOUT = 90
 
 
-async def test_multiplexer_ping_pong(multiplexer_client, multiplexer_server):
+async def test_multiplexer_ping_pong(
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
     """Test that without new channel callback can't create new channels."""
     await multiplexer_client.ping()
     assert multiplexer_client._healthy.is_set()
 
 
-async def test_multiplexer_cant_init_channel(multiplexer_client, multiplexer_server):
+async def test_multiplexer_cant_init_channel(
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
     """Test that without new channel callback can't create new channels."""
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
@@ -157,7 +191,10 @@ async def test_multiplexer_cant_init_channel(multiplexer_client, multiplexer_ser
     assert not multiplexer_server._channels
 
 
-async def test_multiplexer_init_channel(multiplexer_client, multiplexer_server):
+async def test_multiplexer_init_channel(
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
     """Test that new channels are created."""
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
@@ -174,7 +211,10 @@ async def test_multiplexer_init_channel(multiplexer_client, multiplexer_server):
     assert multiplexer_server._channels[channel.id].ip_address == IP_ADDR
 
 
-async def test_multiplexer_init_channel_full(multiplexer_client, raise_timeout):
+async def test_multiplexer_init_channel_full(
+    multiplexer_client: Multiplexer,
+    raise_timeout: None,
+) -> None:
     """Test that new channels are created but peer error is available."""
     assert not multiplexer_client._channels
 
@@ -185,7 +225,10 @@ async def test_multiplexer_init_channel_full(multiplexer_client, raise_timeout):
     assert not multiplexer_client._channels
 
 
-async def test_multiplexer_close_channel(multiplexer_client, multiplexer_server):
+async def test_multiplexer_close_channel(
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
     """Test that channels are nice removed."""
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
@@ -208,7 +251,7 @@ async def test_multiplexer_close_channel(multiplexer_client, multiplexer_server)
     assert not multiplexer_server._channels
 
 
-async def test_multiplexer_close_channel_full(multiplexer_client):
+async def test_multiplexer_close_channel_full(multiplexer_client: Multiplexer) -> None:
     """Test that channels are nice removed but peer error is available."""
     assert not multiplexer_client._channels
 
@@ -225,7 +268,10 @@ async def test_multiplexer_close_channel_full(multiplexer_client):
     assert not multiplexer_client._channels
 
 
-async def test_multiplexer_data_channel(multiplexer_client, multiplexer_server):
+async def test_multiplexer_data_channel(
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
     """Test that new channels are created."""
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
@@ -250,10 +296,10 @@ async def test_multiplexer_data_channel(multiplexer_client, multiplexer_server):
 
 
 async def test_multiplexer_channel_shutdown(
-    event_loop,
-    multiplexer_client,
-    multiplexer_server,
-):
+    event_loop: asyncio.AbstractEventLoop,
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
     """Test that new channels are created and graceful shutdown."""
     loop = event_loop
 
@@ -287,9 +333,9 @@ async def test_multiplexer_channel_shutdown(
 
 
 async def test_multiplexer_data_channel_abort_full(
-    multiplexer_client,
-    multiplexer_server,
-):
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
     """Test that new channels are created."""
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
@@ -316,10 +362,10 @@ async def test_multiplexer_data_channel_abort_full(
 
 
 async def test_multiplexer_throttling(
-    event_loop,
-    multiplexer_client,
-    multiplexer_server,
-):
+    event_loop: asyncio.AbstractEventLoop,
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
     """Test that new channels are created and graceful shutdown."""
     loop = event_loop
 
@@ -358,10 +404,10 @@ async def test_multiplexer_throttling(
 
 
 async def test_multiplexer_core_peer_timeout(
-    event_loop,
-    multiplexer_client,
-    multiplexer_server,
-):
+    event_loop: asyncio.AbstractEventLoop,
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
     """Test that new channels are created and graceful shutdown."""
     from snitun.multiplexer import core as multi_core
 

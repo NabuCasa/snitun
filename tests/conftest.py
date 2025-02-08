@@ -1,6 +1,7 @@
 """Pytest fixtures for SniTun."""
 
 import asyncio
+from collections.abc import AsyncGenerator, Generator
 from datetime import datetime, timedelta, timezone
 import logging
 import os
@@ -12,6 +13,7 @@ from unittest.mock import patch
 import attr
 import pytest
 
+from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.server.listener_peer import PeerListener
@@ -19,6 +21,7 @@ from snitun.server.listener_sni import SNIProxy
 from snitun.server.peer import Peer
 from snitun.server.peer_manager import PeerManager
 from snitun.utils.asyncio import asyncio_timeout
+
 from .server.const_fernet import FERNET_TOKENS
 
 logging.basicConfig(level=logging.DEBUG)
@@ -34,19 +37,21 @@ class Client:
 
 
 @pytest.fixture
-def raise_timeout():
+def raise_timeout() -> Generator[None, None, None]:
     """Raise timeout on async-timeout."""
     with patch.object(asyncio_timeout, "timeout", side_effect=asyncio.TimeoutError()):
         yield
 
 
-
 @pytest.fixture
-async def test_server():
+async def test_server() -> AsyncGenerator[list[Client], None]:
     """Create a TCP test server."""
     connections = []
 
-    async def process_data(reader, writer):
+    async def process_data(
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+    ) -> None:
         """Read data from client."""
         client = Client(reader, writer)
         connections.append(client)
@@ -60,11 +65,14 @@ async def test_server():
 
 
 @pytest.fixture
-async def test_endpoint():
+async def test_endpoint() -> AsyncGenerator[list[Client], None]:
     """Create a TCP test endpoint."""
     connections = []
 
-    async def process_data(reader, writer):
+    async def process_data(
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+    ) -> None:
         """Read data from client."""
         client = Client(reader, writer)
         connections.append(client)
@@ -78,7 +86,7 @@ async def test_endpoint():
 
 
 @pytest.fixture
-async def test_client(test_server):
+async def test_client(test_server: list[Client]) -> AsyncGenerator[Client, None]:
     """Create a TCP test client."""
     reader, writer = await asyncio.open_connection(host="127.0.0.1", port="8866")
 
@@ -88,9 +96,11 @@ async def test_client(test_server):
 
 
 @pytest.fixture
-def test_server_sync(event_loop):
+def test_server_sync(
+    event_loop: asyncio.AbstractEventLoop,
+) -> Generator[list[socket.socket], None, None]:
     """Create a TCP test server."""
-    connections = []
+    connections: list[socket.socket] = []
     shutdown = False
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -123,7 +133,9 @@ def test_server_sync(event_loop):
 
 
 @pytest.fixture
-def test_client_sync(test_server_sync):
+def test_client_sync(
+    test_server_sync: list[socket.socket],
+) -> Generator[socket.socket, None, None]:
     """Create a TCP test client."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(("127.0.0.1", 8366))
@@ -134,7 +146,9 @@ def test_client_sync(test_server_sync):
 
 
 @pytest.fixture
-def test_client_ssl_sync(test_server_sync):
+def test_client_ssl_sync(
+    test_server_sync: list[socket.socket],
+) -> Generator[socket.socket, None, None]:
     """Create a TCP test client for SSL."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(("127.0.0.1", 8366))
@@ -145,11 +159,18 @@ def test_client_ssl_sync(test_server_sync):
 
 
 @pytest.fixture
-async def multiplexer_server(test_server, test_client, crypto_transport):
+async def multiplexer_server(
+    test_server: list[Client],
+    test_client: Client,
+    crypto_transport: CryptoTransport,
+) -> AsyncGenerator[Multiplexer, None]:
     """Create a multiplexer client from server."""
     client = test_server[0]
 
-    async def mock_new_channel(multiplexer, channel):
+    async def mock_new_channel(
+        multiplexer: Multiplexer,
+        channel: MultiplexerChannel,
+    ) -> None:
         """Mock new channel."""
 
     multiplexer = Multiplexer(
@@ -166,10 +187,16 @@ async def multiplexer_server(test_server, test_client, crypto_transport):
 
 
 @pytest.fixture
-async def multiplexer_client(test_client, crypto_transport):
+async def multiplexer_client(
+    test_client: Client,
+    crypto_transport: CryptoTransport,
+) -> AsyncGenerator[Multiplexer, None]:
     """Create a multiplexer client from server."""
 
-    async def mock_new_channel(multiplexer, channel):
+    async def mock_new_channel(
+        multiplexer: Multiplexer,
+        channel: MultiplexerChannel,
+    ) -> None:
         """Mock new channel."""
 
     multiplexer = Multiplexer(
@@ -185,7 +212,7 @@ async def multiplexer_client(test_client, crypto_transport):
 
 
 @pytest.fixture
-async def peer_manager(multiplexer_server, peer):
+async def peer_manager(multiplexer_server: Multiplexer, peer: Peer) -> PeerManager:
     """Create a localhost peer for tests."""
     manager = PeerManager(FERNET_TOKENS)
     manager._peers[peer.hostname] = peer
@@ -193,7 +220,7 @@ async def peer_manager(multiplexer_server, peer):
 
 
 @pytest.fixture
-async def sni_proxy(peer_manager):
+async def sni_proxy(peer_manager: PeerManager) -> AsyncGenerator[SNIProxy, None]:
     """Create a SNI Proxy."""
     proxy = SNIProxy(peer_manager, "127.0.0.1", "8863")
     await proxy.start()
@@ -203,7 +230,7 @@ async def sni_proxy(peer_manager):
 
 
 @pytest.fixture
-async def test_client_ssl(sni_proxy):
+async def test_client_ssl(sni_proxy: SNIProxy) -> AsyncGenerator[Client, None]:
     """Create a TCP test client."""
     reader, writer = await asyncio.open_connection(host="127.0.0.1", port="8863")
 
@@ -213,7 +240,7 @@ async def test_client_ssl(sni_proxy):
 
 
 @pytest.fixture
-def crypto_transport():
+def crypto_transport() -> CryptoTransport:
     """Create a CryptoTransport object."""
     key = os.urandom(32)
     iv = os.urandom(16)
@@ -223,7 +250,10 @@ def crypto_transport():
 
 
 @pytest.fixture
-async def peer(crypto_transport, multiplexer_server):
+async def peer(
+    crypto_transport: CryptoTransport,
+    multiplexer_server: Multiplexer,
+) -> Peer:
     """Init a peer with transport."""
     valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
     peer = Peer("localhost", valid, os.urandom(32), os.urandom(16))
@@ -234,7 +264,10 @@ async def peer(crypto_transport, multiplexer_server):
 
 
 @pytest.fixture
-async def peer_listener(peer_manager, peer):
+async def peer_listener(
+    peer_manager: PeerManager,
+    peer: Peer,
+) -> AsyncGenerator[PeerListener, None]:
     """Create a Peer listener."""
     listener = PeerListener(peer_manager, "127.0.0.1", "8893")
     await listener.start()
@@ -247,7 +280,7 @@ async def peer_listener(peer_manager, peer):
 
 
 @pytest.fixture
-async def test_client_peer(peer_listener):
+async def test_client_peer(peer_listener: PeerListener) -> AsyncGenerator[Client, None]:
     """Create a TCP test client."""
     reader, writer = await asyncio.open_connection(host="127.0.0.1", port="8893")
 
