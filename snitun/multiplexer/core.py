@@ -311,7 +311,7 @@ class Multiplexer:
     ) -> MultiplexerChannel:
         """Create a new channel for transport."""
         channel = MultiplexerChannel(
-            self._queue,
+            self._queue_message,
             ip_address,
             throttling=self._throttling,
         )
