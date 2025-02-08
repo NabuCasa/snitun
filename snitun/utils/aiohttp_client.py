@@ -130,5 +130,5 @@ async def _async_waitfor_socket_closed(sock: socket.socket | None = None) -> Non
         async with asyncio_timeout.timeout(60):
             while (await loop.run_in_executor(None, sock.fileno)) != -1:
                 await asyncio.sleep(1)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         _LOGGER.warning("Timeout while waiting for the socket to close.")

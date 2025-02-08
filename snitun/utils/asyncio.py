@@ -7,10 +7,7 @@ from typing import TypeVar
 
 _T = TypeVar("_T")
 
-if sys.version_info >= (3, 11):
-    asyncio_timeout = asyncio
-else:
-    import async_timeout as asyncio_timeout  # noqa: F401
+asyncio_timeout = asyncio
 
 
 if sys.version_info >= (3, 12, 0):
