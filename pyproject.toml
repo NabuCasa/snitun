@@ -41,6 +41,7 @@ lint = [
 ]
 test = [
     "pytest-aiohttp==1.1.0",
+    "pytest-cov==6.0.0",
     "pytest-timeout==2.3.1",
     "pytest==8.3.4",
 ]
