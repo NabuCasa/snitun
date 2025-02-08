@@ -8,12 +8,19 @@ import pytest
 
 from snitun.client.connector import Connector
 from snitun.exceptions import MultiplexerTransportClose
+from snitun.multiplexer.core import Multiplexer
+
+from ..conftest import Client
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
 BAD_ADDR = ipaddress.ip_address("8.8.1.1")
 
 
-async def test_init_connector(test_endpoint, multiplexer_client, multiplexer_server):
+async def test_init_connector(
+    test_endpoint: list[Client],
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
     """Test and init a connector."""
     assert not test_endpoint
 
@@ -33,7 +40,11 @@ async def test_init_connector(test_endpoint, multiplexer_client, multiplexer_ser
     test_connection.close.set()
 
 
-async def test_flow_connector(test_endpoint, multiplexer_client, multiplexer_server):
+async def test_flow_connector(
+    test_endpoint: list[Client],
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
     """Test and and perform a connector flow."""
     assert not test_endpoint
 
@@ -60,10 +71,10 @@ async def test_flow_connector(test_endpoint, multiplexer_client, multiplexer_ser
 
 
 async def test_close_connector_remote(
-    test_endpoint,
-    multiplexer_client,
-    multiplexer_server,
-):
+    test_endpoint: list[Client],
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
     """Test and init a connector with remote close."""
     assert not test_endpoint
 
@@ -94,10 +105,10 @@ async def test_close_connector_remote(
 
 
 async def test_close_connector_local(
-    test_endpoint,
-    multiplexer_client,
-    multiplexer_server,
-):
+    test_endpoint: list[Client],
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
     """Test and init a connector."""
     assert not test_endpoint
 
@@ -129,10 +140,10 @@ async def test_close_connector_local(
 
 
 async def test_init_connector_whitelist(
-    test_endpoint,
-    multiplexer_client,
-    multiplexer_server,
-):
+    test_endpoint: list[Client],
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
     """Test and init a connector with whitelist."""
     assert not test_endpoint
 
@@ -155,10 +166,10 @@ async def test_init_connector_whitelist(
 
 
 async def test_init_connector_whitelist_bad(
-    test_endpoint,
-    multiplexer_client,
-    multiplexer_server,
-):
+    test_endpoint: list[Client],
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
     """Test and init a connector with whitelist bad requests."""
     assert not test_endpoint
 
@@ -177,7 +188,10 @@ async def test_init_connector_whitelist_bad(
         await channel.read()
 
 
-async def test_connector_error_callback(multiplexer_client, multiplexer_server):
+async def test_connector_error_callback(
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
     """Test connector endpoint error callback."""
     callback = AsyncMock()
     connector = Connector("127.0.0.1", "8822", False, callback)

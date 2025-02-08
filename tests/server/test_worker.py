@@ -1,5 +1,6 @@
 """Tests for the server worker."""
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 import hashlib
 import os
@@ -13,7 +14,7 @@ from .const_fernet import FERNET_TOKENS, create_peer_config
 from .const_tls import TLS_1_2
 
 
-def test_worker_up_down(event_loop):
+def test_worker_up_down(event_loop: asyncio.AbstractEventLoop) -> None:
     """Test if worker start and stop."""
     worker = ServerWorker(FERNET_TOKENS)
 
@@ -26,7 +27,11 @@ def test_worker_up_down(event_loop):
     assert not worker.is_alive()
 
 
-def test_peer_connection(test_server_sync, test_client_sync, event_loop):
+def test_peer_connection(
+    test_server_sync: list[socket.socket],
+    test_client_sync: socket.socket,
+    event_loop: asyncio.AbstractEventLoop,
+) -> None:
     """Run a full flow of with a peer."""
     worker = ServerWorker(FERNET_TOKENS)
     valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
@@ -53,7 +58,11 @@ def test_peer_connection(test_server_sync, test_client_sync, event_loop):
     assert worker.peer_size == 0
 
 
-def test_peer_connection_disconnect(test_server_sync, test_client_sync, event_loop):
+def test_peer_connection_disconnect(
+    test_server_sync: list[socket.socket],
+    test_client_sync: socket.socket,
+    event_loop: asyncio.AbstractEventLoop,
+) -> None:
     """Run a full flow of with a peer & disconnect."""
     worker = ServerWorker(FERNET_TOKENS)
     valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
@@ -84,11 +93,11 @@ def test_peer_connection_disconnect(test_server_sync, test_client_sync, event_lo
 
 
 def test_sni_connection(
-    test_server_sync,
-    test_client_sync,
-    test_client_ssl_sync,
-    event_loop,
-):
+    test_server_sync: list[socket.socket],
+    test_client_sync: socket.socket,
+    test_client_ssl_sync: socket.socket,
+    event_loop: asyncio.AbstractEventLoop,
+) -> None:
     """Run a full flow of with a peer."""
     worker = ServerWorker(FERNET_TOKENS)
     valid = datetime.now(tz=timezone.utc) + timedelta(days=1)

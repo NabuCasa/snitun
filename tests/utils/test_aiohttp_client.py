@@ -5,7 +5,7 @@ from unittest.mock import patch
 from snitun.utils.aiohttp_client import SniTunClientAioHttp
 
 
-async def test_init_client():
+async def test_init_client() -> None:
     """Init aiohttp client for test."""
     with patch("snitun.utils.aiohttp_client.SockSite"):
         client = SniTunClientAioHttp(None, None, "127.0.0.1")
@@ -13,7 +13,7 @@ async def test_init_client():
     assert not client.is_connected
 
 
-async def test_client_stop_no_wait():
+async def test_client_stop_no_wait() -> None:
     """Test that we do not wait if wait is not passed to the stop"""
     with patch("snitun.utils.aiohttp_client.SockSite"):
         client = SniTunClientAioHttp(None, None, "127.0.0.1")

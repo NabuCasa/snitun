@@ -19,7 +19,7 @@ from . import const_tls as raw
         raw.TLS_1_2_BAD,
     ],
 )
-def test_good_client_hello(test_package: bytes):
+def test_good_client_hello(test_package: bytes) -> None:
     """Test good TLS packages."""
     assert sni.parse_tls_sni(test_package) == "localhost"
 
@@ -28,7 +28,7 @@ def test_good_client_hello(test_package: bytes):
     "test_package",
     [raw.BAD_DATA1, raw.BAD_DATA2, raw.SSL_2_0, raw.SSL_3_0],
 )
-def test_bad_client_hello(test_package: bytes):
+def test_bad_client_hello(test_package: bytes) -> None:
     """Test bad client hello."""
     with pytest.raises(ParseSNIError):
         sni.parse_tls_sni(test_package)
