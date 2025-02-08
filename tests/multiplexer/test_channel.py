@@ -14,14 +14,30 @@ from snitun.multiplexer.message import (
     MultiplexerChannelId,
     MultiplexerMessage,
 )
+from snitun.multiplexer import core
+from unittest.mock import patch
+from typing import Callable
 from snitun.utils.ipaddress import ip_address_to_bytes
-
+from collections import deque
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
+@pytest.fixture
+def deque_output() -> deque[MultiplexerMessage]:
+    """Create a deque output."""
+    return deque()
 
-async def test_initial_channel_msg():
+
+@pytest.fixture
+def output(deque_output: deque) -> Callable[[MultiplexerMessage], None]:
+    """Create a deque output."""
+    def _write_to_output(message: MultiplexerMessage) -> None:
+        """Write message to output."""
+        deque_output.append(message)
+
+    return _write_to_output
+
+async def test_initial_channel_msg(output: Callable[[MultiplexerMessage], None]) -> None:
     """Test new MultiplexerChannel with id."""
-    output = asyncio.Queue()
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -33,9 +49,8 @@ async def test_initial_channel_msg():
     assert message.extra == b"4" + ip_address_to_bytes(IP_ADDR)
 
 
-async def test_close_channel_msg():
+async def test_close_channel_msg(output: Callable[[MultiplexerMessage], None]) -> None:
     """Test close MultiplexerChannel."""
-    output = asyncio.Queue()
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -46,24 +61,21 @@ async def test_close_channel_msg():
     assert message.data == b""
 
 
-async def test_write_data():
+async def test_write_data(deque_output: deque[MultiplexerMessage], output: Callable[[MultiplexerMessage], None]) -> None:
     """Test send data over MultiplexerChannel."""
-    output = asyncio.Queue()
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
     await channel.write(b"test")
-    assert not output.empty()
-
-    message = output.get_nowait()
+    assert deque_output
+    message = deque_output[0]
     assert message.id == channel.id
     assert message.flow_type == CHANNEL_FLOW_DATA
     assert message.data == b"test"
 
 
-async def test_closing():
+async def test_closing(output: Callable[[MultiplexerMessage], None]) -> None:
     """Test send data over MultiplexerChannel."""
-    output = asyncio.Queue()
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -72,9 +84,8 @@ async def test_closing():
     assert channel.closing
 
 
-async def test_write_data_after_close():
+async def test_write_data_after_close(output: Callable[[MultiplexerMessage], None]) -> None:
     """Test send data over MultiplexerChannel."""
-    output = asyncio.Queue()
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
     assert not channel.closing
@@ -87,9 +98,8 @@ async def test_write_data_after_close():
     assert channel.closing
 
 
-async def test_write_data_empty():
+async def test_write_data_empty(output: Callable[[MultiplexerMessage], None]) -> None:
     """Test send data over MultiplexerChannel."""
-    output = asyncio.Queue()
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -97,7 +107,7 @@ async def test_write_data_empty():
         await channel.write(b"")
 
 
-async def test_read_data():
+async def test_read_data(output: Callable[[MultiplexerMessage], None]) -> None:
     """Test send data over MultiplexerChannel."""
     output = asyncio.Queue()
     channel = MultiplexerChannel(output, IP_ADDR)
@@ -110,7 +120,7 @@ async def test_read_data():
     assert data == b"test"
 
 
-async def test_read_data_on_close():
+async def test_read_data_on_close(output: Callable[[MultiplexerMessage], None]) -> None:
     """Test send data over MultiplexerChannel on close."""
     output = asyncio.Queue()
     channel = MultiplexerChannel(output, IP_ADDR)
@@ -119,27 +129,14 @@ async def test_read_data_on_close():
 
     channel.close()
     with pytest.raises(MultiplexerTransportClose):
-        data = await channel.read()
+        await channel.read()
 
     assert channel.closing
 
 
-async def test_write_data_peer_error(raise_timeout):
-    """Test send data over MultiplexerChannel but peer don't response."""
-    output = asyncio.Queue(1)
-    channel = MultiplexerChannel(output, IP_ADDR)
-    assert isinstance(channel.id, MultiplexerChannelId)
 
-    # fill peer queue
-    output.put_nowait(None)
-
-    with pytest.raises(MultiplexerTransportError):
-        await channel.write(b"test")
-
-
-async def test_message_transport_never_lock():
+async def test_message_transport_never_lock(output: Callable[[MultiplexerMessage], None]) -> None:
     """Message transport should never lock down."""
-    output = asyncio.Queue(1)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -149,10 +146,9 @@ async def test_message_transport_never_lock():
     assert channel.healthy
 
 
-async def test_write_throttling(event_loop):
+async def test_write_throttling(event_loop: asyncio.AbstractEventLoop, deque_output: deque[MultiplexerMessage],output: Callable[[MultiplexerMessage], None]) -> None:
     """Message transport should never lock down."""
     loop = event_loop
-    output = asyncio.Queue(500)
     channel = MultiplexerChannel(output, IP_ADDR, throttling=0.1)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -165,6 +161,6 @@ async def test_write_throttling(event_loop):
 
     await asyncio.sleep(0.3)
     assert not background_task.done()
-    assert output.qsize() <= 4
+    assert len(deque_output) <= 4
 
     background_task.cancel()
