@@ -316,8 +316,6 @@ class Multiplexer:
             throttling=self._throttling,
         )
         message = channel.init_new()
-        if len(self._queue) > MAX_QUEUED_MESSAGES:
-            raise MultiplexerTransportError("Queue is full") from None
         self._queue_message(message)
         self._channels[channel.id] = channel
         return channel
