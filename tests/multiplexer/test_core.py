@@ -2,14 +2,12 @@
 
 import asyncio
 import ipaddress
-from unittest.mock import patch
 
 import pytest
 
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
-from snitun.utils.asyncio import asyncio_timeout
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
@@ -175,12 +173,14 @@ async def test_multiplexer_init_channel(multiplexer_client, multiplexer_server):
     assert multiplexer_server._channels[channel.id].ip_address == IP_ADDR
 
 
-async def test_multiplexer_init_channel_full(multiplexer_client, raise_timeout):
+@pytest.mark.usefixtures("queue_full")
+async def test_multiplexer_init_channel_full(multiplexer_client):
     """Test that new channels are created but peer error is available."""
     assert not multiplexer_client._channels
 
     with pytest.raises(MultiplexerTransportError):
-        channel = await multiplexer_client.create_channel(IP_ADDR)
+        await multiplexer_client.create_channel(IP_ADDR)
+
     await asyncio.sleep(0.1)
 
     assert not multiplexer_client._channels
@@ -209,7 +209,7 @@ async def test_multiplexer_close_channel(multiplexer_client, multiplexer_server)
     assert not multiplexer_server._channels
 
 
-async def test_multiplexer_close_channel_full(multiplexer_client):
+async def test_multiplexer_close_can_override_queue(multiplexer_client):
     """Test that channels are nice removed but peer error is available."""
     assert not multiplexer_client._channels
 
@@ -218,9 +218,7 @@ async def test_multiplexer_close_channel_full(multiplexer_client):
 
     assert multiplexer_client._channels
 
-    with patch.object(asyncio_timeout, "timeout", side_effect=asyncio.TimeoutError()):
-        with pytest.raises(MultiplexerTransportError):
-            channel = multiplexer_client.delete_channel(channel)
+    channel = multiplexer_client.delete_channel(channel)
     await asyncio.sleep(0.1)
 
     assert not multiplexer_client._channels

@@ -1,6 +1,7 @@
 """Pytest fixtures for SniTun."""
 
 import asyncio
+from collections.abc import Generator
 from datetime import datetime, timedelta, timezone
 import logging
 import os
@@ -12,6 +13,7 @@ from unittest.mock import patch
 import attr
 import pytest
 
+from snitun.multiplexer import core
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.server.listener_peer import PeerListener
@@ -254,3 +256,10 @@ async def test_client_peer(peer_listener):
     yield Client(reader, writer)
 
     writer.close()
+
+
+@pytest.fixture
+def queue_full() -> Generator[None, None, None]:
+    """Force the queue to be full."""
+    with patch.object(core, "MAX_QUEUED_MESSAGES", 0):
+        yield
