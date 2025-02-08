@@ -4,9 +4,10 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 import ipaddress
 import os
+import sys
 
 import pytest
-import sys
+
 from snitun.client.client_peer import ClientPeer
 from snitun.client.connector import Connector
 from snitun.exceptions import SniTunConnectionError
@@ -272,7 +273,6 @@ async def test_init_client_peer_throttling(
     await asyncio.sleep(0.1)
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
-
 
 
 @pytest.mark.skipif(
