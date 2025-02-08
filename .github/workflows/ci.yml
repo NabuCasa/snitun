@@ -39,7 +39,9 @@ jobs:
         shell: bash
         run: |
           python3 -m pip install -e .[test]
-      - name: Test
-        shell: bash
-        run: |
-          scripts/test
+      - name: Test with Pytest
+        run: pytest --cov-report=xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
