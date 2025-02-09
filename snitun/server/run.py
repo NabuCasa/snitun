@@ -160,7 +160,7 @@ class Connection:
     sock: socket.socket
     epoll: select.epoll
     buffer: bytes = b""
-    stale: int = field(default=0)
+    stale: int = 0
     close: bool = field(default=False)
 
     @property
