@@ -42,7 +42,11 @@ else:
 
 
 def make_task_waiter_future(task: asyncio.Task) -> asyncio.Future[None]:
-    """Create a future that waits for a task to complete."""
+    """Create a future that waits for a task to complete.
+
+    A future is used to ensure that cancellation of the
+    task does not propagate to the waiter.
+    """
     loop = asyncio.get_running_loop()
     fut: asyncio.Future[None] = loop.create_future()
 

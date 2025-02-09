@@ -42,6 +42,8 @@ class ClientPeer:
         """Block until connection to peer is closed."""
         if not self._multiplexer:
             raise RuntimeError("No SniTun connection available")
+        # Wait until the handler task is done
+        # as we know the connection is closed
         return make_task_waiter_future(self._handler_task)
 
     async def start(
@@ -121,7 +123,9 @@ class ClientPeer:
         )
 
         # Task a process for pings/cleanups
-        assert not self._handler_task, "SniTun connection already running"
+        assert not self._handler_task or self._handler_task.done(), (
+            "SniTun connection already running"
+        )
         self._handler_task = self._loop.create_task(self._handler())
 
     async def stop(self) -> None:

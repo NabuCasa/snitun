@@ -1,5 +1,5 @@
-
 from snitun.multiplexer.message import MultiplexerChannelId
+
 
 def test_multiplexer_channel_id() -> None:
     """Test MultiplexerChannelId."""
