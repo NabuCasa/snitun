@@ -76,6 +76,7 @@ class MultiplexerChannel:
 
         # Create message
         message = MultiplexerMessage(self._id, CHANNEL_FLOW_DATA, data)
+
         try:
             self._output(message)
         except RuntimeError:
