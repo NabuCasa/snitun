@@ -33,6 +33,14 @@ _LOGGER = logging.getLogger(__name__)
 
 PEER_TCP_TIMEOUT = 90
 
+# |-----------------HEADER---------------------------------|
+# |   16 bytes  | 1 byte | 4 bytes|       11 bytes         |
+# |--------------------------------------------------------|
+# All bytes are big-endian and unsigned
+# 16 bytes: Channel ID
+# 1 byte: Flow type
+# 4 bytes: Data size
+# 11 bytes: Extra
 HEADER_STRUCT = struct.Struct(">16sBI11s")
 
 
