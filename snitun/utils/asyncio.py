@@ -56,7 +56,7 @@ class RangedTimeout:
         remaining = self._when - now if self._when else 0
         if remaining > self._min_timeout:
             return
-        self._when = now + self._min_timeout
+        self._when = now + self._max_timeout
         self.cancel()
         self._timer = self._loop.call_at(self._when, self._timeout_callback)
 
