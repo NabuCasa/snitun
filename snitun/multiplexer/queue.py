@@ -129,7 +129,7 @@ class MultiplexerQueue:
             self._wakeup_next(putters)
         return message
 
-    async def empty(self, channel_id: MultiplexerChannelId) -> bool:
+    def empty(self, channel_id: MultiplexerChannelId) -> bool:
         """Empty the queue."""
         return self._bucket_sizes[channel_id] == 0
 
