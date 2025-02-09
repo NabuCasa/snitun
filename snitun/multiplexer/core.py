@@ -217,7 +217,7 @@ class Multiplexer:
         except RuntimeError:
             raise MultiplexerTransportClose from None
 
-    async def _read_message(self, header: bytes) -> None:
+    async def _read_message(self) -> None:
         """Read message from peer."""
         header = await self._reader.readexactly(32)
 
