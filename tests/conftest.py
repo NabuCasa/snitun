@@ -2,6 +2,7 @@
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 import logging
 import os
@@ -10,7 +11,6 @@ import socket
 from threading import Thread
 from unittest.mock import patch
 
-import attr
 import pytest
 
 from snitun.multiplexer.channel import MultiplexerChannel
@@ -27,13 +27,13 @@ from .server.const_fernet import FERNET_TOKENS
 logging.basicConfig(level=logging.DEBUG)
 
 
-@attr.s
+@dataclass
 class Client:
     """Represent a TCP client object."""
 
-    reader = attr.ib(type=asyncio.StreamReader)
-    writer = attr.ib(type=asyncio.StreamWriter)
-    close = attr.ib(type=asyncio.Event, default=asyncio.Event())
+    reader: asyncio.StreamReader
+    writer: asyncio.StreamWriter
+    close: asyncio.Event = field(default_factory=asyncio.Event)
 
 
 @pytest.fixture

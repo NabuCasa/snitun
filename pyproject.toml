@@ -22,7 +22,6 @@ classifiers = [
 ]
 dependencies = [
     "aiohttp>=3.9.3",
-    "attrs>=18.2.0",
     "cryptography>=2.5",
 ]
 description = "SNI proxy with TCP multiplexer"
