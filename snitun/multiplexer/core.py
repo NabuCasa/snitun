@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Coroutine
+from collections.abc import Callable, Coroutine
 from contextlib import suppress
+from functools import partial
 import ipaddress
 import logging
 import os
@@ -57,6 +58,7 @@ class Multiplexer:
         "_processing_task",
         "_queue",
         "_reader",
+        "_resume_writing_callbacks",
         "_throttling",
         "_writer",
     ]
@@ -80,11 +82,22 @@ class Multiplexer:
         self._channels: dict[MultiplexerChannelId, MultiplexerChannel] = {}
         self._new_connections = new_connections
         self._throttling = 1 / throttling if throttling else None
+        self._resume_writing_callbacks: set[Callable[[], None]] = set()
 
     @property
     def is_connected(self) -> bool:
         """Return True is they is connected."""
         return not self._processing_task.done()
+
+    @property
+    def queue(self) -> asyncio.Queue[MultiplexerMessage]:
+        """Return queue."""
+        return self._queue
+
+    def register_resume_writing_callback(self, callback: Callable[[], None]) -> None:
+        """Register a callback to resume the protocol."""
+        self._resume_writing_callbacks.add(callback)
+        return partial(self._resume_writing_callbacks.discard, callback)
 
     def wait(self) -> asyncio.Task:
         """Block until the connection is closed.
@@ -174,6 +187,10 @@ class Multiplexer:
 
                     # Flush buffer
                     await self._writer.drain()
+                    if resume_writing_callbacks := self._resume_writing_callbacks:
+                        self._resume_writing_callbacks.clear()
+                        for callback_ in resume_writing_callbacks:
+                            callback_()
 
                 # throttling
                 if not self._throttling:
@@ -289,10 +306,11 @@ class Multiplexer:
 
             ip_address = bytes_to_ip_address(message.extra[1:5])
             channel = MultiplexerChannel(
-                self._queue,
+                self,
                 ip_address,
                 channel_id=message.id,
                 throttling=self._throttling,
+                multiplexer=self,
             )
             self._channels[channel.id] = channel
             self._loop.create_task(self._new_connections(self, channel))
@@ -326,7 +344,7 @@ class Multiplexer:
     ) -> MultiplexerChannel:
         """Create a new channel for transport."""
         channel = MultiplexerChannel(
-            self._queue,
+            self,
             ip_address,
             throttling=self._throttling,
         )

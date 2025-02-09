@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from contextlib import suppress
 from ipaddress import IPv4Address
 import logging
 import os
+from typing import TYPE_CHECKING
 
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from ..utils.asyncio import asyncio_timeout
@@ -19,6 +21,8 @@ from .message import (
     MultiplexerMessage,
 )
 
+if TYPE_CHECKING:
+    from .core import Multiplexer
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -30,6 +34,7 @@ class MultiplexerChannel:
         "_id",
         "_input",
         "_ip_address",
+        "_multiplexer",
         "_output",
         "_output_max",
         "_throttling",
@@ -37,19 +42,20 @@ class MultiplexerChannel:
 
     def __init__(
         self,
-        output: asyncio.Queue,
+        multiplexer: Multiplexer,
         ip_address: IPv4Address,
         channel_id: MultiplexerChannelId | None = None,
         throttling: float | None = None,
     ) -> None:
         """Initialize Multiplexer Channel."""
         self._input: asyncio.Queue[MultiplexerMessage] = asyncio.Queue(8000)
-        self._output = output
-        self._output_max = output.maxsize
+        self._output = multiplexer.queue
+        self._output_max = self._output.maxsize
         self._id = channel_id or MultiplexerChannelId(os.urandom(16))
         self._ip_address = ip_address
         self._throttling = throttling
         self._closing = False
+        self._multiplexer = multiplexer
 
     @property
     def id(self) -> MultiplexerChannelId:
@@ -70,6 +76,10 @@ class MultiplexerChannel:
     def closing(self) -> bool:
         """Return True if channel is in closing state."""
         return self._closing
+
+    def register_resume_writing_callback(self, callback: Callable[[], None]) -> None:
+        """Register a callback for resume writing."""
+        return self._multiplexer.register_resume_writing_callback(callback)
 
     def close(self) -> None:
         """Close channel on next run."""
