@@ -102,7 +102,7 @@ class Multiplexer:
         try:
             self._write_message(
                 MultiplexerMessage(
-                    MultiplexerChannelId(),
+                    MultiplexerChannelId(os.urandom(16)),
                     CHANNEL_FLOW_PING,
                     b"",
                     b"ping",

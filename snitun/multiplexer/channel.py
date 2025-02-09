@@ -6,6 +6,7 @@ import asyncio
 from contextlib import suppress
 from ipaddress import IPv4Address
 import logging
+import os
 
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from ..utils.asyncio import asyncio_timeout
@@ -36,7 +37,7 @@ class MultiplexerChannel:
         """Initialize Multiplexer Channel."""
         self._input = asyncio.Queue(8000)
         self._output = output
-        self._id = channel_id or MultiplexerChannelId()
+        self._id = channel_id or MultiplexerChannelId(os.urandom(16))
         self._ip_address = ip_address
         self._throttling = throttling
         self._closing = False
