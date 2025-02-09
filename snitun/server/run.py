@@ -153,7 +153,7 @@ class SniTunServerSingle:
             return
 
 
-@dataclass
+@dataclass(slots=True)
 class Connection:
     """Connection data class."""
 
