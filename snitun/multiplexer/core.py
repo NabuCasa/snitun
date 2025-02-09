@@ -57,6 +57,7 @@ class Multiplexer:
         "_new_connections",
         "_processing_task",
         "_queue",
+        "_queue_max",
         "_reader",
         "_resume_writing_callbacks",
         "_throttling",
@@ -76,7 +77,8 @@ class Multiplexer:
         self._reader = reader
         self._writer = writer
         self._loop = asyncio.get_event_loop()
-        self._queue: asyncio.Queue[MultiplexerMessage] = asyncio.Queue(12000)
+        self._queue_max = 12000
+        self._queue: asyncio.Queue[MultiplexerMessage] = asyncio.Queue(self._queue_max)
         self._healthy = asyncio.Event()
         self._processing_task = self._loop.create_task(self._runner())
         self._channels: dict[MultiplexerChannelId, MultiplexerChannel] = {}
@@ -93,6 +95,11 @@ class Multiplexer:
     def queue(self) -> asyncio.Queue[MultiplexerMessage]:
         """Return queue."""
         return self._queue
+
+    @property
+    def should_pause(self) -> bool:
+        """Return True if the write transport should pause."""
+        return self._queue.qsize() > self._queue_max / 2
 
     def register_resume_writing_callback(self, callback: Callable[[], None]) -> None:
         """Register a callback to resume the protocol."""
@@ -187,10 +194,12 @@ class Multiplexer:
 
                     # Flush buffer
                     await self._writer.drain()
-                    if resume_writing_callbacks := self._resume_writing_callbacks:
-                        self._resume_writing_callbacks.clear()
-                        for callback_ in resume_writing_callbacks:
+                    # If writers are paused and we have space in the queue
+                    # callback the writers to resume writing
+                    if self._resume_writing_callbacks and not self.should_pause:
+                        for callback_ in self._resume_writing_callbacks:
                             callback_()
+                        self._resume_writing_callbacks.clear()
 
                 # throttling
                 if not self._throttling:

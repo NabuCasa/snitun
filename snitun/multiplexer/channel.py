@@ -77,6 +77,11 @@ class MultiplexerChannel:
         """Return True if channel is in closing state."""
         return self._closing
 
+    @property
+    def should_pause(self) -> bool:
+        """Return True if we should pause."""
+        return self._multiplexer.should_pause
+
     def register_resume_writing_callback(self, callback: Callable[[], None]) -> None:
         """Register a callback for resume writing."""
         return self._multiplexer.register_resume_writing_callback(callback)
@@ -97,10 +102,6 @@ class MultiplexerChannel:
             MultiplexerMessage,
             (self._id, CHANNEL_FLOW_DATA, data, b""),
         )
-
-    def should_pause(self) -> bool:
-        """Return True if we should pause."""
-        return self._output.qsize() > self._output_max / 2
 
     def write_no_wait(self, data: bytes) -> None:
         """Send data to peer."""
