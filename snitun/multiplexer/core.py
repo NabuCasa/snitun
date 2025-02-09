@@ -16,7 +16,7 @@ from ..exceptions import (
     MultiplexerTransportDecrypt,
     MultiplexerTransportError,
 )
-from ..utils.asyncio import asyncio_timeout
+from ..utils.asyncio import asyncio_timeout, make_task_waiter_future
 from ..utils.ipaddress import bytes_to_ip_address
 from .channel import MultiplexerChannel
 from .crypto import CryptoTransport
@@ -83,18 +83,7 @@ class Multiplexer:
 
         Return a awaitable object.
         """
-        fut = self._loop.create_future()
-
-        def _resolve_future(_: asyncio.Task) -> None:
-            if not fut.done():
-                fut.set_result(None)
-
-        if self._write_task.done():
-            _resolve_future(self._write_task)
-            return fut
-
-        self._write_task.add_done_callback(_resolve_future)
-        return fut
+        return make_task_waiter_future(self._write_task)
 
     def shutdown(self) -> None:
         """Shutdown connection."""

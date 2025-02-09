@@ -13,7 +13,7 @@ from ..exceptions import (
 )
 from ..multiplexer.core import Multiplexer
 from ..multiplexer.crypto import CryptoTransport
-from ..utils.asyncio import asyncio_timeout
+from ..utils.asyncio import asyncio_timeout, make_task_waiter_future
 from .connector import Connector
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,11 +36,11 @@ class ClientPeer:
         """Return true, if a connection exists."""
         return self._multiplexer is not None
 
-    def wait(self) -> asyncio.Task:
+    def wait(self) -> asyncio.Future:
         """Block until connection to peer is closed."""
         if not self._multiplexer:
             raise RuntimeError("No SniTun connection available")
-        return self._multiplexer.wait()
+        return make_task_waiter_future(self._handler_task)
 
     async def start(
         self,
