@@ -86,7 +86,7 @@ class Multiplexer:
 
         Return a awaitable object.
         """
-        return asyncio.shield(self._processing_task)
+        return asyncio.shield(asyncio.gather(self._from_peer_task, self._to_peer_task))
 
     def shutdown(self) -> None:
         """Shutdown connection."""
