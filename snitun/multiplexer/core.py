@@ -95,7 +95,7 @@ class Multiplexer:
             # 0.0 since asyncio.sleep(0.0) is much more efficient
             # an will yield for one iteration of the event loop
             # and we do not have that level of precision anyways
-            self._throttling = 0.0 if throttling < 100 else 1 / throttling
+            self._throttling = 0.0 if throttling < 500 else 1 / throttling
 
     @property
     def is_connected(self) -> bool:
