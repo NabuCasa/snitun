@@ -8,6 +8,7 @@ from contextlib import suppress
 import ipaddress
 import logging
 import os
+import sys
 from typing import Any
 
 from ..exceptions import (
@@ -86,7 +87,12 @@ class Multiplexer:
 
         Return a awaitable object.
         """
-        return asyncio.shield(asyncio.gather(self._from_peer_task, self._to_peer_task))
+        return asyncio.create_task(
+            asyncio.wait(
+                (self._from_peer_task, self._to_peer_task),
+                return_when=asyncio.ALL_COMPLETED,
+            ),
+        )
 
     def shutdown(self) -> None:
         """Shutdown connection."""
@@ -136,7 +142,18 @@ class Multiplexer:
         # Process stream
         try:
             await runner
-        except (asyncio.CancelledError, asyncio.TimeoutError, TimeoutError):
+        except asyncio.CancelledError:
+            _LOGGER.debug("Receive canceling")
+            with suppress(OSError):
+                self._writer.write_eof()
+                await self._writer.drain()
+            if (
+                sys.version_info >= (3, 11)
+                and (current_task := asyncio.current_task())
+                and current_task.cancelling()
+            ):
+                raise
+        except (asyncio.TimeoutError, TimeoutError):
             _LOGGER.debug("Receive canceling")
             with suppress(OSError):
                 self._writer.write_eof()
@@ -155,6 +172,11 @@ class Multiplexer:
                     self._writer.close()
             self._graceful_channel_shutdown()
             _LOGGER.debug("Multiplexer connection is closed")
+            current_task = asyncio.current_task()
+            if current_task != self._from_peer_task:
+                self._from_peer_task.cancel()
+            if current_task != self._to_peer_task:
+                self._to_peer_task.cancel()
 
     async def _read_from_peer_loop(self) -> None:
         """Read from peer loop."""
