@@ -208,7 +208,7 @@ async def test_multiplexer_init_channel(
     assert multiplexer_client._channels[channel.id].ip_address == IP_ADDR
     assert multiplexer_server._channels[channel.id].ip_address == IP_ADDR
 
-    
+
 @pytest.mark.usefixtures("queue_full")
 async def test_multiplexer_init_channel_full(
     multiplexer_client: Multiplexer,
@@ -251,7 +251,9 @@ async def test_multiplexer_close_channel(
     assert not multiplexer_server._channels
 
 
-async def test_multiplexer_close_can_override_queue(multiplexer_client: Multiplexer) -> None:
+async def test_multiplexer_close_can_override_queue(
+    multiplexer_client: Multiplexer,
+) -> None:
     """Test that channels are nice removed but peer error is available."""
     assert not multiplexer_client._channels
 
