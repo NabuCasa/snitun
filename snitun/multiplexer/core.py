@@ -32,7 +32,8 @@ from .message import (
 
 _LOGGER = logging.getLogger(__name__)
 
-PEER_TCP_TIMEOUT = 90
+PEER_TCP_MIN_TIMEOUT = 90
+PEER_TCP_MAX_TIMEOUT = 120
 
 # |-----------------HEADER---------------------------------|
 # |------ID-----|--FLAG--|--SIZE--|---------EXTRA ---------|
@@ -44,8 +45,6 @@ PEER_TCP_TIMEOUT = 90
 # I:   4 bytes:  Data size  - 0-4294967295
 # 11s: 11 bytes: Extra      - data + random padding
 HEADER_STRUCT = struct.Struct(">16sBI11s")
-
-TIMEOUT_RANGE = (PEER_TCP_TIMEOUT, PEER_TCP_TIMEOUT + 10)
 
 
 class Multiplexer:
@@ -85,7 +84,11 @@ class Multiplexer:
         self._healthy.set()
         self._read_task = self._loop.create_task(self._read_from_peer_loop())
         self._write_task = self._loop.create_task(self._write_to_peer_loop())
-        self._ranged_timeout = RangedTimeout(*TIMEOUT_RANGE, self._on_timeout)
+        self._ranged_timeout = RangedTimeout(
+            PEER_TCP_MIN_TIMEOUT,
+            PEER_TCP_MAX_TIMEOUT,
+            self._on_timeout,
+        )
         self._timed_out: bool = False
         self._channels: dict[MultiplexerChannelId, MultiplexerChannel] = {}
         self._new_connections = new_connections
@@ -144,7 +147,7 @@ class Multiplexer:
             )
 
             # Wait until pong is received
-            async with asyncio_timeout.timeout(PEER_TCP_TIMEOUT):
+            async with asyncio_timeout.timeout(PEER_TCP_MIN_TIMEOUT):
                 await self._healthy.wait()
 
         except TimeoutError:

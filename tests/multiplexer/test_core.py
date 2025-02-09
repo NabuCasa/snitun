@@ -143,25 +143,25 @@ async def test_multiplexer_ping_error(
     from snitun.multiplexer import core as multi_core
 
     loop = event_loop
-    multi_core.PEER_TCP_TIMEOUT = 0.2
+    with patch.object(multi_core, "PEER_TCP_MAX_TIMEOUT", 0.2), patch.object(
+        multi_core, "PEER_TCP_MIN_TIMEOUT", 0.2
+    ):
+        client = test_server[0]
+        ping_task = loop.create_task(multiplexer_client.ping())
 
-    client = test_server[0]
-    ping_task = loop.create_task(multiplexer_client.ping())
+        await asyncio.sleep(0.3)
 
-    await asyncio.sleep(0.3)
+        data = await client.reader.read(60)
+        data = multiplexer_client._crypto.decrypt(data)
+        assert data[16] == CHANNEL_FLOW_PING
+        assert int.from_bytes(data[17:21], "big") == 0
+        assert data[21:25] == b"ping"
 
-    data = await client.reader.read(60)
-    data = multiplexer_client._crypto.decrypt(data)
-    assert data[16] == CHANNEL_FLOW_PING
-    assert int.from_bytes(data[17:21], "big") == 0
-    assert data[21:25] == b"ping"
+        assert ping_task.done()
 
-    assert ping_task.done()
+        with pytest.raises(MultiplexerTransportError):
+            raise ping_task.exception()
 
-    with pytest.raises(MultiplexerTransportError):
-        raise ping_task.exception()
-
-    multi_core.PEER_TCP_TIMEOUT = 90
 
 
 async def test_multiplexer_ping_pong(
@@ -413,34 +413,33 @@ async def test_multiplexer_core_peer_timeout(
     from snitun.multiplexer import core as multi_core
 
     loop = event_loop
-    multi_core.PEER_TCP_TIMEOUT = 0.2
+    with patch.object(multi_core, "PEER_TCP_MAX_TIMEOUT", 0.2), patch.object(
+        multi_core, "PEER_TCP_MIN_TIMEOUT", 0.2
+    ):
+        assert not multiplexer_client._channels
+        assert not multiplexer_server._channels
 
-    assert not multiplexer_client._channels
-    assert not multiplexer_server._channels
+        channel_client = await multiplexer_client.create_channel(IP_ADDR)
+        await asyncio.sleep(0.1)
 
-    channel_client = await multiplexer_client.create_channel(IP_ADDR)
-    await asyncio.sleep(0.1)
+        channel_server = multiplexer_server._channels.get(channel_client.id)
 
-    channel_server = multiplexer_server._channels.get(channel_client.id)
+        client_read = loop.create_task(channel_client.read())
+        server_read = loop.create_task(channel_server.read())
 
-    client_read = loop.create_task(channel_client.read())
-    server_read = loop.create_task(channel_server.read())
+        assert not client_read.done()
+        assert not server_read.done()
 
-    assert not client_read.done()
-    assert not server_read.done()
+        await multiplexer_client.ping()
+        await asyncio.sleep(0.3)
 
-    await multiplexer_client.ping()
-    await asyncio.sleep(0.3)
+        assert not multiplexer_client._channels
+        assert not multiplexer_server._channels
+        assert server_read.done()
+        assert client_read.done()
 
-    assert not multiplexer_client._channels
-    assert not multiplexer_server._channels
-    assert server_read.done()
-    assert client_read.done()
+        with pytest.raises(MultiplexerTransportClose):
+            raise server_read.exception()
 
-    with pytest.raises(MultiplexerTransportClose):
-        raise server_read.exception()
-
-    with pytest.raises(MultiplexerTransportClose):
-        raise client_read.exception()
-
-    multi_core.PEER_TCP_TIMEOUT = 90
+        with pytest.raises(MultiplexerTransportClose):
+            raise client_read.exception()
