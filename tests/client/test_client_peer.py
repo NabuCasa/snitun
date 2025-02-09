@@ -245,6 +245,38 @@ async def test_init_client_peer_wait(
         assert client.wait().done()
 
 
+
+async def test_init_client_peer_wait_waits_for_task(
+    peer_listener: PeerListener,
+    peer_manager: PeerManager,
+    test_endpoint: list[Client],
+) -> None:
+    """Test setup of ClientPeer."""
+    client = ClientPeer("127.0.0.1", "8893")
+    connector = Connector("127.0.0.1", "8822")
+
+    assert not client.is_connected
+    assert not peer_manager.peer_available("localhost")
+
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    hostname = "localhost"
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
+
+    await client.start(connector, fernet_token, aes_key, aes_iv)
+    await asyncio.sleep(0.1)
+    assert peer_manager.peer_available("localhost")
+    assert client.is_connected
+
+    assert not client.wait().done()
+
+    # Shutdown the multiplexer from under the client
+    client._multiplexer.shutdown()
+    await client.wait()
+    # Make sure the task is actually done
+    assert client._handler_task.done()
+
 async def test_init_client_peer_throttling(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
