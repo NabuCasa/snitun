@@ -1,6 +1,7 @@
 """Multiplexer message handling."""
 
 import binascii
+from functools import cached_property
 import os
 
 import attr
@@ -22,14 +23,12 @@ CHANNEL_FLOW_ALL = [
 class MultiplexerChannelId:
     """Represent a channel ID aka multiplexer stream."""
 
-    bytes: bytes = attr.ib(default=attr.Factory(lambda: os.urandom(16)), eq=True)
-    hex: str = attr.ib(
-        default=attr.Factory(
-            lambda self: binascii.hexlify(self.bytes).decode("utf-8"),
-            takes_self=True,
-        ),
-        eq=False,
-    )
+    bytes: "bytes" = attr.ib(default=attr.Factory(lambda: os.urandom(16)), eq=True)
+
+    @cached_property
+    def hex(self) -> str:
+        """Return hex representation of the channel ID."""
+        return binascii.hexlify(self.bytes).decode("utf-8")
 
     def __str__(self) -> str:
         """Return string representation for logger."""
