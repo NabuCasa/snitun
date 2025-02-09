@@ -106,7 +106,6 @@ class ChannelTransport(Transport):
     def _resume_protocol(self) -> None:
         """Resume the protocol."""
         self._call_protocol_method("resume_writing")
-        self._protocol.resume_writing()
         self._protocol_paused = False
 
     def _call_protocol_method(self, method_name: str) -> None:
