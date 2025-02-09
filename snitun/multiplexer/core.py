@@ -226,12 +226,10 @@ class Multiplexer:
             raise MultiplexerTransportClose
 
         try:
-            header = self._crypto.decrypt(header)
-            channel_id = header[:16]
-            flow_type = header[16]
-            data_size = int.from_bytes(header[17:21], byteorder="big")
-            extra = header[21:]
-        except (IndexError, MultiplexerTransportDecrypt):
+            channel_id, flow_type, data_size, extra = HEADER_STRUCT.unpack(
+                self._crypto.decrypt(header),
+            )
+        except (struct.error, MultiplexerTransportDecrypt):
             _LOGGER.warning("Wrong message header received")
             return
 
