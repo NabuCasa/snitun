@@ -78,12 +78,18 @@ class Multiplexer:
         """Return True is they is connected."""
         return not self._write_task.done()
 
-    def wait(self) -> asyncio.Task:
+    def wait(self) -> asyncio.Future[None]:
         """Block until the connection is closed.
 
         Return a awaitable object.
         """
-        return asyncio.shield(self._write_task)
+        fut = self._loop.create_future()
+
+        def _resolve_future(_: asyncio.Task) -> None:
+            fut.set_result(None)
+
+        self._write_task.add_done_callback(_resolve_future)
+        return fut
 
     def shutdown(self) -> None:
         """Shutdown connection."""
@@ -156,8 +162,6 @@ class Multiplexer:
                     to_peer = await self._queue.get()
                 self._write_message(to_peer)
                 await self._writer.drain()
-                if self._throttling:
-                    await asyncio.sleep(self._throttling)
         except asyncio.CancelledError:
             _LOGGER.debug("Receive canceling")
             with suppress(OSError):
@@ -182,13 +186,13 @@ class Multiplexer:
         ):
             _LOGGER.debug("Transport was closed")
         finally:
+            self._read_task.cancel()
             # Cleanup transport
             if not self._writer.transport.is_closing():
                 with suppress(OSError):
                     self._writer.close()
             self._graceful_channel_shutdown()
             _LOGGER.debug("Multiplexer connection is closed")
-            self._read_task.cancel()
 
     def _write_message(self, message: MultiplexerMessage) -> None:
         """Write message to peer."""
