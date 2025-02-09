@@ -2,7 +2,6 @@
 
 import binascii
 from functools import cached_property
-import os
 
 import attr
 
@@ -19,16 +18,18 @@ CHANNEL_FLOW_ALL = [
 ]
 
 
-@attr.s(frozen=True, eq=True, hash=True, cache_hash=True)
-class MultiplexerChannelId:
+class MultiplexerChannelId(bytes):
     """Represent a channel ID aka multiplexer stream."""
 
-    bytes: "bytes" = attr.ib(default=attr.Factory(lambda: os.urandom(16)), eq=True)
+    @cached_property
+    def bytes(self) -> "bytes":
+        """Return bytes representation of the channel ID."""
+        return self
 
     @cached_property
     def hex(self) -> str:
         """Return hex representation of the channel ID."""
-        return binascii.hexlify(self.bytes).decode("utf-8")
+        return binascii.hexlify(self).decode("utf-8")
 
     def __str__(self) -> str:
         """Return string representation for logger."""
