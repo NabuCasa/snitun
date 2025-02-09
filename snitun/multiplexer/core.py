@@ -84,12 +84,14 @@ class Multiplexer:
         Return a awaitable object.
         """
         fut = self._loop.create_future()
-        if self._write_task.done():
-            fut.set_result(None)
-            return fut
 
         def _resolve_future(_: asyncio.Task) -> None:
-            fut.set_result(None)
+            if not fut.done():
+                fut.set_result(None)
+
+        if self._write_task.done():
+            _resolve_future(self._write_task)
+            return fut
 
         self._write_task.add_done_callback(_resolve_future)
         return fut
