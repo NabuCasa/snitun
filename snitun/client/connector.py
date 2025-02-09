@@ -49,6 +49,24 @@ class Connector:
         """Return True if the ip address can access to endpoint."""
         return not self._whitelist_enabled or ip_address in self._whitelist
 
+    async def _fail_to_start_tls(
+        self,
+        transport: ChannelTransport,
+        multiplexer: Multiplexer,
+        channel: MultiplexerChannel,
+        ex: Exception | None,
+    ) -> None:
+        """Handle failure to start TLS."""
+        _LOGGER.debug(
+            "Cannot start TLS for %s (%s): %s",
+            channel.ip_address,
+            channel.id,
+            ex,
+        )
+        with suppress(MultiplexerTransportError):
+            await multiplexer.delete_channel(channel)
+        await transport.stop_reader()
+
     async def handler(
         self,
         multiplexer: Multiplexer,
@@ -81,15 +99,11 @@ class Connector:
         except (OSError, SSLError) as ex:
             # This can can be just about any error, but mostly likely it's a TLS error
             # or the connection gets dropped in the middle of the handshake
-            _LOGGER.debug(
-                "Cannot start TLS for %s (%s): %s",
-                channel.ip_address,
-                channel.id,
-                ex,
-            )
-            with suppress(MultiplexerTransportError):
-                await multiplexer.delete_channel(channel)
-            await transport.stop_reader()
+            await self._fail_to_start_tls(transport, multiplexer, channel, ex)
+            return
+
+        if not new_transport:
+            await self._fail_to_start_tls(transport, multiplexer, channel, None)
             return
 
         # Now that we have the connection upgraded to TLS, we can
