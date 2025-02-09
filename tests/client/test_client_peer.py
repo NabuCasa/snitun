@@ -275,6 +275,9 @@ async def test_init_client_peer_wait_waits_for_task(
     await client.wait()
     # Make sure the task is actually done
     assert client._handler_task.done()
+    await client._stop_handler()
+    # Make sure _stop_handler cleans up the task reference
+    assert client._handler_task is None
 
 
 async def test_init_client_peer_throttling(
