@@ -1,10 +1,8 @@
 """Multiplexer message handling."""
 
 import binascii
-from typing import NamedTuple
 from functools import cached_property
-
-import attr
+from typing import NamedTuple
 
 CHANNEL_FLOW_NEW = 0x01
 CHANNEL_FLOW_DATA = 0x02
