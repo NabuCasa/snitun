@@ -152,12 +152,10 @@ class Multiplexer:
         except (
             MultiplexerTransportClose,
             asyncio.IncompleteReadError,
-            ConnectionResetError,
             OSError,
         ):
             _LOGGER.debug("Transport was closed")
         finally:
-            _LOGGER.debug("Canceling write task")
             self._write_task.cancel()
 
     async def _write_to_peer_loop(self) -> None:
@@ -184,15 +182,9 @@ class Multiplexer:
             with suppress(OSError):
                 self._writer.write_eof()
                 await self._writer.drain()
-        except (
-            MultiplexerTransportClose,
-            asyncio.IncompleteReadError,
-            ConnectionResetError,
-            OSError,
-        ):
+        except (MultiplexerTransportClose, OSError):
             _LOGGER.debug("Transport was closed")
         finally:
-            _LOGGER.debug("Canceling read task")
             self._read_task.cancel()
             # Cleanup transport
             if not self._writer.transport.is_closing():
