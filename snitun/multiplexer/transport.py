@@ -84,6 +84,11 @@ class ChannelTransport(Transport):
 
     def close(self) -> None:
         """Close the underlying channel."""
+        _LOGGER.debug(
+            "Closing transport for %s (%s)",
+            self._channel.ip_address,
+            self._channel.id,
+        )
         self._channel.close()
         self._release_pause_future()
         self._cancel_resume_writing_callback()
@@ -189,9 +194,7 @@ class ChannelTransport(Transport):
 
     def _force_close(self, exc: Exception | None) -> None:
         """Force close the transport."""
-        self._channel.close()
-        self._release_pause_future()
-        self._cancel_resume_writing_callback()
+        self.close()
         if self._protocol is not None:
             self._loop.call_soon(self._protocol.connection_lost, exc)
 
