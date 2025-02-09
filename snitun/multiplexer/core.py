@@ -84,6 +84,9 @@ class Multiplexer:
         Return a awaitable object.
         """
         fut = self._loop.create_future()
+        if self._write_task.done():
+            fut.set_result(None)
+            return fut
 
         def _resolve_future(_: asyncio.Task) -> None:
             fut.set_result(None)
@@ -154,6 +157,7 @@ class Multiplexer:
         ):
             _LOGGER.debug("Transport was closed")
         finally:
+            _LOGGER.debug("Canceling write task")
             self._write_task.cancel()
 
     async def _write_to_peer_loop(self) -> None:
@@ -169,7 +173,6 @@ class Multiplexer:
             _LOGGER.debug("Write canceling")
             with suppress(OSError):
                 self._writer.write_eof()
-                await self._writer.drain()
             if (
                 sys.version_info >= (3, 11)
                 and (current_task := asyncio.current_task())
@@ -189,6 +192,7 @@ class Multiplexer:
         ):
             _LOGGER.debug("Transport was closed")
         finally:
+            _LOGGER.debug("Canceling read task")
             self._read_task.cancel()
             # Cleanup transport
             if not self._writer.transport.is_closing():
