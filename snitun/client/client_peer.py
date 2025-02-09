@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import sys
 
 from ..exceptions import (
     MultiplexerTransportDecrypt,
@@ -30,6 +31,7 @@ class ClientPeer:
         self._loop = asyncio.get_event_loop()
         self._snitun_host = snitun_host
         self._snitun_port = snitun_port or 8080
+        self._handler_task: asyncio.Task[None] | None = None
 
     @property
     def is_connected(self) -> bool:
@@ -119,7 +121,8 @@ class ClientPeer:
         )
 
         # Task a process for pings/cleanups
-        self._loop.create_task(self._handler())
+        assert not self._handler_task, "SniTun connection already running"
+        self._handler_task = self._loop.create_task(self._handler())
 
     async def stop(self) -> None:
         """Stop connection to SniTun server."""
@@ -127,6 +130,23 @@ class ClientPeer:
             raise RuntimeError("No SniTun connection available")
         self._multiplexer.shutdown()
         await self._multiplexer.wait()
+        await self._stop_handler()
+
+    async def _stop_handler(self) -> None:
+        """Stop the handler."""
+        self._handler_task.cancel()
+        try:
+            await self._handler_task
+        except asyncio.CancelledError:
+            # Don't swallow cancellation
+            if (
+                sys.version_info >= (3, 11)
+                and (current_task := asyncio.current_task())
+                and current_task.cancelling()
+            ):
+                raise
+        finally:
+            self._handler_task = None
 
     async def _handler(self) -> None:
         """Wait until connection is closed."""
@@ -146,4 +166,5 @@ class ClientPeer:
             pass
 
         finally:
+            self._multiplexer.shutdown()
             self._multiplexer = None
