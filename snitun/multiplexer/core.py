@@ -37,10 +37,10 @@ PEER_TCP_TIMEOUT = 90
 # |   16 bytes  | 1 byte | 4 bytes|       11 bytes         |
 # |--------------------------------------------------------|
 # All bytes are big-endian and unsigned
-# 16 bytes: Channel ID
-# 1 byte: Flow type
-# 4 bytes: Data size
-# 11 bytes: Extra
+# 16 bytes: Channel ID (random)
+# 1 byte: Flow type (0: DATA, 1: NEW, 2: CLOSE, 3: PING)
+# 4 bytes: Data size (0-4294967295)
+# 11 bytes: Extra data + random padding
 HEADER_STRUCT = struct.Struct(">16sBI11s")
 
 
