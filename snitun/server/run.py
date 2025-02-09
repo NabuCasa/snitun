@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Iterable
 from contextlib import suppress
+from dataclasses import dataclass
 from itertools import cycle
 import logging
 from multiprocessing import cpu_count
@@ -13,8 +14,6 @@ import select
 import signal
 import socket
 from threading import Thread
-
-import attr
 
 from ..exceptions import ParseSNIIncompleteError
 from ..utils.asyncio import asyncio_timeout
@@ -154,15 +153,15 @@ class SniTunServerSingle:
             return
 
 
-@attr.s(slots=True)
+@dataclass(slots=True)
 class Connection:
     """Connection data class."""
 
-    sock: socket.socket = attr.ib()
-    epoll: select.epoll = attr.ib()
-    buffer: bytes = attr.ib(default=b"")
-    stale: int = attr.ib(default=0)
-    close: bool = attr.ib(default=False)
+    sock: socket.socket
+    epoll: select.epoll
+    buffer: bytes = b""
+    stale: int = 0
+    close: bool = False
 
     @property
     def fileno(self) -> int:
