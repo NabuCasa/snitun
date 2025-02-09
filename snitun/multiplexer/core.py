@@ -330,7 +330,7 @@ class Multiplexer:
         elif message.flow_type == CHANNEL_FLOW_CLOSE:
             # check if message exists
             if message.id not in self._channels:
-                _LOGGER.debug("Receive close from unknown channel")
+                _LOGGER.debug("Receive close from unknown channel: %s", message.id)
                 return
             channel = self._channels.pop(message.id)
             channel.close()
