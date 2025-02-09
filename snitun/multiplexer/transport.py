@@ -96,7 +96,7 @@ class ChannelTransport(Transport):
         """Write data to the channel."""
         if not self._channel.closing:
             self._channel.write_no_wait(data)
-        if not self._protocol_paused and self._channel.should_pause():
+        if not self._protocol_paused and self._channel.should_pause:
             self._call_protocol_method("pause_writing")
             self._protocol_paused = True
             self._cancel_resume_writing = (

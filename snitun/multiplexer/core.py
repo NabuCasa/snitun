@@ -319,7 +319,6 @@ class Multiplexer:
                 ip_address,
                 channel_id=message.id,
                 throttling=self._throttling,
-                multiplexer=self,
             )
             self._channels[channel.id] = channel
             self._loop.create_task(self._new_connections(self, channel))
