@@ -92,11 +92,6 @@ class Multiplexer:
         return not self._processing_task.done()
 
     @property
-    def queue(self) -> asyncio.Queue[MultiplexerMessage]:
-        """Return queue."""
-        return self._queue
-
-    @property
     def should_pause(self) -> bool:
         """Return True if the write transport should pause."""
         return self._queue.qsize() > self._queue_max / 2
