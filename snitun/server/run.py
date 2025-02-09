@@ -161,7 +161,7 @@ class Connection:
     epoll: select.epoll
     buffer: bytes = b""
     stale: int = 0
-    close: bool = field(default=False)
+    close: bool = False
 
     @property
     def fileno(self) -> int:
