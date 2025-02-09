@@ -49,6 +49,7 @@ class MultiplexerQueue:
         message: MultiplexerMessage | None,
     ) -> None:
         """Put a message in the queue."""
+        # Based on asyncio.Queue.put()
         while self.full(channel_id):
             putter = self._loop.create_future()
             self._putters[channel_id].append(putter)
@@ -88,6 +89,7 @@ class MultiplexerQueue:
             MultiplexerMessage: The message retrieved from the queue.
 
         """
+        # Based on asyncio.Queue.get()
         while not self._order:
             getter = self._loop.create_future()
             self._getters.append(getter)
