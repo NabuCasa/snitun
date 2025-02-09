@@ -245,7 +245,6 @@ async def test_init_client_peer_wait(
         assert client.wait().done()
 
 
-
 async def test_init_client_peer_wait_waits_for_task(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
@@ -276,6 +275,7 @@ async def test_init_client_peer_wait_waits_for_task(
     await client.wait()
     # Make sure the task is actually done
     assert client._handler_task.done()
+
 
 async def test_init_client_peer_throttling(
     peer_listener: PeerListener,
