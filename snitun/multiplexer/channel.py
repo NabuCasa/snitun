@@ -75,7 +75,11 @@ class MultiplexerChannel:
             raise MultiplexerTransportClose
 
         # Create message
-        message = MultiplexerMessage(self._id, CHANNEL_FLOW_DATA, data)
+        try:
+            message = MultiplexerMessage(self._id, CHANNEL_FLOW_DATA, data)
+        except RuntimeError:
+            _LOGGER.debug("Can't write to peer transport")
+            raise MultiplexerTransportError from None
         self._output(message)
 
     async def write(self, data: bytes) -> None:
