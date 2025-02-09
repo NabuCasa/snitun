@@ -54,7 +54,7 @@ class PeerListener:
             try:
                 async with asyncio_timeout.timeout(2):
                     fernet_data = await reader.read(2048)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 _LOGGER.warning("Abort peer handshake")
                 writer.close()
                 return
@@ -78,7 +78,7 @@ class PeerListener:
                 try:
                     async with asyncio_timeout.timeout(CHECK_VALID_EXPIRE):
                         await peer.wait_disconnect()
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     if not peer.is_valid:
                         break
 

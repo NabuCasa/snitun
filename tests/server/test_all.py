@@ -1,7 +1,7 @@
 """Tests for peer listener & manager."""
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 import hashlib
 import ipaddress
 import os
@@ -31,7 +31,7 @@ async def test_server_full(
     peer_messages = []
     peer_address = []
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"

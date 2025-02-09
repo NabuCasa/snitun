@@ -68,7 +68,7 @@ class ClientPeer:
                     host=self._snitun_host,
                     port=self._snitun_port,
                 )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise SniTunConnectionError(
                 "Connection timeout for SniTun server "
                 f"{self._snitun_host}:{self._snitun_port}",
@@ -84,7 +84,7 @@ class ClientPeer:
         try:
             async with asyncio_timeout.timeout(CONNECTION_TIMEOUT):
                 await writer.drain()
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise SniTunConnectionError(
                 "Timeout for writting connection token",
             ) from None
@@ -98,7 +98,7 @@ class ClientPeer:
 
                 writer.write(crypto.encrypt(answer))
                 await writer.drain()
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise SniTunConnectionError(
                 "Challenge/Response timeout error to SniTun server",
             ) from None
@@ -155,7 +155,7 @@ class ClientPeer:
             try:
                 async with asyncio_timeout.timeout(50):
                     await self._multiplexer.wait()
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 await self._multiplexer.ping()
 
         try:

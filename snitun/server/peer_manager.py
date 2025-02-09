@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 import json
 import logging
@@ -55,8 +55,8 @@ class PeerManager:
             raise SniTunInvalidPeer("Invalid fernet token") from err
 
         # Check if token is valid
-        valid = datetime.fromtimestamp(config["valid"], tz=timezone.utc)
-        if valid < datetime.now(tz=timezone.utc):
+        valid = datetime.fromtimestamp(config["valid"], tz=UTC)
+        if valid < datetime.now(tz=UTC):
             raise SniTunInvalidPeer("Token was expired")
 
         # Extract configuration
@@ -113,7 +113,7 @@ class PeerManager:
         """Get peer."""
         return self._peers.get(hostname)
 
-    async def close_connections(self, timeout: int = 10) -> None:
+    async def close_connections(self, timeout: int = 10) -> None:  # noqa: ASYNC109
         """Close all peer connections.
 
         Use this function only if you do not controll the server socket.
@@ -127,5 +127,5 @@ class PeerManager:
             try:
                 async with asyncio_timeout.timeout(timeout):
                     await asyncio.gather(*waiters, return_exceptions=True)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 _LOGGER.error("Timeout while waiting for peer disconnect")

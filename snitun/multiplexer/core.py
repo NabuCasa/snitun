@@ -113,7 +113,7 @@ class Multiplexer:
             async with asyncio_timeout.timeout(PEER_TCP_TIMEOUT):
                 await self._healthy.wait()
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             _LOGGER.error("Timeout error while pinging peer")
             self._loop.call_soon(self.shutdown)
             raise MultiplexerTransportError from None
@@ -168,7 +168,7 @@ class Multiplexer:
                     continue
                 await asyncio.sleep(self._throttling)
 
-        except (asyncio.CancelledError, asyncio.TimeoutError, TimeoutError):
+        except (asyncio.CancelledError, TimeoutError):
             _LOGGER.debug("Receive canceling")
             with suppress(OSError):
                 self._writer.write_eof()
@@ -321,7 +321,7 @@ class Multiplexer:
         try:
             async with asyncio_timeout.timeout(5):
                 await self._queue.put(message)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise MultiplexerTransportError from None
 
         self._channels[channel.id] = channel
@@ -335,7 +335,7 @@ class Multiplexer:
         try:
             async with asyncio_timeout.timeout(5):
                 await self._queue.put(message)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise MultiplexerTransportError from None
         finally:
             self._channels.pop(channel.id, None)
