@@ -3,6 +3,7 @@
 import binascii
 import os
 from typing import NamedTuple
+from functools import cached_property
 
 import attr
 
@@ -19,18 +20,18 @@ CHANNEL_FLOW_ALL = [
 ]
 
 
-@attr.s(frozen=True, slots=True, eq=True, hash=True)
-class MultiplexerChannelId:
+class MultiplexerChannelId(bytes):
     """Represent a channel ID aka multiplexer stream."""
 
-    bytes: "bytes" = attr.ib(default=attr.Factory(lambda: os.urandom(16)), eq=True)
-    hex: str = attr.ib(
-        default=attr.Factory(
-            lambda self: binascii.hexlify(self.bytes).decode("utf-8"),
-            takes_self=True,
-        ),
-        eq=False,
-    )
+    @cached_property
+    def bytes(self) -> "bytes":
+        """Return bytes representation of the channel ID."""
+        return self
+
+    @cached_property
+    def hex(self) -> str:
+        """Return hex representation of the channel ID."""
+        return binascii.hexlify(self).decode("utf-8")
 
     def __str__(self) -> str:
         """Return string representation for logger."""
