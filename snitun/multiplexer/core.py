@@ -137,14 +137,13 @@ class Multiplexer:
         """Send a ping flow message to hold the connection open."""
         self._healthy.clear()
         try:
-            self._write_message(
-                MultiplexerMessage(
-                    MultiplexerChannelId(os.urandom(16)),
-                    CHANNEL_FLOW_PING,
-                    b"",
-                    b"ping",
-                ),
+            message = MultiplexerMessage(
+                MultiplexerChannelId(os.urandom(16)),
+                CHANNEL_FLOW_PING,
+                b"",
+                b"ping",
             )
+            self._write_message(message)
 
             # Wait until pong is received
             async with asyncio_timeout.timeout(PEER_TCP_MIN_TIMEOUT):
