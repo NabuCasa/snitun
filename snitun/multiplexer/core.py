@@ -76,7 +76,7 @@ class Multiplexer:
     @property
     def is_connected(self) -> bool:
         """Return True is they is connected."""
-        return not self._read_task.done() and not self._write_task.done()
+        return not self._write_task.done()
 
     def wait(self) -> asyncio.Task:
         """Block until the connection is closed.
@@ -87,11 +87,10 @@ class Multiplexer:
 
     def shutdown(self) -> None:
         """Shutdown connection."""
-        if self._read_task.done() and self._write_task.done():
+        if self._write_task.done():
             return
 
         _LOGGER.debug("Cancel connection")
-        self._read_task.cancel()
         self._write_task.cancel()
         self._graceful_channel_shutdown()
 
