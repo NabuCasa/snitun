@@ -33,7 +33,7 @@ async def test_make_task_waiter_future_running_task() -> None:
     future = make_task_waiter_future(task)
     assert not future.done()
     assert not future.cancelled()
-    await future is None
+    assert await future is None
 
 async def test_make_task_waiter_future_cancelled_task() -> None:
     """Test make task waiter future."""
@@ -42,7 +42,7 @@ async def test_make_task_waiter_future_cancelled_task() -> None:
     task.cancel()
     assert not future.done()
     assert not future.cancelled()
-    await future is None
+    assert await future is None
 
 
 async def test_make_task_waiter_future_exception_task() -> None:
@@ -54,7 +54,7 @@ async def test_make_task_waiter_future_exception_task() -> None:
     future = make_task_waiter_future(task)
     assert not future.done()
     assert not future.cancelled()
-    await future is None
+    assert await future is None
 
 async def test_make_task_waiter_future_already_done_task() -> None:
     """Test make task waiter future."""
