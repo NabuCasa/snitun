@@ -159,7 +159,7 @@ class Connection:
 
     sock: socket.socket
     epoll: select.epoll
-    buffer: bytes = field(default=b"")
+    buffer: bytes = b""
     stale: int = field(default=0)
     close: bool = field(default=False)
 
