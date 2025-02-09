@@ -410,6 +410,7 @@ async def test_connector_valid_url_empty_buffer_server_side(
     multiplexer_server: Multiplexer,
     connector: Connector,
     client_ssl_context: ssl.SSLContext,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """End to end test that connector fails when the buffer is empty."""
     multiplexer_client._new_connections = connector.handler
@@ -441,13 +442,16 @@ async def test_connector_valid_url_empty_buffer_server_side(
     assert server_channel_transport.is_reading
     # Simulate a buffer is empty
     with (
-        pytest.raises(RuntimeError, match=r"get_buffer\(\) returned an empty buffer"),
         patch.object(ssl_proto, "get_buffer", return_value=b""),
     ):
         await session.get("https://localhost:4242/")
+        assert response.status == 200
+        content = await response.read()
+        assert content == b"Hello world"
 
     await session.close()
     assert transport_creation_calls == 1
+    assert"returned an empty buffer" in caplog.text
 
 
 @pytest.mark.skipif(
