@@ -14,6 +14,8 @@ from snitun.multiplexer.message import (
     MultiplexerChannelId,
     MultiplexerMessage,
 )
+from snitun.multiplexer.queue import MultiplexerQueue
+from snitun.multiplexer.const import INCOMING_QUEUE_MAX_BYTES_CHANNEL, OUTGOING_QUEUE_MAX_BYTES_CHANNEL
 from snitun.utils.ipaddress import ip_address_to_bytes
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
@@ -21,7 +23,7 @@ IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
 async def test_initial_channel_msg() -> None:
     """Test new MultiplexerChannel with id."""
-    output = asyncio.Queue()
+    output = MultiplexerQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -35,7 +37,7 @@ async def test_initial_channel_msg() -> None:
 
 async def test_close_channel_msg() -> None:
     """Test close MultiplexerChannel."""
-    output = asyncio.Queue()
+    output = MultiplexerQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -48,12 +50,12 @@ async def test_close_channel_msg() -> None:
 
 async def test_write_data() -> None:
     """Test send data over MultiplexerChannel."""
-    output = asyncio.Queue()
+    output = MultiplexerQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
     await channel.write(b"test")
-    assert not output.empty()
+    assert not output.empty(channel.id)
 
     message = output.get_nowait()
     assert message.id == channel.id
@@ -63,7 +65,7 @@ async def test_write_data() -> None:
 
 async def test_closing() -> None:
     """Test send data over MultiplexerChannel."""
-    output = asyncio.Queue()
+    output = MultiplexerQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -74,7 +76,7 @@ async def test_closing() -> None:
 
 async def test_write_data_after_close() -> None:
     """Test send data over MultiplexerChannel."""
-    output = asyncio.Queue()
+    output = MultiplexerQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
     assert not channel.closing
@@ -89,7 +91,7 @@ async def test_write_data_after_close() -> None:
 
 async def test_write_data_empty() -> None:
     """Test send data over MultiplexerChannel."""
-    output = asyncio.Queue()
+    output = MultiplexerQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -99,7 +101,7 @@ async def test_write_data_empty() -> None:
 
 async def test_read_data() -> None:
     """Test send data over MultiplexerChannel."""
-    output = asyncio.Queue()
+    output = MultiplexerQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -112,7 +114,7 @@ async def test_read_data() -> None:
 
 async def test_read_data_on_close() -> None:
     """Test send data over MultiplexerChannel on close."""
-    output = asyncio.Queue()
+    output = MultiplexerQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
     assert not channel.closing
@@ -126,12 +128,12 @@ async def test_read_data_on_close() -> None:
 
 async def test_write_data_peer_error(raise_timeout: None) -> None:
     """Test send data over MultiplexerChannel but peer don't response."""
-    output = asyncio.Queue(1)
+    output = MultiplexerQueue(1)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
     # fill peer queue
-    output.put_nowait(None)
+    output.put_nowait(channel.id, None)
 
     with pytest.raises(MultiplexerTransportError):
         await channel.write(b"test")
@@ -139,7 +141,7 @@ async def test_write_data_peer_error(raise_timeout: None) -> None:
 
 async def test_message_transport_never_lock() -> None:
     """Message transport should never lock down."""
-    output = asyncio.Queue(1)
+    output = MultiplexerQueue(1)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -152,7 +154,7 @@ async def test_message_transport_never_lock() -> None:
 async def test_write_throttling(event_loop: asyncio.AbstractEventLoop) -> None:
     """Message transport should never lock down."""
     loop = event_loop
-    output = asyncio.Queue(500)
+    output = MultiplexerQueue(500)
     channel = MultiplexerChannel(output, IP_ADDR, throttling=0.1)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -165,6 +167,6 @@ async def test_write_throttling(event_loop: asyncio.AbstractEventLoop) -> None:
 
     await asyncio.sleep(0.3)
     assert not background_task.done()
-    assert output.qsize() <= 4
+    assert output.size(channel.id) <= 16
 
     background_task.cancel()
