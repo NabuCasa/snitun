@@ -15,7 +15,7 @@ from ..exceptions import (
     MultiplexerTransportDecrypt,
     MultiplexerTransportError,
 )
-from ..utils.asyncio import asyncio_timeout
+from ..utils.asyncio import asyncio_timeout, create_eager_task
 from ..utils.ipaddress import bytes_to_ip_address
 from .channel import MultiplexerChannel
 from .crypto import CryptoTransport
@@ -134,17 +134,21 @@ class Multiplexer:
         try:
             while not transport.is_closing():
                 if not from_peer:
-                    from_peer = self._loop.create_task(self._reader.readexactly(32))
+                    from_peer = create_eager_task(
+                        self._reader.readexactly(32),
+                        loop=self._loop,
+                    )
 
                 if not to_peer:
-                    to_peer = self._loop.create_task(self._queue.get())
+                    to_peer = create_eager_task(self._queue.get(), loop=self._loop)
 
                 # Wait until data need to be processed
-                async with asyncio_timeout.timeout(PEER_TCP_TIMEOUT):
-                    await asyncio.wait(
-                        [from_peer, to_peer],
-                        return_when=asyncio.FIRST_COMPLETED,
-                    )
+                if not from_peer.done() and not to_peer.done():
+                    async with asyncio_timeout.timeout(PEER_TCP_TIMEOUT):
+                        await asyncio.wait(
+                            [from_peer, to_peer],
+                            return_when=asyncio.FIRST_COMPLETED,
+                        )
 
                 # From peer
                 if from_peer.done():
