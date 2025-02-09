@@ -89,7 +89,13 @@ class Multiplexer:
         self._timed_out: bool = False
         self._channels: dict[MultiplexerChannelId, MultiplexerChannel] = {}
         self._new_connections = new_connections
-        self._throttling = 1 / throttling if throttling else None
+        self._throttling: float | None = None
+        if throttling:
+            # If throttling is less than 5ms, change it to
+            # 0.0 since asyncio.sleep(0.0) is much more efficient
+            # an will yield for one iteration of the event loop
+            # and we do not have that level of precision anyways
+            self._throttling = 0.0 if throttling < 100 else 1 / throttling
 
     @property
     def is_connected(self) -> bool:
@@ -158,7 +164,7 @@ class Multiplexer:
             while not transport.is_closing():
                 await self._read_message()
                 self._ranged_timeout.reschedule()
-                if self._throttling:
+                if self._throttling is not None:
                     _LOGGER.debug("Throttling read: %s", self._throttling)
                     await asyncio.sleep(self._throttling)
         except asyncio.CancelledError:
