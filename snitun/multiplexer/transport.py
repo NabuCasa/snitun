@@ -120,7 +120,7 @@ class ChannelTransport(Transport):
     def _call_protocol_method(self, method_name: str) -> None:
         """Call a method on the protocol."""
         _LOGGER.debug(
-            "Calling protocol.{%s}() for %s (%s)",
+            "Calling protocol.%s() for %s (%s)",
             method_name,
             self._channel.ip_address,
             self._channel.id,
