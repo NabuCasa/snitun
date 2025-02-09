@@ -1,7 +1,7 @@
 """Test a Peer object."""
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 import hashlib
 import os
 
@@ -17,7 +17,7 @@ from ..conftest import Client
 
 def test_init_peer() -> None:
     """Test simple init of peer."""
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     peer = Peer(
         "localhost",
         valid,
@@ -42,7 +42,7 @@ async def test_init_peer_multiplexer(
     client = test_server[0]
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
 
     peer = Peer("localhost", valid, aes_key, aes_iv)
     crypto = CryptoTransport(aes_key, aes_iv)
@@ -88,7 +88,7 @@ async def test_init_peer_multiplexer_crypto(
     client = test_server[0]
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
 
     peer = Peer("localhost", valid, aes_key, aes_iv)
     crypto = CryptoTransport(aes_key, aes_iv)
@@ -144,7 +144,7 @@ async def test_init_peer_wrong_challenge(
     client = test_server[0]
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
 
     peer = Peer("localhost", valid, aes_key, aes_iv)
     crypto = CryptoTransport(aes_key, aes_iv)
@@ -174,7 +174,7 @@ async def test_init_peer_wrong_challenge(
 
 def test_init_peer_invalid() -> None:
     """Test simple init of peer with invalid date."""
-    valid = datetime.now(tz=timezone.utc) - timedelta(days=1)
+    valid = datetime.now(tz=UTC) - timedelta(days=1)
     peer = Peer("localhost", valid, os.urandom(32), os.urandom(16))
 
     assert not peer.is_valid
@@ -192,7 +192,7 @@ async def test_init_peer_multiplexer_throttling(
     client = test_server[0]
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
 
     peer = Peer("localhost", valid, aes_key, aes_iv, throttling=500)
     crypto = CryptoTransport(aes_key, aes_iv)

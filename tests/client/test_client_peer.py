@@ -1,7 +1,7 @@
 """Test Client Peer connections."""
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 import ipaddress
 import os
 import sys
@@ -30,7 +30,7 @@ async def test_init_client_peer(
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -60,7 +60,7 @@ async def test_init_client_peer_with_alias(
     assert not peer_manager.peer_available("localhost")
     assert not peer_manager.peer_available("localhost.custom")
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -96,7 +96,7 @@ async def test_init_client_peer_invalid_token(
 
     assert not peer_manager.peer_available("localhost")
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=-1)
+    valid = datetime.now(tz=UTC) + timedelta(days=-1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -119,7 +119,7 @@ async def test_init_client_peer_wait(
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -152,7 +152,7 @@ async def test_init_client_peer_throttling(
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -185,7 +185,7 @@ async def test_init_client_peer_stop_does_not_swallow_cancellation(
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -218,7 +218,7 @@ async def test_init_client_peer_stop_twice(
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"

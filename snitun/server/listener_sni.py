@@ -63,7 +63,7 @@ class SNIProxy:
             try:
                 async with asyncio_timeout.timeout(2):
                     client_hello = await payload_reader(reader)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 _LOGGER.warning("Abort SNI handshake")
                 writer.close()
                 return
@@ -164,7 +164,7 @@ class SNIProxy:
                     # Flush buffer
                     await writer.drain()
 
-        except (asyncio.TimeoutError, TimeoutError):
+        except TimeoutError:
             _LOGGER.debug("Close TCP session after timeout for %s", channel.id)
             with suppress(MultiplexerTransportError):
                 await multiplexer.delete_channel(channel)

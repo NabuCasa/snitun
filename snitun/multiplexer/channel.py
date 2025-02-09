@@ -35,7 +35,7 @@ class MultiplexerChannel:
         throttling: float | None = None,
     ) -> None:
         """Initialize Multiplexer Channel."""
-        self._input = asyncio.Queue(8000)
+        self._input: asyncio.Queue[MultiplexerMessage] = asyncio.Queue(8000)
         self._output = output
         self._id = channel_id or MultiplexerChannelId(os.urandom(16))
         self._ip_address = ip_address
@@ -74,7 +74,10 @@ class MultiplexerChannel:
             raise MultiplexerTransportError
         if self._closing:
             raise MultiplexerTransportClose
-        return MultiplexerMessage(self._id, CHANNEL_FLOW_DATA, data)
+        return tuple.__new__(
+            MultiplexerMessage,
+            (self._id, CHANNEL_FLOW_DATA, data, b""),
+        )
 
     def write_no_wait(self, data: bytes) -> None:
         """Send data to peer."""
@@ -92,7 +95,7 @@ class MultiplexerChannel:
         try:
             async with asyncio_timeout.timeout(5):
                 await self._output.put(message)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             _LOGGER.debug("Can't write to peer transport")
             raise MultiplexerTransportError from None
 
@@ -126,7 +129,7 @@ class MultiplexerChannel:
         return MultiplexerMessage(self._id, CHANNEL_FLOW_NEW, b"", extra)
 
     def message_transport(self, message: MultiplexerMessage) -> None:
-        """Only for internal ussage of core transport."""
+        """Only for internal usage of core transport."""
         if self._closing:
             return
 

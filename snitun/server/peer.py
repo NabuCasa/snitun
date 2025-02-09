@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Coroutine
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 import hashlib
 import logging
 import os
@@ -62,7 +62,7 @@ class Peer:
     @property
     def is_valid(self) -> bool:
         """Return True if the peer is valid."""
-        return self._valid > datetime.now(tz=timezone.utc)
+        return self._valid > datetime.now(tz=UTC)
 
     @property
     def multiplexer(self) -> Multiplexer | None:
@@ -95,7 +95,7 @@ class Peer:
             assert hashlib.sha256(token).digest() == data
 
         except (
-            asyncio.TimeoutError,
+            TimeoutError,
             asyncio.IncompleteReadError,
             MultiplexerTransportDecrypt,
             AssertionError,
