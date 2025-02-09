@@ -5,8 +5,23 @@ from __future__ import annotations
 import asyncio
 from collections import OrderedDict, defaultdict, deque
 import contextlib
+from dataclasses import dataclass, field
+from functools import cached_property
 
 from .message import MultiplexerChannelId, MultiplexerMessage
+
+
+@dataclass()
+class _ChannelQueue:
+    """Channel queue."""
+
+    total_bytes: int = 0
+    queue: deque[MultiplexerMessage | None] = field(default_factory=deque)
+
+    @cached_property
+    def putters(self) -> deque[asyncio.Future[None]]:
+        """Return putters."""
+        return deque()
 
 
 class MultiplexerQueue:
@@ -21,19 +36,12 @@ class MultiplexerQueue:
 
         """
         self._channel_size_limit = channel_size_limit
-        self._buckets: defaultdict[
-            MultiplexerChannelId,
-            deque[MultiplexerMessage | None],
-        ] = defaultdict(deque)
-        self._bucket_sizes: defaultdict[MultiplexerChannelId, int] = defaultdict(int)
+        self._channels: defaultdict[MultiplexerChannelId, _ChannelQueue] = defaultdict(
+            _ChannelQueue,
+        )
         # order controls which channel_id to get next
         self._order: OrderedDict[MultiplexerChannelId, None] = OrderedDict()
-        self._total_messages = 0
         self._getters: deque[asyncio.Future[None]] = deque()
-        self._putters: defaultdict[
-            MultiplexerChannelId,
-            deque[asyncio.Future[None]],
-        ] = defaultdict(deque)
         self._loop = asyncio.get_running_loop()
 
     def _wakeup_next(self, waiters: deque[asyncio.Future[None]]) -> None:
@@ -51,20 +59,22 @@ class MultiplexerQueue:
     ) -> None:
         """Put a message in the queue."""
         # Based on asyncio.Queue.put()
+        channel = self._channels[channel_id]
+
         while self.full(channel_id):
             putter = self._loop.create_future()
-            self._putters[channel_id].append(putter)
+            channel.putters.append(putter)
             try:
                 await putter
             except:
                 putter.cancel()  # Just in case putter is not done yet.
                 with contextlib.suppress(ValueError):
                     # Clean self._putters from canceled putters.
-                    self._putters[channel_id].remove(putter)
+                    channel.putters.remove(putter)
                 if not self.full(channel_id) and not putter.cancelled():
                     # We were woken up by get_nowait(), but can't take
                     # the call.  Wake up the next in line.
-                    self._wakeup_next(self._putters[channel_id])
+                    self._wakeup_next(channel.putters)
                 raise
         self.put_nowait(channel_id, message)
 
@@ -75,10 +85,11 @@ class MultiplexerQueue:
     ) -> None:
         """Put a message in the queue."""
         size = 0 if message is None else len(message.data)
-        if self._bucket_sizes[channel_id] >= self._channel_size_limit:
+        channel = self._channels[channel_id]
+        if channel.total_bytes >= self._channel_size_limit:
             raise asyncio.QueueFull
-        self._buckets[channel_id].append(message)
-        self._bucket_sizes[channel_id] += size
+        channel.queue.append(message)
+        channel.total_bytes += size
         self._order[channel_id] = None
         self._wakeup_next(self._getters)
 
@@ -114,29 +125,34 @@ class MultiplexerQueue:
         if not self._order:
             raise asyncio.QueueEmpty
         channel_id, _ = self._order.popitem(last=False)
-        message = self._buckets[channel_id].popleft()
+        channel = self._channels[channel_id]
+        message = channel.queue.popleft()
         size = 0 if message is None else len(message.data)
-        self._bucket_sizes[channel_id] -= size
-        if self._buckets[channel_id]:
+        channel.total_bytes -= size
+        if channel.queue:
             # Now put the channel_id back, but at the end of the queue
             # so the next get will get the next waiting channel_id.
             self._order[channel_id] = None
         else:
             # Got to the end of the queue
-            del self._buckets[channel_id]
-            del self._bucket_sizes[channel_id]
-        if putters := self._putters[channel_id]:
+            del self._channels[channel_id]
+        if putters := channel.putters:
             self._wakeup_next(putters)
         return message
 
+    def delete(self, channel_id: MultiplexerChannelId) -> None:
+        """Delete a channel queue."""
+        self._channels.pop(channel_id, None)
+        self._order.pop(channel_id, None)
+
     def empty(self, channel_id: MultiplexerChannelId) -> bool:
         """Empty the queue."""
-        return self._bucket_sizes[channel_id] == 0
+        return self._channels[channel_id].total_bytes == 0
 
     def size(self, channel_id: MultiplexerChannelId) -> int:
         """Return the size of the channel queue in bytes."""
-        return self._bucket_sizes[channel_id]
+        return self._channels[channel_id].total_bytes
 
     def full(self, channel_id: MultiplexerChannelId) -> bool:
         """Return True if the channel queue is full."""
-        return self._bucket_sizes[channel_id] >= self._channel_size_limit
+        return self._channels[channel_id].total_bytes >= self._channel_size_limit
