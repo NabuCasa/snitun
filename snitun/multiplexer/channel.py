@@ -11,6 +11,7 @@ import os
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from ..utils.asyncio import asyncio_timeout
 from ..utils.ipaddress import ip_address_to_bytes
+from .const import INCOMING_QUEUE_MAX_BYTES_CHANNEL
 from .message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
@@ -18,6 +19,7 @@ from .message import (
     MultiplexerChannelId,
     MultiplexerMessage,
 )
+from .queue import MultiplexerQueue
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,7 +37,7 @@ class MultiplexerChannel:
         throttling: float | None = None,
     ) -> None:
         """Initialize Multiplexer Channel."""
-        self._input: asyncio.Queue[MultiplexerMessage] = asyncio.Queue(8000)
+        self._input = MultiplexerQueue(INCOMING_QUEUE_MAX_BYTES_CHANNEL)
         self._output = output
         self._id = channel_id or MultiplexerChannelId(os.urandom(16))
         self._ip_address = ip_address
@@ -55,7 +57,7 @@ class MultiplexerChannel:
     @property
     def healthy(self) -> bool:
         """Return True if a error is occurse."""
-        return self._input.full()
+        return self._input.full(self.id)
 
     @property
     def closing(self) -> bool:
@@ -66,7 +68,7 @@ class MultiplexerChannel:
         """Close channel on next run."""
         self._closing = True
         with suppress(asyncio.QueueFull):
-            self._input.put_nowait(None)
+            self._input.put_nowait(self.id, None)
 
     async def write(self, data: bytes) -> None:
         """Send data to peer."""
@@ -83,7 +85,7 @@ class MultiplexerChannel:
 
         try:
             async with asyncio_timeout.timeout(5):
-                await self._output.put(message)
+                await self._output.put(self.id, message)
         except TimeoutError:
             _LOGGER.debug("Can't write to peer transport")
             raise MultiplexerTransportError from None
@@ -94,7 +96,7 @@ class MultiplexerChannel:
 
     async def read(self) -> MultiplexerMessage:
         """Read data from peer."""
-        if self._closing and self._input.empty():
+        if self._closing and self._input.empty(self.id):
             message = None
         else:
             message = await self._input.get()
@@ -123,6 +125,6 @@ class MultiplexerChannel:
             return
 
         try:
-            self._input.put_nowait(message)
+            self._input.put_nowait(self.id, message)
         except asyncio.QueueFull:
             _LOGGER.warning("Channel %s input is full", self._id)

@@ -19,6 +19,7 @@ from ..exceptions import (
 from ..utils.asyncio import asyncio_timeout
 from ..utils.ipaddress import bytes_to_ip_address
 from .channel import MultiplexerChannel
+from .const import OUTGOING_QUEUE_MAX_BYTES_CHANNEL
 from .crypto import CryptoTransport
 from .message import (
     CHANNEL_FLOW_CLOSE,
@@ -28,6 +29,7 @@ from .message import (
     MultiplexerChannelId,
     MultiplexerMessage,
 )
+from .queue import MultiplexerQueue
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -74,7 +76,7 @@ class Multiplexer:
         self._reader = reader
         self._writer = writer
         self._loop = asyncio.get_event_loop()
-        self._queue: asyncio.Queue[MultiplexerMessage] = asyncio.Queue(12000)
+        self._queue = MultiplexerQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
         self._healthy = asyncio.Event()
         self._processing_task = self._loop.create_task(self._runner())
         self._channels: dict[MultiplexerChannelId, MultiplexerChannel] = {}
@@ -334,7 +336,7 @@ class Multiplexer:
 
         try:
             async with asyncio_timeout.timeout(5):
-                await self._queue.put(message)
+                await self._queue.put(channel.id, message)
         except TimeoutError:
             raise MultiplexerTransportError from None
 
@@ -348,7 +350,7 @@ class Multiplexer:
 
         try:
             async with asyncio_timeout.timeout(5):
-                await self._queue.put(message)
+                await self._queue.put(channel.id, message)
         except TimeoutError:
             raise MultiplexerTransportError from None
         finally:
