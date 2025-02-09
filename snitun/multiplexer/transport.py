@@ -55,6 +55,7 @@ class ChannelTransport(Transport):
         self._protocol: asyncio.BufferedProtocol | None = None
         self._pause_future: asyncio.Future[None] | None = None
         self._reader_task: asyncio.Task[None] | None = None
+        self._protocol_paused: bool = False
         super().__init__(extra={"peername": (str(channel.ip_address), 0)})
 
     def start_reader(self) -> None:
@@ -86,6 +87,30 @@ class ChannelTransport(Transport):
         """Write data to the channel."""
         if not self._channel.closing:
             self._channel.write_no_wait(data)
+        if self._channel.should_pause():
+            if not self._protocol_paused:
+                self._call_protocol_method("pause_writing")
+                self._protocol_paused = True
+        elif self._protocol_paused:
+            self._call_protocol_method("resume_writing")
+            self._protocol.resume_writing()
+            self._protocol_paused = False
+
+    def _call_protocol_method(self, method_name: str) -> None:
+        """Call a method on the protocol."""
+        try:
+            getattr(self._protocol, method_name)()
+        except (SystemExit, KeyboardInterrupt):
+            raise
+        except BaseException as exc:  # noqa: BLE001
+            self._loop.call_exception_handler(
+                {
+                    "message": f"protocol.{method_name}() failed",
+                    "exception": exc,
+                    "transport": self,
+                    "protocol": self._protocol,
+                },
+            )
 
     async def wait_for_close(self) -> None:
         """Wait for the transport to close."""
