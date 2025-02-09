@@ -29,7 +29,7 @@ async def test_stopping_transport_reader_does_not_swallow_cancellation(
 ) -> None:
     """Test that stopping transport does not swallow cancellation."""
     channel = await multiplexer_server.create_channel(IP_ADDR)
-    transport = ChannelTransport(channel)
+    transport = ChannelTransport(channel, multiplexer_server)
     transport.start_reader()
     task = asyncio.create_task(transport.stop_reader())
     await asyncio.sleep(0)
@@ -49,7 +49,7 @@ async def test_channel_read_on_closed_channel(
     ):
         channel = await multiplexer_server.create_channel(IP_ADDR)
     with patch.object(channel, "read", side_effect=MultiplexerTransportClose):
-        transport = ChannelTransport(channel)
+        transport = ChannelTransport(channel, multiplexer_server)
         transport.start_reader()
         await asyncio.sleep(0)
 
@@ -79,7 +79,7 @@ async def test_pausing_and_resuming_the_transport(
             return self.buffer
 
     protocol = _MockProtocol()
-    transport = ChannelTransport(channel)
+    transport = ChannelTransport(channel, multiplexer_server)
     transport.set_protocol(protocol)
     transport.pause_reading()
     assert transport.is_reading() is False
@@ -109,7 +109,7 @@ async def test_exception_channel_read(
     ):
         channel = await multiplexer_server.create_channel(IP_ADDR)
     with patch.object(channel, "read", side_effect=Exception):
-        transport = ChannelTransport(channel)
+        transport = ChannelTransport(channel, multiplexer_server)
         transport.start_reader()
         await asyncio.sleep(0)
 
@@ -134,6 +134,6 @@ async def test_keyboard_interrupt_channel_read_eager(
     with (
         patch.object(channel, "read", side_effect=SystemExit),
     ):
-        transport = ChannelTransport(channel)
+        transport = ChannelTransport(channel, multiplexer_server)
         with pytest.raises(SystemExit):
             transport.start_reader()

@@ -63,7 +63,7 @@ class ChannelConnector(BaseConnector):
     ) -> ResponseHandler:
         """Create connection."""
         channel = await self._multiplexer_server.create_channel(self._ip_address)
-        transport = ChannelTransport(channel)
+        transport = ChannelTransport(channel, self._multiplexer_server)
         transport.start_reader()
         protocol = ResponseHandlerWithTransportReader(channel_transport=transport)
         try:

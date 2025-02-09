@@ -143,14 +143,14 @@ async def test_connector_keep_alive_works(
     connector = helpers.ChannelConnector(multiplexer_server, client_ssl_context)
     session = aiohttp.ClientSession(connector=connector)
 
-    server_channel_transport: ChannelTransport | None = None
+    client_channel_transport: ChannelTransport | None = None
     transport_creation_calls = 0
 
-    def _save_transport(channel: MultiplexerChannel) -> ChannelTransport:
-        nonlocal server_channel_transport, transport_creation_calls
+    def _save_transport(channel: MultiplexerChannel, multiplexer: Multiplexer) -> ChannelTransport:
+        nonlocal client_channel_transport, transport_creation_calls
         transport_creation_calls += 1
-        server_channel_transport = ChannelTransport(channel)
-        return server_channel_transport
+        client_channel_transport = ChannelTransport(channel, multiplexer)
+        return client_channel_transport
 
     with patch.object(helpers, "ChannelTransport", _save_transport):
         for _ in range(10):
@@ -179,14 +179,14 @@ async def test_connector_multiple_connection(
     connector = helpers.ChannelConnector(multiplexer_server, client_ssl_context)
     session = aiohttp.ClientSession(connector=connector)
 
-    server_channel_transport: ChannelTransport | None = None
+    client_channel_transport: ChannelTransport | None = None
     transport_creation_calls = 0
 
-    def _save_transport(channel: MultiplexerChannel) -> ChannelTransport:
-        nonlocal server_channel_transport, transport_creation_calls
+    def _save_transport(channel: MultiplexerChannel, multiplexer: Multiplexer) -> ChannelTransport:
+        nonlocal client_channel_transport, transport_creation_calls
         transport_creation_calls += 1
-        server_channel_transport = ChannelTransport(channel)
-        return server_channel_transport
+        client_channel_transport = ChannelTransport(channel, multiplexer)
+        return client_channel_transport
 
     async def _make_request() -> None:
         response = await session.get("https://localhost:4242/")
@@ -217,14 +217,14 @@ async def test_connector_valid_url_empty_buffer_client_side(
     connector = helpers.ChannelConnector(multiplexer_server, client_ssl_context)
     session = aiohttp.ClientSession(connector=connector)
 
-    server_channel_transport: ChannelTransport | None = None
+    client_channel_transport: ChannelTransport | None = None
     transport_creation_calls = 0
 
-    def _save_transport(channel: MultiplexerChannel) -> ChannelTransport:
-        nonlocal server_channel_transport, transport_creation_calls
+    def _save_transport(channel: MultiplexerChannel, multiplexer: Multiplexer) -> ChannelTransport:
+        nonlocal client_channel_transport, transport_creation_calls
         transport_creation_calls += 1
-        server_channel_transport = ChannelTransport(channel)
-        return server_channel_transport
+        client_channel_transport = ChannelTransport(channel, multiplexer)
+        return client_channel_transport
 
     with patch.object(helpers, "ChannelTransport", _save_transport):
         response = await session.get("https://localhost:4242/")
@@ -233,13 +233,13 @@ async def test_connector_valid_url_empty_buffer_client_side(
         assert content == b"Hello world"
 
     # Simulate a broken buffering
-    assert server_channel_transport is not None
+    assert client_channel_transport is not None
     assert transport_creation_calls == 1
     ssl_proto = cast(
         asyncio.sslproto.SSLProtocol,
-        server_channel_transport.get_protocol(),
+        client_channel_transport.get_protocol(),
     )
-    assert server_channel_transport.is_reading
+    assert client_channel_transport.is_reading
     # Simulate a buffer is empty
     with (
         pytest.raises(RuntimeError, match=r"get_buffer\(\) returned an empty buffer"),
@@ -269,10 +269,10 @@ async def test_connector_valid_url_buffer_too_small_client_side(
     client_channel_transport: ChannelTransport | None = None
     transport_creation_calls = 0
 
-    def _save_transport(channel: MultiplexerChannel) -> ChannelTransport:
+    def _save_transport(channel: MultiplexerChannel, multiplexer: Multiplexer) -> ChannelTransport:
         nonlocal client_channel_transport, transport_creation_calls
         transport_creation_calls += 1
-        client_channel_transport = ChannelTransport(channel)
+        client_channel_transport = ChannelTransport(channel, multiplexer)
         return client_channel_transport
 
     with patch.object(helpers, "ChannelTransport", _save_transport):
@@ -321,10 +321,10 @@ async def test_connector_valid_url_failed_to_get_buffer_unexpected_exception_cli
     client_channel_transport: ChannelTransport | None = None
     transport_creation_calls = 0
 
-    def _save_transport(channel: MultiplexerChannel) -> ChannelTransport:
+    def _save_transport(channel: MultiplexerChannel, multiplexer: Multiplexer) -> ChannelTransport:
         nonlocal client_channel_transport, transport_creation_calls
         transport_creation_calls += 1
-        client_channel_transport = ChannelTransport(channel)
+        client_channel_transport = ChannelTransport(channel, multiplexer)
         return client_channel_transport
 
     with patch.object(helpers, "ChannelTransport", _save_transport):
@@ -371,10 +371,10 @@ async def test_connector_valid_url_buffer_updated_raises_client_side(
     client_channel_transport: ChannelTransport | None = None
     transport_creation_calls = 0
 
-    def _save_transport(channel: MultiplexerChannel) -> ChannelTransport:
+    def _save_transport(channel: MultiplexerChannel, multiplexer: Multiplexer) -> ChannelTransport:
         nonlocal client_channel_transport, transport_creation_calls
         transport_creation_calls += 1
-        client_channel_transport = ChannelTransport(channel)
+        client_channel_transport = ChannelTransport(channel, multiplexer)
         return client_channel_transport
 
     with patch.object(helpers, "ChannelTransport", _save_transport):
@@ -405,7 +405,7 @@ async def test_connector_valid_url_buffer_updated_raises_client_side(
     sys.version_info < (3, 11),
     reason="Requires Python 3.11+ for working start_tls",
 )
-async def test_connector_valid_url_empty_buffer_client_side(
+async def test_connector_valid_url_empty_buffer_server_side(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
     connector: Connector,
@@ -416,29 +416,29 @@ async def test_connector_valid_url_empty_buffer_client_side(
     connector = helpers.ChannelConnector(multiplexer_server, client_ssl_context)
     session = aiohttp.ClientSession(connector=connector)
 
-    client_channel_transport: ChannelTransport | None = None
+    server_channel_transport: ChannelTransport | None = None
     transport_creation_calls = 0
 
-    def _save_transport(channel: MultiplexerChannel) -> ChannelTransport:
-        nonlocal client_channel_transport, transport_creation_calls
+    def _save_transport(channel: MultiplexerChannel, multiplexer: Multiplexer) -> ChannelTransport:
+        nonlocal server_channel_transport, transport_creation_calls
         transport_creation_calls += 1
-        client_channel_transport = ChannelTransport(channel)
-        return client_channel_transport
+        server_channel_transport = ChannelTransport(channel, multiplexer)
+        return server_channel_transport
 
-    with patch.object(helpers, "ChannelTransport", _save_transport):
+    with patch("snitun.client.connector.ChannelTransport", _save_transport):
         response = await session.get("https://localhost:4242/")
         assert response.status == 200
         content = await response.read()
         assert content == b"Hello world"
 
     # Simulate a broken buffering
-    assert client_channel_transport is not None
+    assert server_channel_transport is not None
     assert transport_creation_calls == 1
     ssl_proto = cast(
         asyncio.sslproto.SSLProtocol,
-        client_channel_transport.get_protocol(),
+        server_channel_transport.get_protocol(),
     )
-    assert client_channel_transport.is_reading
+    assert server_channel_transport.is_reading
     # Simulate a buffer is empty
     with (
         pytest.raises(RuntimeError, match=r"get_buffer\(\) returned an empty buffer"),
@@ -471,10 +471,10 @@ async def test_connector_valid_url_failed_to_get_buffer_unexpected_exception_ser
     server_channel_transport: ChannelTransport | None = None
     transport_creation_calls = 0
 
-    def _save_transport(channel: MultiplexerChannel) -> ChannelTransport:
+    def _save_transport(channel: MultiplexerChannel, multiplexer: Multiplexer) -> ChannelTransport:
         nonlocal server_channel_transport, transport_creation_calls
         transport_creation_calls += 1
-        server_channel_transport = ChannelTransport(channel)
+        server_channel_transport = ChannelTransport(channel, multiplexer)
         return server_channel_transport
 
     with patch("snitun.client.connector.ChannelTransport", _save_transport):
@@ -527,10 +527,10 @@ async def test_connector_valid_url_buffer_updated_raises_server_side(
     server_channel_transport: ChannelTransport | None = None
     transport_creation_calls = 0
 
-    def _save_transport(channel: MultiplexerChannel) -> ChannelTransport:
+    def _save_transport(channel: MultiplexerChannel, multiplexer: Multiplexer) -> ChannelTransport:
         nonlocal server_channel_transport, transport_creation_calls
         transport_creation_calls += 1
-        server_channel_transport = ChannelTransport(channel)
+        server_channel_transport = ChannelTransport(channel, multiplexer)
         return server_channel_transport
 
     with patch("snitun.client.connector.ChannelTransport", _save_transport):

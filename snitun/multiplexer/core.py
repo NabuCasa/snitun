@@ -315,7 +315,7 @@ class Multiplexer:
 
             ip_address = bytes_to_ip_address(message.extra[1:5])
             channel = MultiplexerChannel(
-                self,
+                self._queue,
                 ip_address,
                 channel_id=message.id,
                 throttling=self._throttling,
@@ -352,7 +352,7 @@ class Multiplexer:
     ) -> MultiplexerChannel:
         """Create a new channel for transport."""
         channel = MultiplexerChannel(
-            self,
+            self._queue,
             ip_address,
             throttling=self._throttling,
         )

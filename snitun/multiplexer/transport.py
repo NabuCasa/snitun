@@ -12,6 +12,7 @@ import sys
 from ..exceptions import MultiplexerTransportClose
 from ..multiplexer.channel import MultiplexerChannel
 from ..utils.asyncio import create_eager_task
+from .core import Multiplexer
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ class ChannelTransport(Transport):
 
     _start_tls_compatible = True
 
-    def __init__(self, channel: MultiplexerChannel) -> None:
+    def __init__(self, channel: MultiplexerChannel, multiplexer: Multiplexer) -> None:
         """Initialize ChannelTransport."""
         self._channel = channel
         self._loop = asyncio.get_running_loop()
@@ -58,6 +59,7 @@ class ChannelTransport(Transport):
         self._reader_task: asyncio.Task[None] | None = None
         self._protocol_paused: bool = False
         self._cancel_resume_writing: Callable[[], None] | None = None
+        self._multiplexer = multiplexer
         super().__init__(extra={"peername": (str(channel.ip_address), 0)})
 
     def start_reader(self) -> None:
@@ -96,11 +98,13 @@ class ChannelTransport(Transport):
         """Write data to the channel."""
         if not self._channel.closing:
             self._channel.write_no_wait(data)
-        if not self._protocol_paused and self._channel.should_pause:
+        if not self._protocol_paused and self._multiplexer.should_pause:
             self._call_protocol_method("pause_writing")
             self._protocol_paused = True
             self._cancel_resume_writing = (
-                self._channel.register_resume_writing_callback(self._resume_protocol)
+                self._multiplexer.register_resume_writing_callback(
+                    self._resume_protocol,
+                )
             )
 
     def _resume_protocol(self) -> None:

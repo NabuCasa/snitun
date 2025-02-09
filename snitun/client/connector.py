@@ -81,7 +81,7 @@ class Connector:
             await multiplexer.delete_channel(channel)
             return
 
-        transport = ChannelTransport(channel)
+        transport = ChannelTransport(channel, multiplexer)
         transport.start_reader()
         # The request_handler is the aiohttp RequestHandler
         # that is generated from the protocol_factory that
