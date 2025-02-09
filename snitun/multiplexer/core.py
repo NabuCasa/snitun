@@ -34,6 +34,7 @@ _LOGGER = logging.getLogger(__name__)
 PEER_TCP_TIMEOUT = 90
 
 # |-----------------HEADER---------------------------------|
+# |------ID-----|--FLAG--|--SIZE--|---------EXTRA ---------|
 # |   16 bytes  | 1 byte | 4 bytes|       11 bytes         |
 # |--------------------------------------------------------|
 # All bytes are big-endian and unsigned
