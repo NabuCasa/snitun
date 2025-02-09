@@ -143,6 +143,9 @@ class Multiplexer:
                 await self._read_message(from_peer)
                 if self._throttling:
                     await asyncio.sleep(self._throttling)
+        except asyncio.CancelledError:
+            _LOGGER.debug("Receive canceling")
+            raise
         except (
             MultiplexerTransportClose,
             asyncio.IncompleteReadError,
@@ -163,7 +166,7 @@ class Multiplexer:
                 self._write_message(to_peer)
                 await self._writer.drain()
         except asyncio.CancelledError:
-            _LOGGER.debug("Receive canceling")
+            _LOGGER.debug("Write canceling")
             with suppress(OSError):
                 self._writer.write_eof()
                 await self._writer.drain()
