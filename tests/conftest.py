@@ -2,17 +2,24 @@
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+import ipaddress
 import logging
 import os
 import select
 import socket
+import ssl
 from threading import Thread
 from unittest.mock import patch
 
+from aiohttp import web
 import attr
 import pytest
+from pytest_aiohttp import AiohttpServer
+import trustme
 
+from snitun.client.connector import Connector
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
@@ -20,11 +27,16 @@ from snitun.server.listener_peer import PeerListener
 from snitun.server.listener_sni import SNIProxy
 from snitun.server.peer import Peer
 from snitun.server.peer_manager import PeerManager
+from snitun.utils.aiohttp_client import SniTunClientAioHttp
 from snitun.utils.asyncio import asyncio_timeout
 
 from .server.const_fernet import FERNET_TOKENS
 
 logging.basicConfig(level=logging.DEBUG)
+
+
+IP_ADDR = ipaddress.ip_address("8.8.8.8")
+BAD_ADDR = ipaddress.ip_address("8.8.1.1")
 
 
 @attr.s
@@ -58,27 +70,6 @@ async def test_server() -> AsyncGenerator[list[Client], None]:
         await client.close.wait()
 
     server = await asyncio.start_server(process_data, host="127.0.0.1", port="8866")
-
-    yield connections
-
-    server.close()
-
-
-@pytest.fixture
-async def test_endpoint() -> AsyncGenerator[list[Client], None]:
-    """Create a TCP test endpoint."""
-    connections = []
-
-    async def process_data(
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter,
-    ) -> None:
-        """Read data from client."""
-        client = Client(reader, writer)
-        connections.append(client)
-        await client.close.wait()
-
-    server = await asyncio.start_server(process_data, host="127.0.0.1", port="8822")
 
     yield connections
 
@@ -287,3 +278,99 @@ async def test_client_peer(peer_listener: PeerListener) -> AsyncGenerator[Client
     yield Client(reader, writer)
 
     writer.close()
+
+
+@pytest.fixture
+def tls_certificate_authority() -> trustme.CA:
+    return trustme.CA()
+
+
+@pytest.fixture
+def tls_certificate(tls_certificate_authority: trustme.CA) -> trustme.LeafCert:
+    return tls_certificate_authority.issue_cert(
+        "localhost",
+        "localhost.localdomain",
+        "127.0.0.1",
+        "::1",
+    )
+
+
+@pytest.fixture
+async def server_ssl_context(tls_certificate: trustme.LeafCert) -> ssl.SSLContext:
+    """Create a SSL context for the server."""
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    tls_certificate.configure_cert(context)
+    return context
+
+
+@pytest.fixture
+async def server_ssl_context_missing_cert() -> ssl.SSLContext:
+    """Create a SSL context for the server without a certificate."""
+    return ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+
+
+@pytest.fixture
+async def client_ssl_context(tls_certificate_authority: trustme.CA) -> ssl.SSLContext:
+    """Create a SSL context for the client."""
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    tls_certificate_authority.configure_trust(context)
+    return context
+
+
+@asynccontextmanager
+async def make_snitun_client_aiohttp(
+    aiohttp_server: AiohttpServer,
+    server_ssl_context: ssl.SSLContext,
+) -> SniTunClientAioHttp:
+    """Create a SniTunClientAioHttp."""
+    app = web.Application()
+    app.add_routes(
+        [
+            web.get("/", lambda _: web.Response(text="Hello world")),
+            web.get("/large_file", lambda _: web.Response(body=b"X" * 1024 * 1024 * 4)),
+        ],
+    )
+    server = await aiohttp_server(app)
+    client = SniTunClientAioHttp(server.runner, server_ssl_context, "127.0.0.1", "4242")
+    await client.start(whitelist=True)
+    client._connector.whitelist.add(IP_ADDR)
+    yield client
+    await client.stop()
+    await server.close()
+
+
+@pytest.fixture
+async def snitun_client_aiohttp(
+    aiohttp_server: AiohttpServer,
+    server_ssl_context: ssl.SSLContext,
+) -> AsyncGenerator[SniTunClientAioHttp, None]:
+    """Create a SniTunClientAioHttp."""
+    async with make_snitun_client_aiohttp(aiohttp_server, server_ssl_context) as client:
+        yield client
+
+
+@pytest.fixture
+async def snitun_client_aiohttp_missing_certificate(
+    aiohttp_server: AiohttpServer,
+    server_ssl_context_missing_cert: ssl.SSLContext,
+) -> AsyncGenerator[SniTunClientAioHttp, None]:
+    """Create a SniTunClientAioHttp with the certificate missing."""
+    async with make_snitun_client_aiohttp(
+        aiohttp_server,
+        server_ssl_context_missing_cert,
+    ) as client:
+        yield client
+
+
+@pytest.fixture
+async def connector(snitun_client_aiohttp: SniTunClientAioHttp) -> Connector:
+    """Create a connector."""
+    return snitun_client_aiohttp._connector
+
+
+@pytest.fixture
+async def connector_missing_certificate(
+    snitun_client_aiohttp_missing_certificate: SniTunClientAioHttp,
+) -> Connector:
+    """Create a connector."""
+    return snitun_client_aiohttp_missing_certificate._connector
