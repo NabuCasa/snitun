@@ -165,7 +165,6 @@ class Multiplexer:
                 await self._read_message()
                 self._ranged_timeout.reschedule()
                 if self._throttling is not None:
-                    _LOGGER.debug("Throttling read: %s", self._throttling)
                     await asyncio.sleep(self._throttling)
         except asyncio.CancelledError:
             _LOGGER.debug("Receive canceling")
