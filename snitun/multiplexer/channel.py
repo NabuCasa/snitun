@@ -34,7 +34,7 @@ class MultiplexerChannel:
         throttling: float | None = None,
     ) -> None:
         """Initialize Multiplexer Channel."""
-        self._input = asyncio.Queue(8000)
+        self._input: asyncio.Queue[MultiplexerMessage] = asyncio.Queue(8000)
         self._output = output
         self._id = channel_id or MultiplexerChannelId()
         self._ip_address = ip_address
@@ -75,7 +75,10 @@ class MultiplexerChannel:
             raise MultiplexerTransportClose
 
         # Create message
-        message = MultiplexerMessage(self._id, CHANNEL_FLOW_DATA, data)
+        message = tuple.__new__(
+            MultiplexerMessage,
+            (self._id, CHANNEL_FLOW_DATA, data, b""),
+        )
 
         try:
             async with asyncio_timeout.timeout(5):

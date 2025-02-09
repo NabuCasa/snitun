@@ -8,6 +8,7 @@ from contextlib import suppress
 import ipaddress
 import logging
 import os
+import struct
 from typing import Any
 
 from ..exceptions import (
@@ -31,6 +32,8 @@ from .message import (
 _LOGGER = logging.getLogger(__name__)
 
 PEER_TCP_TIMEOUT = 90
+
+HEADER_STRUCT = struct.Struct(">16sBI11s")
 
 
 class Multiplexer:
@@ -62,7 +65,7 @@ class Multiplexer:
         self._reader = reader
         self._writer = writer
         self._loop = asyncio.get_event_loop()
-        self._queue = asyncio.Queue(12000)
+        self._queue: asyncio.Queue[MultiplexerMessage] = asyncio.Queue(12000)
         self._healthy = asyncio.Event()
         self._processing_task = self._loop.create_task(self._runner())
         self._channels: dict[MultiplexerChannelId, MultiplexerChannel] = {}
@@ -205,14 +208,15 @@ class Multiplexer:
 
     def _write_message(self, message: MultiplexerMessage) -> None:
         """Write message to peer."""
-        header = message.id.bytes
-        header += message.flow_type.to_bytes(1, byteorder="big")
-        header += len(message.data).to_bytes(4, byteorder="big")
-        header += message.extra + os.urandom(11 - len(message.extra))
-
-        data = self._crypto.encrypt(header) + message.data
+        id_, flow_type, data, extra = message
+        header = HEADER_STRUCT.pack(
+            id_.bytes,
+            flow_type,
+            len(data),
+            extra + os.urandom(11 - len(extra)),
+        )
         try:
-            self._writer.write(data)
+            self._writer.write(self._crypto.encrypt(header) + data)
         except RuntimeError:
             raise MultiplexerTransportClose from None
 

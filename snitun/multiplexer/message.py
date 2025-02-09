@@ -2,6 +2,7 @@
 
 import binascii
 import os
+from typing import NamedTuple
 
 import attr
 
@@ -22,7 +23,7 @@ CHANNEL_FLOW_ALL = [
 class MultiplexerChannelId:
     """Represent a channel ID aka multiplexer stream."""
 
-    bytes: bytes = attr.ib(default=attr.Factory(lambda: os.urandom(16)), eq=True)
+    bytes: "bytes" = attr.ib(default=attr.Factory(lambda: os.urandom(16)), eq=True)
     hex: str = attr.ib(
         default=attr.Factory(
             lambda self: binascii.hexlify(self.bytes).decode("utf-8"),
@@ -36,11 +37,10 @@ class MultiplexerChannelId:
         return self.hex
 
 
-@attr.s(frozen=True, slots=True)
-class MultiplexerMessage:
+class MultiplexerMessage(NamedTuple):
     """Represent a message from multiplexer stream."""
 
-    id: MultiplexerChannelId = attr.ib()
-    flow_type: int = attr.ib(validator=attr.validators.in_(CHANNEL_FLOW_ALL))
-    data: bytes = attr.ib(default=b"")
-    extra: bytes = attr.ib(default=b"")
+    id: MultiplexerChannelId
+    flow_type: int  # one of CHANNEL_FLOW_ALL
+    data: bytes = b""
+    extra: bytes = b""
