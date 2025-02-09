@@ -50,7 +50,6 @@ class MultiplexerChannel:
         """Initialize Multiplexer Channel."""
         self._input: asyncio.Queue[MultiplexerMessage] = asyncio.Queue(8000)
         self._output = multiplexer.queue
-        self._output_max = self._output.maxsize
         self._id = channel_id or MultiplexerChannelId(os.urandom(16))
         self._ip_address = ip_address
         self._throttling = throttling
