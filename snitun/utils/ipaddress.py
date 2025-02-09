@@ -1,9 +1,11 @@
 """Utils for handling IP address."""
 
+from functools import lru_cache
 import ipaddress
 import socket
 
 
+@lru_cache
 def bytes_to_ip_address(data: bytes) -> ipaddress.IPv4Address:
     """Convert bytes into a IP address."""
     try:
@@ -12,6 +14,7 @@ def bytes_to_ip_address(data: bytes) -> ipaddress.IPv4Address:
         return ipaddress.ip_address(0)
 
 
+@lru_cache
 def ip_address_to_bytes(ip_address: ipaddress.IPv4Address) -> bytes:
     """Convert a IP address object into bytes."""
     try:

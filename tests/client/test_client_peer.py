@@ -1,9 +1,10 @@
 """Test Client Peer connections."""
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 import ipaddress
 import os
+import sys
 
 import pytest
 
@@ -31,7 +32,7 @@ async def test_init_client_peer(
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -62,7 +63,7 @@ async def test_init_client_peer_with_alias(
     assert not peer_manager.peer_available("localhost")
     assert not peer_manager.peer_available("localhost.custom")
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -99,7 +100,7 @@ async def test_init_client_peer_invalid_token(
 
     assert not peer_manager.peer_available("localhost")
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=-1)
+    valid = datetime.now(tz=UTC) + timedelta(days=-1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -122,7 +123,7 @@ async def test_flow_client_peer(
 
     assert not peer_manager.peer_available("localhost")
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -170,7 +171,7 @@ async def test_close_client_peer(
 
     assert not peer_manager.peer_available("localhost")
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -222,7 +223,7 @@ async def test_init_client_peer_wait(
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -256,7 +257,7 @@ async def test_init_client_peer_throttling(
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -269,6 +270,76 @@ async def test_init_client_peer_throttling(
     assert client._multiplexer._throttling == 0.002
 
     await client.stop()
+    await asyncio.sleep(0.1)
+    assert not client.is_connected
+    assert not peer_manager.peer_available("localhost")
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="Requires Python 3.11+ required to avoid swallowing cancellation",
+)
+async def test_init_client_peer_stop_does_not_swallow_cancellation(
+    peer_listener: PeerListener,
+    peer_manager: PeerManager,
+    test_endpoint: list[Client],
+) -> None:
+    """Test stopping the peer does not swallow cancellation."""
+    client = ClientPeer("127.0.0.1", "8893")
+    connector = Connector("127.0.0.1", "8822")
+
+    assert not client.is_connected
+    assert not peer_manager.peer_available("localhost")
+
+    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    hostname = "localhost"
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
+
+    await client.start(connector, fernet_token, aes_key, aes_iv)
+    await asyncio.sleep(0.1)
+    assert peer_manager.peer_available("localhost")
+    assert client.is_connected
+
+    task = asyncio.create_task(client._stop_handler())
+    await asyncio.sleep(0)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    await asyncio.sleep(0.1)
+    assert not client.is_connected
+    assert not peer_manager.peer_available("localhost")
+
+
+async def test_init_client_peer_stop_twice(
+    peer_listener: PeerListener,
+    peer_manager: PeerManager,
+    test_endpoint: list[Client],
+) -> None:
+    """Test calling stop twice raises an error."""
+    client = ClientPeer("127.0.0.1", "8893")
+    connector = Connector("127.0.0.1", "8822")
+
+    assert not client.is_connected
+    assert not peer_manager.peer_available("localhost")
+
+    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    hostname = "localhost"
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
+
+    await client.start(connector, fernet_token, aes_key, aes_iv)
+    await asyncio.sleep(0.1)
+    assert peer_manager.peer_available("localhost")
+    assert client.is_connected
+
+    await client.stop()
+    with pytest.raises(RuntimeError):
+        await client.stop()
+
     await asyncio.sleep(0.1)
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")

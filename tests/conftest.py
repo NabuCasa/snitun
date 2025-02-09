@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 import logging
 import os
 import select
@@ -39,7 +39,7 @@ class Client:
 @pytest.fixture
 def raise_timeout() -> Generator[None, None, None]:
     """Raise timeout on async-timeout."""
-    with patch.object(asyncio_timeout, "timeout", side_effect=asyncio.TimeoutError()):
+    with patch.object(asyncio_timeout, "timeout", side_effect=TimeoutError()):
         yield
 
 
@@ -255,7 +255,7 @@ async def peer(
     multiplexer_server: Multiplexer,
 ) -> Peer:
     """Init a peer with transport."""
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     peer = Peer("localhost", valid, os.urandom(32), os.urandom(16))
     peer._crypto = crypto_transport
     peer._multiplexer = multiplexer_server

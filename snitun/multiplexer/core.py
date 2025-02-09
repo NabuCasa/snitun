@@ -8,6 +8,7 @@ from contextlib import suppress
 import ipaddress
 import logging
 import os
+import struct
 import sys
 from typing import Any
 
@@ -32,6 +33,17 @@ from .message import (
 _LOGGER = logging.getLogger(__name__)
 
 PEER_TCP_TIMEOUT = 90
+
+# |-----------------HEADER---------------------------------|
+# |------ID-----|--FLAG--|--SIZE--|---------EXTRA ---------|
+# |   16 bytes  | 1 byte | 4 bytes|       11 bytes         |
+# |--------------------------------------------------------|
+# >:   All bytes are big-endian and unsigned
+# 16s: 16 bytes: Channel ID - random
+# B:   1 byte:   Flow type  - 1: NEW, 2: DATA, 4: CLOSE, 8: PING
+# I:   4 bytes:  Data size  - 0-4294967295
+# 11s: 11 bytes: Extra      - data + random padding
+HEADER_STRUCT = struct.Struct(">16sBI11s")
 
 
 class Multiplexer:
@@ -64,7 +76,7 @@ class Multiplexer:
         self._reader = reader
         self._writer = writer
         self._loop = asyncio.get_event_loop()
-        self._queue = asyncio.Queue(12000)
+        self._queue: asyncio.Queue[MultiplexerMessage] = asyncio.Queue(12000)
         self._healthy = asyncio.Event()
         self._healthy.set()
         self._read_task = self._loop.create_task(self._read_from_peer_loop())
@@ -106,7 +118,7 @@ class Multiplexer:
         try:
             self._write_message(
                 MultiplexerMessage(
-                    MultiplexerChannelId(),
+                    MultiplexerChannelId(os.urandom(16)),
                     CHANNEL_FLOW_PING,
                     b"",
                     b"ping",
@@ -117,7 +129,7 @@ class Multiplexer:
             async with asyncio_timeout.timeout(PEER_TCP_TIMEOUT):
                 await self._healthy.wait()
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             _LOGGER.error("Timeout error while pinging peer")
             self._loop.call_soon(self.shutdown)
             raise MultiplexerTransportError from None
@@ -168,7 +180,7 @@ class Multiplexer:
                 and current_task.cancelling()
             ):
                 raise
-        except (asyncio.TimeoutError, TimeoutError):
+        except TimeoutError:
             _LOGGER.debug("Receive canceling")
             with suppress(OSError):
                 self._writer.write_eof()
@@ -186,14 +198,15 @@ class Multiplexer:
 
     def _write_message(self, message: MultiplexerMessage) -> None:
         """Write message to peer."""
-        header = message.id.bytes
-        header += message.flow_type.to_bytes(1, byteorder="big")
-        header += len(message.data).to_bytes(4, byteorder="big")
-        header += message.extra + os.urandom(11 - len(message.extra))
-
-        data = self._crypto.encrypt(header) + message.data
+        id_, flow_type, data, extra = message
+        header = HEADER_STRUCT.pack(
+            id_.bytes,
+            flow_type,
+            len(data),
+            extra + os.urandom(11 - len(extra)),
+        )
         try:
-            self._writer.write(data)
+            self._writer.write(self._crypto.encrypt(header) + data)
         except RuntimeError:
             raise MultiplexerTransportClose from None
 
@@ -203,12 +216,10 @@ class Multiplexer:
             raise MultiplexerTransportClose
 
         try:
-            header = self._crypto.decrypt(header)
-            channel_id = header[:16]
-            flow_type = header[16]
-            data_size = int.from_bytes(header[17:21], byteorder="big")
-            extra = header[21:]
-        except (IndexError, MultiplexerTransportDecrypt):
+            channel_id, flow_type, data_size, extra = HEADER_STRUCT.unpack(
+                self._crypto.decrypt(header),
+            )
+        except (struct.error, MultiplexerTransportDecrypt):
             _LOGGER.warning("Wrong message header received")
             return
 
@@ -218,11 +229,14 @@ class Multiplexer:
         else:
             data = b""
 
-        message = MultiplexerMessage(
-            MultiplexerChannelId(channel_id),
-            flow_type,
-            data,
-            extra,
+        message = tuple.__new__(
+            MultiplexerMessage,
+            (
+                MultiplexerChannelId(channel_id),
+                flow_type,
+                data,
+                extra,
+            ),
         )
 
         # Process message to queue
@@ -302,7 +316,7 @@ class Multiplexer:
         try:
             async with asyncio_timeout.timeout(5):
                 await self._queue.put(message)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise MultiplexerTransportError from None
 
         self._channels[channel.id] = channel
@@ -316,7 +330,7 @@ class Multiplexer:
         try:
             async with asyncio_timeout.timeout(5):
                 await self._queue.put(message)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise MultiplexerTransportError from None
         finally:
             self._channels.pop(channel.id, None)

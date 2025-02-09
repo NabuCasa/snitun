@@ -1,7 +1,7 @@
 """Tests for the server worker."""
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 import hashlib
 import os
 import socket
@@ -34,7 +34,7 @@ def test_peer_connection(
 ) -> None:
     """Run a full flow of with a peer."""
     worker = ServerWorker(FERNET_TOKENS)
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -65,7 +65,7 @@ def test_peer_connection_disconnect(
 ) -> None:
     """Run a full flow of with a peer & disconnect."""
     worker = ServerWorker(FERNET_TOKENS)
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -100,7 +100,7 @@ def test_sni_connection(
 ) -> None:
     """Run a full flow of with a peer."""
     worker = ServerWorker(FERNET_TOKENS)
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"

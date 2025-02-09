@@ -260,7 +260,7 @@ async def test_multiplexer_close_channel_full(multiplexer_client: Multiplexer) -
 
     assert multiplexer_client._channels
 
-    with patch.object(asyncio_timeout, "timeout", side_effect=asyncio.TimeoutError()):
+    with patch.object(asyncio_timeout, "timeout", side_effect=TimeoutError()):
         with pytest.raises(MultiplexerTransportError):
             channel = await multiplexer_client.delete_channel(channel)
     await asyncio.sleep(0.1)

@@ -1,7 +1,7 @@
 """Test peer manager."""
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 import os
 
 import pytest
@@ -27,7 +27,7 @@ async def test_init_new_peer() -> None:
     """Init a new peer."""
     manager = PeerManager(FERNET_TOKENS)
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -52,7 +52,7 @@ async def test_init_new_peer_with_alias() -> None:
     """Init a new peer with custom domain."""
     manager = PeerManager(FERNET_TOKENS)
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -91,7 +91,7 @@ async def test_init_new_peer_not_valid_time() -> None:
     """Init a new peer."""
     manager = PeerManager(FERNET_TOKENS)
 
-    valid = datetime.now(tz=timezone.utc) - timedelta(days=1)
+    valid = datetime.now(tz=UTC) - timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -113,7 +113,7 @@ async def test_init_new_peer_with_removing() -> None:
     """Init a new peer."""
     manager = PeerManager(FERNET_TOKENS)
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -144,7 +144,7 @@ async def test_init_new_peer_with_events() -> None:
 
     manager = PeerManager(FERNET_TOKENS, event_callback=_events)
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -178,7 +178,7 @@ async def test_init_new_peer_throttling() -> None:
     """Init a new peer."""
     manager = PeerManager(FERNET_TOKENS, throttling=500)
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -200,7 +200,7 @@ async def test_init_dual_peer_with_removing() -> None:
     """Init a new peer."""
     manager = PeerManager(FERNET_TOKENS)
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
@@ -241,7 +241,7 @@ async def test_init_dual_peer_with_multiplexer(multiplexer_client: Multiplexer) 
     """Init a new peer."""
     manager = PeerManager(FERNET_TOKENS)
 
-    valid = datetime.now(tz=timezone.utc) + timedelta(days=1)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
     hostname = "localhost"
