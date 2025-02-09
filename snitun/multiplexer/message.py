@@ -1,7 +1,6 @@
 """Multiplexer message handling."""
 
 import binascii
-import os
 from typing import NamedTuple
 from functools import cached_property
 
