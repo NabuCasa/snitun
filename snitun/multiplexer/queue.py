@@ -26,6 +26,7 @@ class MultiplexerQueue:
             deque[MultiplexerMessage | None],
         ] = defaultdict(deque)
         self._bucket_sizes: defaultdict[MultiplexerChannelId, int] = defaultdict(int)
+        # order controls which channel_id to get next
         self._order: OrderedDict[MultiplexerChannelId, None] = OrderedDict()
         self._total_messages = 0
         self._getters: deque[asyncio.Future[None]] = deque()
@@ -90,7 +91,7 @@ class MultiplexerQueue:
 
         """
         # Based on asyncio.Queue.get()
-        while not self._order:
+        while not self._order:  # order is which channel_id to get next
             getter = self._loop.create_future()
             self._getters.append(getter)
             try:
@@ -100,6 +101,7 @@ class MultiplexerQueue:
                 with contextlib.suppress(ValueError):
                     # Clean self._getters from canceled getters.
                     self._getters.remove(getter)
+                # order is which channel_id to get next
                 if self._order and not getter.cancelled():
                     # We were woken up by put_nowait(), but can't take
                     # the call.  Wake up the next in line.
