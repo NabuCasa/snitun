@@ -83,12 +83,7 @@ class Multiplexer:
 
         Return a awaitable object.
         """
-        return asyncio.create_task(
-            asyncio.wait(
-                (self._read_task, self._write_task),
-                return_when=asyncio.ALL_COMPLETED,
-            ),
-        )
+        return self._write_task
 
     def shutdown(self) -> None:
         """Shutdown connection."""
