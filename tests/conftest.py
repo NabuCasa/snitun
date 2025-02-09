@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 import ipaddress
 import logging
@@ -14,7 +15,6 @@ from threading import Thread
 from unittest.mock import patch
 
 from aiohttp import web
-import attr
 import pytest
 from pytest_aiohttp import AiohttpServer
 import trustme
@@ -39,13 +39,13 @@ IP_ADDR = ipaddress.ip_address("8.8.8.8")
 BAD_ADDR = ipaddress.ip_address("8.8.1.1")
 
 
-@attr.s
+@dataclass
 class Client:
     """Represent a TCP client object."""
 
-    reader = attr.ib(type=asyncio.StreamReader)
-    writer = attr.ib(type=asyncio.StreamWriter)
-    close = attr.ib(type=asyncio.Event, default=asyncio.Event())
+    reader: asyncio.StreamReader
+    writer: asyncio.StreamWriter
+    close: asyncio.Event = field(default_factory=asyncio.Event)
 
 
 @pytest.fixture
