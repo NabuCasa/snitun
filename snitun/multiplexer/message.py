@@ -19,7 +19,7 @@ CHANNEL_FLOW_ALL = [
 ]
 
 
-@attr.s(frozen=True, slots=True, eq=True, hash=True, cache_hash=True)
+@attr.s(frozen=True, eq=True, hash=True, cache_hash=True)
 class MultiplexerChannelId:
     """Represent a channel ID aka multiplexer stream."""
 
