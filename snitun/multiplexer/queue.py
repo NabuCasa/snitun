@@ -7,6 +7,7 @@ from collections import OrderedDict, defaultdict, deque
 import contextlib
 from dataclasses import dataclass, field
 
+from .const import HEADER_SIZE
 from .message import MultiplexerChannelId, MultiplexerMessage
 
 
@@ -21,7 +22,7 @@ class _ChannelQueue:
 
 def _effective_size(message: MultiplexerMessage | None) -> int:
     """Return the effective size of the message."""
-    return 1 if message is None else len(message.data)
+    return HEADER_SIZE if message is None else HEADER_SIZE + len(message.data)
 
 
 class MultiplexerSingleChannelQueue(asyncio.Queue[MultiplexerMessage | None]):

@@ -7,6 +7,7 @@ import pytest
 
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer.channel import MultiplexerChannel
+from snitun.multiplexer import channel as channel_module
 from snitun.multiplexer.message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
@@ -17,6 +18,7 @@ from snitun.multiplexer.message import (
 from snitun.multiplexer.queue import MultiplexerMultiChannelQueue
 from snitun.multiplexer.const import INCOMING_QUEUE_MAX_BYTES_CHANNEL, OUTGOING_QUEUE_MAX_BYTES_CHANNEL
 from snitun.utils.ipaddress import ip_address_to_bytes
+from unittest.mock import patch
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
@@ -142,11 +144,13 @@ async def test_write_data_peer_error(raise_timeout: None) -> None:
 async def test_message_transport_never_lock() -> None:
     """Message transport should never lock down even when it goes unhealthy."""
     output = MultiplexerMultiChannelQueue(1)
-    channel = MultiplexerChannel(output, IP_ADDR)
+    with patch.object(channel_module,"INCOMING_QUEUE_MAX_BYTES_CHANNEL", 1):
+        channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
     assert not channel.unhealthy
+    assert not channel.closing
 
-    for _ in range(1, 10000):
+    for _ in range(3):
         channel.message_transport(channel.init_close())
 
     assert channel.unhealthy

@@ -120,7 +120,7 @@ class MultiplexerChannel:
         return MultiplexerMessage(self._id, CHANNEL_FLOW_NEW, b"", extra)
 
     def message_transport(self, message: MultiplexerMessage) -> None:
-        """Only for internal ussage of core transport."""
+        """Only for internal usage of core transport."""
         if self._closing:
             return
 
