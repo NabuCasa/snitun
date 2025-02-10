@@ -31,7 +31,14 @@ def _make_mock_message(
 
 
 async def test_single_channel_queue() -> None:
-    """Test MultiplexerSingleChannelQueue."""
+    """Test MultiplexerSingleChannelQueue.
+
+    Note that the queue is allowed to go over by one message
+    because we are subclassing asyncio.Queue and it is not
+    possible to prevent this without reimplementing the whole
+    class, which is not worth it since its ok if we go over by
+    one message.
+    """
     queue = MultiplexerSingleChannelQueue()
     channel_id = _make_mock_channel_id()
     msg = _make_mock_message(channel_id)
