@@ -144,11 +144,12 @@ async def test_message_transport_never_lock() -> None:
     output = MultiplexerMultiChannelQueue(1)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
+    assert not channel.healthy # health means its NOT healthy
 
     for _ in range(1, 10000):
         channel.message_transport(channel.init_close())
 
-    assert channel.healthy
+    assert channel.healthy # health means its NOT healthy
 
 
 async def test_write_throttling(event_loop: asyncio.AbstractEventLoop) -> None:

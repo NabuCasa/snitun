@@ -56,8 +56,13 @@ class MultiplexerChannel:
 
     @property
     def healthy(self) -> bool:
-        """Return True if a error is occurred."""
-        return not self._input.full()
+        """Return True if a error is occurred.
+
+        This property is confusingly named.
+
+        It means its NOT healthy, that that it is healthy.
+        """
+        return self._input.full()
 
     @property
     def closing(self) -> bool:
