@@ -60,8 +60,7 @@ class MultiplexerQueue:
         """Put a message in the queue."""
         # Based on asyncio.Queue.put()
         channel = self._channels[channel_id]
-
-        while self.full(channel_id):
+        while channel.total_bytes >= self._channel_size_limit:  # full
             putter = self._loop.create_future()
             channel.putters.append(putter)
             try:
@@ -76,7 +75,7 @@ class MultiplexerQueue:
                     # the call.  Wake up the next in line.
                     self._wakeup_next(channel.putters)
                 raise
-        self.put_nowait(channel_id, message)
+        self._put(channel_id, channel, message)
 
     def put_nowait(
         self,
@@ -84,8 +83,16 @@ class MultiplexerQueue:
         message: MultiplexerMessage | None,
     ) -> None:
         """Put a message in the queue."""
+        self._put(channel_id, self._channels[channel_id], message)
+
+    def _put(
+        self,
+        channel_id: MultiplexerChannelId,
+        channel: _ChannelQueue,
+        message: MultiplexerMessage | None,
+    ) -> None:
+        """Put a message in the queue."""
         size = 0 if message is None else len(message.data)
-        channel = self._channels[channel_id]
         if channel.total_bytes >= self._channel_size_limit:
             raise asyncio.QueueFull
         channel.queue.append(message)
