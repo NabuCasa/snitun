@@ -158,3 +158,33 @@ async def test_multi_channel_queue_round_robin_get() -> None:
 
     with pytest.raises(asyncio.QueueEmpty):
         queue.get_nowait()
+
+
+async def test_concurrent_get() -> None:
+    """Test MultiplexerMultiChannelQueue concurrent get."""
+    msg_size = MOCK_MSG_SIZE + HEADER_SIZE
+    queue = MultiplexerMultiChannelQueue(
+        msg_size * 2,
+    )  # Max two mock messages per channel
+    channel_one_id = _make_mock_channel_id()
+    channel_two_id = _make_mock_channel_id()
+    channel_three_id = _make_mock_channel_id()
+    channel_one_msg = _make_mock_message(channel_one_id)
+    channel_two_msg = _make_mock_message(channel_two_id)
+    channel_three_msg = _make_mock_message(channel_three_id)
+
+    fetch_tasks = [asyncio.create_task(queue.get()) for _ in range(3)]
+    await asyncio.sleep(0)
+
+    await queue.put(channel_one_id, channel_one_msg)
+    await queue.put(channel_two_id, channel_two_msg)
+    await queue.put(channel_three_id, channel_three_msg)
+
+    fetched_msgs = await asyncio.gather(*fetch_tasks)
+
+    assert channel_one_msg in fetched_msgs
+    assert channel_two_msg in fetched_msgs
+    assert channel_three_msg in fetched_msgs
+
+    with pytest.raises(asyncio.QueueEmpty):
+        queue.get_nowait()
