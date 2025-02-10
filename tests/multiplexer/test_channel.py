@@ -7,6 +7,7 @@ import pytest
 
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer.channel import MultiplexerChannel
+from snitun.multiplexer.const import INCOMING_QUEUE_MAX_BYTES_CHANNEL, OUTGOING_QUEUE_MAX_BYTES_CHANNEL, HEADER_SIZE
 from snitun.multiplexer import channel as channel_module
 from snitun.multiplexer.message import (
     CHANNEL_FLOW_CLOSE,
@@ -162,16 +163,22 @@ async def test_write_throttling(event_loop: asyncio.AbstractEventLoop) -> None:
     output = MultiplexerMultiChannelQueue(500)
     channel = MultiplexerChannel(output, IP_ADDR, throttling=0.1)
     assert isinstance(channel.id, MultiplexerChannelId)
+    message = b"test"
+    message_size = HEADER_SIZE + len(message)
+
 
     async def _write_background():
         """Write message in background."""
         for _ in range(1, 10000):
-            await channel.write(b"test")
+            await channel.write(message)
 
     background_task = loop.create_task(_write_background())
 
     await asyncio.sleep(0.3)
     assert not background_task.done()
-    assert output.size(channel.id) <= 16
+
+    assert output.size(channel.id) <= message_size*4
 
     background_task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await background_task
