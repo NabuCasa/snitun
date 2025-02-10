@@ -173,11 +173,6 @@ class MultiplexerMultiChannelQueue:
             self._wakeup_next(putters)
         return message
 
-    def delete(self, channel_id: MultiplexerChannelId) -> None:
-        """Delete a channel queue."""
-        self._channels.pop(channel_id, None)
-        self._order.pop(channel_id, None)
-
     def empty(self, channel_id: MultiplexerChannelId) -> bool:
         """Empty the queue."""
         return self._channels[channel_id].total_bytes == 0
