@@ -55,13 +55,8 @@ class MultiplexerChannel:
         return self._ip_address
 
     @property
-    def healthy(self) -> bool:
-        """Return True if a error is occurred.
-
-        This property is confusingly named.
-
-        It means its NOT healthy, that that it is healthy.
-        """
+    def unhealthy(self) -> bool:
+        """Return True if a error is occurred."""
         return self._input.full()
 
     @property

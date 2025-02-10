@@ -140,16 +140,16 @@ async def test_write_data_peer_error(raise_timeout: None) -> None:
 
 
 async def test_message_transport_never_lock() -> None:
-    """Message transport should never lock down."""
+    """Message transport should never lock down even when it goes unhealthy."""
     output = MultiplexerMultiChannelQueue(1)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
-    assert not channel.healthy # health means its NOT healthy
+    assert not channel.unhealthy
 
     for _ in range(1, 10000):
         channel.message_transport(channel.init_close())
 
-    assert channel.healthy # health means its NOT healthy
+    assert channel.unhealthy
 
 
 async def test_write_throttling(event_loop: asyncio.AbstractEventLoop) -> None:
