@@ -143,8 +143,13 @@ async def test_multiplexer_ping_error(
     from snitun.multiplexer import core as multi_core
 
     loop = event_loop
-    with patch.object(multi_core, "PEER_TCP_MAX_TIMEOUT", 0.2), patch.object(
-        multi_core, "PEER_TCP_MIN_TIMEOUT", 0.2
+    with (
+        patch.object(multi_core, "PEER_TCP_MAX_TIMEOUT", 0.2),
+        patch.object(
+            multi_core,
+            "PEER_TCP_MIN_TIMEOUT",
+            0.2,
+        ),
     ):
         client = test_server[0]
         ping_task = loop.create_task(multiplexer_client.ping())
@@ -161,7 +166,6 @@ async def test_multiplexer_ping_error(
 
         with pytest.raises(MultiplexerTransportError):
             raise ping_task.exception()
-
 
 
 async def test_multiplexer_ping_pong(
@@ -413,8 +417,13 @@ async def test_multiplexer_core_peer_timeout(
     from snitun.multiplexer import core as multi_core
 
     loop = event_loop
-    with patch.object(multi_core, "PEER_TCP_MAX_TIMEOUT", 0.2), patch.object(
-        multi_core, "PEER_TCP_MIN_TIMEOUT", 0.2
+    with (
+        patch.object(multi_core, "PEER_TCP_MAX_TIMEOUT", 0.2),
+        patch.object(
+            multi_core,
+            "PEER_TCP_MIN_TIMEOUT",
+            0.2,
+        ),
     ):
         assert not multiplexer_client._channels
         assert not multiplexer_server._channels

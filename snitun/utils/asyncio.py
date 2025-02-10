@@ -2,8 +2,6 @@
 
 import asyncio
 from collections.abc import Awaitable, Callable
-import sys
-from collections.abc import Awaitable
 from typing import TypeVar
 
 _T = TypeVar("_T")
@@ -68,7 +66,6 @@ class RangedTimeout:
             self._timer = None
 
 
-
 def make_task_waiter_future(task: asyncio.Task) -> asyncio.Future[None]:
     """Create a future that waits for a task to complete.
 
@@ -88,8 +85,8 @@ def make_task_waiter_future(task: asyncio.Task) -> asyncio.Future[None]:
 
     task.add_done_callback(_resolve_future)
     return fut
-  
-  
+
+
 def create_eager_task(
     coro: Awaitable[_T],
     *,
