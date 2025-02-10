@@ -10,13 +10,13 @@ from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportErr
 from snitun.multiplexer import channel as channel_module
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.const import (
-    HEADER_SIZE,
     OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
 )
 from snitun.multiplexer.message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
     CHANNEL_FLOW_NEW,
+    HEADER_SIZE,
     MultiplexerChannelId,
     MultiplexerMessage,
 )

@@ -5,13 +5,9 @@ import ipaddress
 from unittest.mock import patch
 
 import pytest
-from snitun.multiplexer.const import (
-    HEADER_SIZE,
-    OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
-)
+
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
-from snitun.multiplexer import core as core_module
-from snitun.multiplexer import channel as channel_module
+from snitun.multiplexer import channel as channel_module, core as core_module
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
@@ -354,7 +350,7 @@ async def test_multiplexer_data_channel_abort_full(
 
     assert channel_client
     assert channel_server
-    large_msg = b"test xxxx"*1000
+    large_msg = b"test xxxx" * 1000
 
     with pytest.raises(MultiplexerTransportClose):
         for count in range(1, 50000):
@@ -367,6 +363,7 @@ async def test_multiplexer_data_channel_abort_full(
     await asyncio.sleep(0.1)
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
+
 
 async def test_multiplexer_throttling(
     event_loop: asyncio.AbstractEventLoop,

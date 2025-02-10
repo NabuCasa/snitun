@@ -19,13 +19,14 @@ from ..exceptions import (
 from ..utils.asyncio import asyncio_timeout
 from ..utils.ipaddress import bytes_to_ip_address
 from .channel import MultiplexerChannel
-from .const import HEADER_STRUCT, OUTGOING_QUEUE_MAX_BYTES_CHANNEL, PEER_TCP_TIMEOUT
+from .const import OUTGOING_QUEUE_MAX_BYTES_CHANNEL, PEER_TCP_TIMEOUT
 from .crypto import CryptoTransport
 from .message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
     CHANNEL_FLOW_NEW,
     CHANNEL_FLOW_PING,
+    HEADER_STRUCT,
     MultiplexerChannelId,
     MultiplexerMessage,
 )
