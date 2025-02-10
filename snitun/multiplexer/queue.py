@@ -19,6 +19,11 @@ class _ChannelQueue:
     putters: deque[asyncio.Future[None]] = field(default_factory=deque)
 
 
+def _effective_size(message: MultiplexerMessage | None) -> int:
+    """Return the effective size of the message."""
+    return 1 if message is None else len(message.data)
+
+
 class MultiplexerSingleChannelQueue(asyncio.Queue[MultiplexerMessage | None]):
     """Multiplexer single channel queue.
 
@@ -29,15 +34,13 @@ class MultiplexerSingleChannelQueue(asyncio.Queue[MultiplexerMessage | None]):
 
     def _put(self, message: MultiplexerMessage | None) -> None:
         """Put a message in the queue."""
-        size = 0 if message is None else len(message.data)
-        self._total_bytes += size
+        self._total_bytes += _effective_size(message)
         super()._put(message)
 
     def _get(self) -> MultiplexerMessage | None:
         """Get a message from the queue."""
         message = super()._get()
-        size = 0 if message is None else len(message.data)
-        self._total_bytes -= size
+        self._total_bytes -= _effective_size(message)
         return message
 
     def qsize(self) -> int:
@@ -113,7 +116,7 @@ class MultiplexerMultiChannelQueue:
         message: MultiplexerMessage | None,
     ) -> None:
         """Put a message in the queue."""
-        size = 0 if message is None else len(message.data)
+        size = _effective_size(message)
         if channel.total_bytes >= self._channel_size_limit:
             raise asyncio.QueueFull
         channel.queue.append(message)
@@ -155,7 +158,7 @@ class MultiplexerMultiChannelQueue:
         channel_id, _ = self._order.popitem(last=False)
         channel = self._channels[channel_id]
         message = channel.queue.popleft()
-        size = 0 if message is None else len(message.data)
+        size = _effective_size(message)
         channel.total_bytes -= size
         if channel.queue:
             # Now put the channel_id back, but at the end of the queue
@@ -163,6 +166,8 @@ class MultiplexerMultiChannelQueue:
             self._order[channel_id] = None
         else:
             # Got to the end of the queue
+            # As soon as we get to the end of the queue, we will
+            # drop the internal deque(), this may result in some churn.
             del self._channels[channel_id]
         if putters := channel.putters:
             self._wakeup_next(putters)
