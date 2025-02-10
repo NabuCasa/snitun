@@ -148,6 +148,10 @@ class Multiplexer:
         try:
             while not transport.is_closing():
                 if not from_peer:
+                    # TODO: when the input queue reaches the high water mark, instead of
+                    # reading from the peer, we should pause the peer and instead wait
+                    # on a future that will be resolved when the input queue reaches the
+                    # low water mark.
                     from_peer = self._loop.create_task(self._reader.readexactly(32))
 
                 if not to_peer:
