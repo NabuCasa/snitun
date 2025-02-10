@@ -117,7 +117,7 @@ class MultiplexerMultiChannelQueue:
     ) -> None:
         """Put a message in the queue."""
         size = _effective_size(message)
-        if channel.total_bytes >= self._channel_size_limit:
+        if channel.total_bytes + size > self._channel_size_limit:
             raise asyncio.QueueFull
         channel.queue.append(message)
         channel.total_bytes += size
