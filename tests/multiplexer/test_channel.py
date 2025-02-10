@@ -2,13 +2,17 @@
 
 import asyncio
 import ipaddress
+from unittest.mock import patch
 
 import pytest
 
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
-from snitun.multiplexer.channel import MultiplexerChannel
-from snitun.multiplexer.const import INCOMING_QUEUE_MAX_BYTES_CHANNEL, OUTGOING_QUEUE_MAX_BYTES_CHANNEL, HEADER_SIZE
 from snitun.multiplexer import channel as channel_module
+from snitun.multiplexer.channel import MultiplexerChannel
+from snitun.multiplexer.const import (
+    HEADER_SIZE,
+    OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+)
 from snitun.multiplexer.message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
@@ -17,9 +21,7 @@ from snitun.multiplexer.message import (
     MultiplexerMessage,
 )
 from snitun.multiplexer.queue import MultiplexerMultiChannelQueue
-from snitun.multiplexer.const import INCOMING_QUEUE_MAX_BYTES_CHANNEL, OUTGOING_QUEUE_MAX_BYTES_CHANNEL
 from snitun.utils.ipaddress import ip_address_to_bytes
-from unittest.mock import patch
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
@@ -145,7 +147,7 @@ async def test_write_data_peer_error(raise_timeout: None) -> None:
 async def test_message_transport_never_lock() -> None:
     """Message transport should never lock down even when it goes unhealthy."""
     output = MultiplexerMultiChannelQueue(1)
-    with patch.object(channel_module,"INCOMING_QUEUE_MAX_BYTES_CHANNEL", 1):
+    with patch.object(channel_module, "INCOMING_QUEUE_MAX_BYTES_CHANNEL", 1):
         channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
     assert not channel.unhealthy
@@ -166,7 +168,6 @@ async def test_write_throttling(event_loop: asyncio.AbstractEventLoop) -> None:
     message = b"test"
     message_size = HEADER_SIZE + len(message)
 
-
     async def _write_background():
         """Write message in background."""
         for _ in range(1, 10000):
@@ -177,7 +178,7 @@ async def test_write_throttling(event_loop: asyncio.AbstractEventLoop) -> None:
     await asyncio.sleep(0.3)
     assert not background_task.done()
 
-    assert output.size(channel.id) <= message_size*4
+    assert output.size(channel.id) <= message_size * 4
 
     background_task.cancel()
     with pytest.raises(asyncio.CancelledError):
