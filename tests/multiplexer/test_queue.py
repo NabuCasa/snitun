@@ -174,7 +174,6 @@ async def test_concurrent_get() -> None:
     channel_three_msg = _make_mock_message(channel_three_id)
 
     fetch_tasks = [asyncio.create_task(queue.get()) for _ in range(3)]
-    await asyncio.sleep(0)
 
     await queue.put(channel_one_id, channel_one_msg)
     await queue.put(channel_two_id, channel_two_msg)
