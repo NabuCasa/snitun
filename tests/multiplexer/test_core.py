@@ -350,10 +350,11 @@ async def test_multiplexer_data_channel_abort_full(
 
     assert channel_client
     assert channel_server
+    large_msg = b"test xxxx"*1000
 
     with pytest.raises(MultiplexerTransportClose):
         for count in range(1, 50000):
-            await channel_client.write(b"test xxxx")
+            await channel_client.write(large_msg)
 
     with pytest.raises(MultiplexerTransportClose):
         for count in range(1, 50000):
@@ -362,7 +363,6 @@ async def test_multiplexer_data_channel_abort_full(
     await asyncio.sleep(0.1)
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
-
 
 async def test_multiplexer_throttling(
     event_loop: asyncio.AbstractEventLoop,
