@@ -4,7 +4,6 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 import ipaddress
 import os
-import sys
 
 import pytest
 

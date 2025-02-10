@@ -23,7 +23,7 @@ def create_eager_task(
         eager_start=True,  # type: ignore[call-arg]
     )
 
-  
+
 def make_task_waiter_future(task: asyncio.Task) -> asyncio.Future[None]:
     """Create a future that waits for a task to complete.
 
