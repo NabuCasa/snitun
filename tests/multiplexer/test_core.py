@@ -10,6 +10,8 @@ from snitun.multiplexer.const import (
     OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
 )
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
+from snitun.multiplexer import core as core_module
+from snitun.multiplexer import channel as channel_module
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
@@ -335,6 +337,8 @@ async def test_multiplexer_channel_shutdown(
         raise server_read.exception()
 
 
+@patch.object(channel_module, "INCOMING_QUEUE_MAX_BYTES_CHANNEL", 1)
+@patch.object(core_module, "OUTGOING_QUEUE_MAX_BYTES_CHANNEL", 1)
 async def test_multiplexer_data_channel_abort_full(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
