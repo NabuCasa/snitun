@@ -57,7 +57,7 @@ class MultiplexerChannel:
     @property
     def healthy(self) -> bool:
         """Return True if a error is occurred."""
-        return self._input.full()
+        return not self._input.full()
 
     @property
     def closing(self) -> bool:
