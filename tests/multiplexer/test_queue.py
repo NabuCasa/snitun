@@ -24,7 +24,8 @@ def _make_mock_channel_id() -> MultiplexerChannelId:
 
 
 def _make_mock_message(
-    channel_id: MultiplexerChannelId, size: int = MOCK_MSG_SIZE
+    channel_id: MultiplexerChannelId,
+    size: int = MOCK_MSG_SIZE,
 ) -> MultiplexerMessage:
     return MultiplexerMessage(channel_id, CHANNEL_FLOW_DATA, b"x" * size)
 
@@ -47,7 +48,7 @@ async def test_multi_channel_queue_full() -> None:
     """Test MultiplexerMultiChannelQueue getting full."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
     queue = MultiplexerMultiChannelQueue(
-        msg_size * 2
+        msg_size * 2,
     )  # Max two mock messages per channel
     channel_one_id = _make_mock_channel_id()
     channel_two_id = _make_mock_channel_id()
@@ -78,7 +79,7 @@ async def test_multi_channel_queue_round_robin_get() -> None:
     """Test MultiplexerMultiChannelQueue round robin get."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
     queue = MultiplexerMultiChannelQueue(
-        msg_size * 2
+        msg_size * 2,
     )  # Max two mock messages per channel
     channel_one_id = _make_mock_channel_id()
     channel_two_id = _make_mock_channel_id()
