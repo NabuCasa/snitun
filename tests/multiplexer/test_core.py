@@ -5,7 +5,10 @@ import ipaddress
 from unittest.mock import patch
 
 import pytest
-
+from snitun.multiplexer.const import (
+    HEADER_SIZE,
+    OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+)
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
@@ -375,19 +378,20 @@ async def test_multiplexer_throttling(
 
     channel_client = await multiplexer_client.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
+    large_message = b"data" * 10000
 
     channel_server = multiplexer_server._channels.get(channel_client.id)
     multiplexer_server._throttling = 0.1
     multiplexer_client._throttling = 0.1
 
-    async def _sender():
+    async def _sender() -> None:
         """Send data much as possible."""
-        for count in range(1, 100000):
-            await channel_client.write(b"data")
+        for _ in range(1, 100000):
+            await channel_client.write(large_message)
 
-    async def _receiver():
+    async def _receiver() -> None:
         """Receive data much as possible."""
-        for count in range(1, 100000):
+        for _ in range(1, 100000):
             data = await channel_server.read()
             data_in.append(data)
 
@@ -397,6 +401,7 @@ async def test_multiplexer_throttling(
 
     assert not sender.done()
     assert not receiver.done()
+
     assert len(data_in) <= 8
 
     receiver.cancel()
