@@ -175,8 +175,8 @@ class MultiplexerMultiChannelQueue:
             # As soon as we get to the end of the queue, we will
             # drop the internal deque(), this may result in some churn.
             del self._channels[channel_id]
-        if putters := channel.putters:
-            self._wakeup_next(putters)
+        if channel.putters:
+            self._wakeup_next(channel.putters)
         return message
 
     def empty(self, channel_id: MultiplexerChannelId) -> bool:
