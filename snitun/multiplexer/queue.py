@@ -24,7 +24,30 @@ class _ChannelQueue:
         return deque()
 
 
-class MultiplexerQueue:
+class MultiplexerSingleChannelQueue(asyncio.Queue[MultiplexerMessage | None]):
+    """Multiplexer queue."""
+
+    _total_bytes: int = 0
+
+    def _put(self, message: MultiplexerMessage | None) -> None:
+        """Put a message in the queue."""
+        size = 0 if message is None else len(message.data)
+        self._total_bytes += size
+        super()._put(message)
+
+    def _get(self) -> MultiplexerMessage | None:
+        """Get a message from the queue."""
+        message = super()._get()
+        size = 0 if message is None else len(message.data)
+        self._total_bytes -= size
+        return message
+
+    def qsize(self) -> int:
+        """Size of the queue in bytes."""
+        return self._total_bytes
+
+
+class MultiplexerMultiChannelQueue:
     """Multiplexer queue."""
 
     def __init__(self, channel_size_limit: int) -> None:

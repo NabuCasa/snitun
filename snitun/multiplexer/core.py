@@ -29,7 +29,7 @@ from .message import (
     MultiplexerChannelId,
     MultiplexerMessage,
 )
-from .queue import MultiplexerQueue
+from .queue import MultiplexerMultiChannelQueue
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ class Multiplexer:
         self._reader = reader
         self._writer = writer
         self._loop = asyncio.get_event_loop()
-        self._queue = MultiplexerQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
+        self._queue = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
         self._healthy = asyncio.Event()
         self._processing_task = self._loop.create_task(self._runner())
         self._channels: dict[MultiplexerChannelId, MultiplexerChannel] = {}
@@ -148,10 +148,6 @@ class Multiplexer:
         try:
             while not transport.is_closing():
                 if not from_peer:
-                    # TODO: when the input queue reaches the high water mark, instead of
-                    # reading from the peer, we should pause the peer and instead wait
-                    # on a future that will be resolved when the input queue reaches the
-                    # low water mark.
                     from_peer = self._loop.create_task(self._reader.readexactly(32))
 
                 if not to_peer:
