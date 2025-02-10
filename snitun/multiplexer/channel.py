@@ -31,7 +31,7 @@ class MultiplexerChannel:
 
     def __init__(
         self,
-        output: asyncio.Queue,
+        output: MultiplexerQueue,
         ip_address: IPv4Address,
         channel_id: MultiplexerChannelId | None = None,
         throttling: float | None = None,
