@@ -25,7 +25,10 @@ class _ChannelQueue:
 
 
 class MultiplexerSingleChannelQueue(asyncio.Queue[MultiplexerMessage | None]):
-    """Multiplexer queue."""
+    """Multiplexer single channel queue.
+
+    qsize is the size of the queue in bytes instead of the number of items.
+    """
 
     _total_bytes: int = 0
 
