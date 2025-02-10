@@ -69,9 +69,17 @@ async def test_multi_channel_queue_full() -> None:
         async with asyncio.timeout(0.1):
             await queue.put(channel_one_id, channel_one_msg)
 
+    assert queue.get_nowait() == channel_one_msg
+
     add_task = asyncio.create_task(queue.put(channel_one_id, channel_one_msg))
     await asyncio.sleep(0)
-    queue.get_nowait()
+    assert not add_task.done()
+    assert queue.get_nowait() == channel_two_msg
+    await asyncio.sleep(0)
+    assert not add_task.done()
+    assert queue.get_nowait() == channel_one_msg
+    await asyncio.sleep(0)
+    assert add_task.done()
     await add_task
 
 

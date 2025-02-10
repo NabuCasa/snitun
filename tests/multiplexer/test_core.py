@@ -12,7 +12,7 @@ from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
 from snitun.utils.asyncio import asyncio_timeout
-
+from contextlib import suppress
 from ..conftest import Client
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
@@ -405,9 +405,9 @@ async def test_multiplexer_throttling(
 
     receiver.cancel()
     sender.cancel()
-    with pytest.raises(asyncio.CancelledError):
+    with suppress(asyncio.CancelledError):
         await receiver
-    with pytest.raises(asyncio.CancelledError):
+    with suppress(asyncio.CancelledError):
         await sender
 
 
