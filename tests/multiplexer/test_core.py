@@ -405,6 +405,10 @@ async def test_multiplexer_throttling(
 
     receiver.cancel()
     sender.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await receiver
+    with pytest.raises(asyncio.CancelledError):
+        await sender
 
 
 async def test_multiplexer_core_peer_timeout(
