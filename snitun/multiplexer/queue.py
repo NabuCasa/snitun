@@ -6,22 +6,17 @@ import asyncio
 from collections import OrderedDict, defaultdict, deque
 import contextlib
 from dataclasses import dataclass, field
-from functools import cached_property
 
 from .message import MultiplexerChannelId, MultiplexerMessage
 
 
-@dataclass()
+@dataclass(slots=True)
 class _ChannelQueue:
     """Channel queue."""
 
     total_bytes: int = 0
     queue: deque[MultiplexerMessage | None] = field(default_factory=deque)
-
-    @cached_property
-    def putters(self) -> deque[asyncio.Future[None]]:
-        """Return putters."""
-        return deque()
+    putters: deque[asyncio.Future[None]] = field(default_factory=deque)
 
 
 class MultiplexerSingleChannelQueue(asyncio.Queue[MultiplexerMessage | None]):
