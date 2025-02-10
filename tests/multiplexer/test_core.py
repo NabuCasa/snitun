@@ -1,6 +1,7 @@
 """Tests for core multiplexer handler."""
 
 import asyncio
+from contextlib import suppress
 import ipaddress
 from unittest.mock import patch
 
@@ -12,7 +13,7 @@ from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
 from snitun.utils.asyncio import asyncio_timeout
-from contextlib import suppress
+
 from ..conftest import Client
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
