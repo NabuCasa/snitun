@@ -19,7 +19,7 @@ from ..exceptions import (
 from ..utils.asyncio import asyncio_timeout
 from ..utils.ipaddress import bytes_to_ip_address
 from .channel import MultiplexerChannel
-from .const import OUTGOING_QUEUE_MAX_BYTES_CHANNEL
+from .const import HEADER_STRUCT, OUTGOING_QUEUE_MAX_BYTES_CHANNEL, PEER_TCP_TIMEOUT
 from .crypto import CryptoTransport
 from .message import (
     CHANNEL_FLOW_CLOSE,
@@ -32,19 +32,6 @@ from .message import (
 from .queue import MultiplexerMultiChannelQueue
 
 _LOGGER = logging.getLogger(__name__)
-
-PEER_TCP_TIMEOUT = 90
-
-# |-----------------HEADER---------------------------------|
-# |------ID-----|--FLAG--|--SIZE--|---------EXTRA ---------|
-# |   16 bytes  | 1 byte | 4 bytes|       11 bytes         |
-# |--------------------------------------------------------|
-# >:   All bytes are big-endian and unsigned
-# 16s: 16 bytes: Channel ID - random
-# B:   1 byte:   Flow type  - 1: NEW, 2: DATA, 4: CLOSE, 8: PING
-# I:   4 bytes:  Data size  - 0-4294967295
-# 11s: 11 bytes: Extra      - data + random padding
-HEADER_STRUCT = struct.Struct(">16sBI11s")
 
 
 class Multiplexer:
