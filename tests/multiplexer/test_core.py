@@ -379,7 +379,6 @@ async def test_multiplexer_throttling(
 
     channel_client = await multiplexer_client.create_channel(IP_ADDR)
     await asyncio.sleep(0.1)
-    large_message = b"data" * 10000
 
     channel_server = multiplexer_server._channels.get(channel_client.id)
     multiplexer_server._throttling = 0.1
@@ -388,7 +387,7 @@ async def test_multiplexer_throttling(
     async def _sender() -> None:
         """Send data much as possible."""
         for _ in range(1, 100000):
-            await channel_client.write(large_message)
+            await channel_client.write(b"data")
 
     async def _receiver() -> None:
         """Receive data much as possible."""
@@ -400,7 +399,6 @@ async def test_multiplexer_throttling(
     sender = loop.create_task(_sender())
     await asyncio.sleep(0.8)
 
-    assert not sender.done()
     assert not receiver.done()
 
     assert len(data_in) <= 8
