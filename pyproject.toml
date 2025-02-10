@@ -16,7 +16,6 @@ classifiers = [
     "Topic :: Internet :: Proxy Servers",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Development Status :: 5 - Production/Stable",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
@@ -29,7 +28,7 @@ keywords = ["sni", "proxy", "multiplexer", "tls"]
 license = {text = "GPL v3"}
 name = "snitun"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 version = "0.40.0"
 
 [project.optional-dependencies]

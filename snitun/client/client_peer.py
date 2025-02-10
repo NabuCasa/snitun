@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
-import sys
 
 from ..exceptions import (
     MultiplexerTransportDecrypt,
@@ -143,11 +142,7 @@ class ClientPeer:
             await self._handler_task
         except asyncio.CancelledError:
             # Don't swallow cancellation
-            if (
-                sys.version_info >= (3, 11)
-                and (current_task := asyncio.current_task())
-                and current_task.cancelling()
-            ):
+            if (current_task := asyncio.current_task()) and current_task.cancelling():
                 raise
         finally:
             self._handler_task = None

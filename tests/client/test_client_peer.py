@@ -310,10 +310,6 @@ async def test_init_client_peer_throttling(
     assert not peer_manager.peer_available("localhost")
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Requires Python 3.11+ required to avoid swallowing cancellation",
-)
 async def test_init_client_peer_stop_does_not_swallow_cancellation(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
