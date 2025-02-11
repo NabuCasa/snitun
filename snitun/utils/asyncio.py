@@ -66,7 +66,25 @@ class RangedTimeout:
             self._timer = None
 
 
-make_task_waiter_future = asyncio.shield
+def make_task_waiter_future(task: asyncio.Task) -> asyncio.Future[None]:
+    """Create a future that waits for a task to complete.
+
+    A future is used to ensure that cancellation of the
+    task does not propagate to the waiter.
+    """
+    loop = asyncio.get_running_loop()
+    fut: asyncio.Future[None] = loop.create_future()
+
+    def _resolve_future(_: asyncio.Task) -> None:
+        if not fut.done():
+            fut.set_result(None)
+
+    if task.done():
+        _resolve_future(task)
+        return fut
+
+    task.add_done_callback(_resolve_future)
+    return fut
 
 
 def create_eager_task(
