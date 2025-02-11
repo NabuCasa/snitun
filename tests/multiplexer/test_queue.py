@@ -292,6 +292,17 @@ async def test_putters_cleaned_up_correctly_on_cancellation() -> None:
     assert len(queue._channels[channel_one_id].putters) == 0
 
 
+async def test_getters_cleaned_up_correctly_on_cancellation() -> None:
+    """Test that getters are cleaned up correctly when a get operation is canceled."""
+    msg_size = MOCK_MSG_SIZE + HEADER_SIZE
+    queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
+    with pytest.raises(TimeoutError):
+        async with asyncio.timeout(0.1):
+            await queue.get()
+
+    assert len(queue._getters) == 0
+
+
 async def test_cancelled_when_putter_already_removed() -> None:
     """Test that a put operation is correctly cancelled when the putter is already removed."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
