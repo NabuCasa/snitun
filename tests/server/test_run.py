@@ -350,7 +350,13 @@ def test_snitun_worker_runner(
     assert peer_address[0] == IP_ADDR
 
     loop.call_soon_threadsafe(multiplexer.shutdown)
-    loop.run_until_complete(multiplexer.wait())
+
+    async def _wait_for_shutdown() -> None:
+        """Wait for shutdown."""
+        waiter = multiplexer.wait()
+        await waiter
+
+    loop.run_until_complete(_wait_for_shutdown)
     time.sleep(1)
 
     assert not any(worker.is_responsible_peer(hostname) for worker in server._workers)

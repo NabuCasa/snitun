@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Coroutine
 from datetime import UTC, datetime
 import hashlib
 import logging
@@ -111,7 +110,7 @@ class Peer:
             throttling=self._throttling,
         )
 
-    def wait_disconnect(self) -> Coroutine:
+    def wait_disconnect(self) -> asyncio.Future[None]:
         """Wait until peer is disconnected.
 
         Return a coroutine.

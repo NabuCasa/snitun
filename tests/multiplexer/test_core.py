@@ -441,7 +441,9 @@ async def test_multiplexer_core_peer_timeout(
         # Patch the reader so it blocks forever
         # and cannot read the pong response
         with patch.object(
-            multiplexer_client._reader, "readexactly", loop.create_future(),
+            multiplexer_client._reader,
+            "readexactly",
+            loop.create_future(),
         ):
             await multiplexer_client.ping()
             await asyncio.sleep(0.3)
