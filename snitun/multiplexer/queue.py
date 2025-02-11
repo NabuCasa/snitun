@@ -55,7 +55,15 @@ class MultiplexerSingleChannelQueue(asyncio.Queue[MultiplexerMessage | None]):
 
 
 class MultiplexerMultiChannelQueue:
-    """Multiplexer queue."""
+    """Multiplexer multi channel queue.
+
+    A queue that manages multiple channels, each with a size limit.
+    This class allows for asynchronous message passing between multiple channels,
+    ensuring that each channel does not exceed a specified size limit.
+
+    When fetching from the queue, the channels are fetched in a round-robin
+    fashion, ensuring that no channel is starved.
+    """
 
     def __init__(self, channel_size_limit: int) -> None:
         """Initialize Multiplexer Queue.
