@@ -9,7 +9,6 @@ import ipaddress
 import logging
 import os
 import struct
-import sys
 from typing import Any
 
 from ..exceptions import (
@@ -194,11 +193,8 @@ class Multiplexer:
             with suppress(OSError):
                 self._writer.write_eof()
                 await self._writer.drain()
-            if (
-                sys.version_info >= (3, 11)
-                and (current_task := asyncio.current_task())
-                and current_task.cancelling()
-            ):
+            # Don't swallow cancellation
+            if (current_task := asyncio.current_task()) and current_task.cancelling():
                 raise
         except (MultiplexerTransportClose, OSError):
             _LOGGER.debug("Transport was closed")
