@@ -29,13 +29,13 @@ class MultiplexerChannel:
 
     def __init__(
         self,
-        output: asyncio.Queue,
+        output: asyncio.Queue[MultiplexerMessage | None],
         ip_address: IPv4Address,
         channel_id: MultiplexerChannelId | None = None,
         throttling: float | None = None,
     ) -> None:
         """Initialize Multiplexer Channel."""
-        self._input: asyncio.Queue[MultiplexerMessage] = asyncio.Queue(8000)
+        self._input: asyncio.Queue[MultiplexerMessage | None] = asyncio.Queue(8000)
         self._output = output
         self._id = channel_id or MultiplexerChannelId(os.urandom(16))
         self._ip_address = ip_address
@@ -92,7 +92,7 @@ class MultiplexerChannel:
             return
         await asyncio.sleep(self._throttling)
 
-    async def read(self) -> MultiplexerMessage:
+    async def read(self) -> bytes:
         """Read data from peer."""
         if self._closing and self._input.empty():
             message = None

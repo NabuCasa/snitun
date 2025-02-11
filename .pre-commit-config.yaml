@@ -26,3 +26,9 @@ repos:
     rev: v3.0.3
     hooks:
       - id: prettier
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.14.1
+    hooks:
+      - id: mypy
+        additional_dependencies: []
+        files: ^((snitun)/.+)?[^/]+\.(py)$
