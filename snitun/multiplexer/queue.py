@@ -128,7 +128,11 @@ class MultiplexerMultiChannelQueue:
         channel_id: MultiplexerChannelId,
         message: MultiplexerMessage | None,
     ) -> None:
-        """Put a message in the queue."""
+        """Put a message in the queue.
+
+        Raises:
+            asyncio.QueueFull: If the queue is full.
+        """
         size = _effective_size(message)
         channel = self._channels[channel_id]
         if channel.total_bytes + size > self._channel_size_limit:
@@ -149,13 +153,7 @@ class MultiplexerMultiChannelQueue:
         self._wakeup_next(self._getters)
 
     async def get(self) -> MultiplexerMessage | None:
-        """
-        Asynchronously retrieve a `MultiplexerMessage` from the queue.
-
-        Returns:
-            MultiplexerMessage: The message retrieved from the queue.
-
-        """
+        """Asynchronously retrieve the next `MultiplexerMessage` from the queue."""
         # Based on asyncio.Queue.get()
         while not self._order:  # order is which channel_id to get next
             getter = self._loop.create_future()
@@ -176,7 +174,11 @@ class MultiplexerMultiChannelQueue:
         return self.get_nowait()
 
     def get_nowait(self) -> MultiplexerMessage | None:
-        """Get a message from the queue."""
+        """Get a message from the queue.
+
+        Raises:
+            asyncio.QueueEmpty: If the queue is empty.
+        """
         if not self._order:
             raise asyncio.QueueEmpty
         channel_id, _ = self._order.popitem(last=False)
