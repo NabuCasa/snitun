@@ -22,3 +22,24 @@ def create_eager_task(
         name=name,
         eager_start=True,  # type: ignore[call-arg]
     )
+
+
+def make_task_waiter_future(task: asyncio.Task) -> asyncio.Future[None]:
+    """Create a future that waits for a task to complete.
+
+    A future is used to ensure that cancellation of the
+    task does not propagate to the waiter.
+    """
+    loop = asyncio.get_running_loop()
+    fut: asyncio.Future[None] = loop.create_future()
+
+    def _resolve_future(_: asyncio.Task) -> None:
+        if not fut.done():
+            fut.set_result(None)
+
+    if task.done():
+        _resolve_future(task)
+        return fut
+
+    task.add_done_callback(_resolve_future)
+    return fut
