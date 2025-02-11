@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Coroutine
+from collections.abc import Callable, Coroutine
 from contextlib import suppress
 import ipaddress
+from ipaddress import IPv4Address
 import logging
 from typing import Any
 
@@ -24,13 +25,14 @@ class Connector:
         end_host: str,
         end_port: int | None = None,
         whitelist: bool = False,
-        endpoint_connection_error_callback: Coroutine[Any, Any, None] | None = None,
+        endpoint_connection_error_callback: Callable[[], Coroutine[Any, Any, None]]
+        | None = None,
     ) -> None:
         """Initialize Connector."""
         self._loop = asyncio.get_event_loop()
         self._end_host = end_host
         self._end_port = end_port or 443
-        self._whitelist = set()
+        self._whitelist: set[IPv4Address] = set()
         self._whitelist_enabled = whitelist
         self._endpoint_connection_error_callback = endpoint_connection_error_callback
 
@@ -99,16 +101,16 @@ class Connector:
 
                 # From proxy
                 if from_endpoint.done():
-                    if from_endpoint.exception():
-                        raise from_endpoint.exception()
+                    if from_endpoint_exc := from_endpoint.exception():
+                        raise from_endpoint_exc
 
                     await channel.write(from_endpoint.result())
                     from_endpoint = None
 
                 # From peer
                 if from_peer.done():
-                    if from_peer.exception():
-                        raise from_peer.exception()
+                    if from_peer_exc := from_peer.exception():
+                        raise from_peer_exc
 
                     writer.write(from_peer.result())
                     from_peer = None

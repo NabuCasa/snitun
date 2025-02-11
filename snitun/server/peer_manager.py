@@ -75,9 +75,11 @@ class PeerManager:
 
     def add_peer(self, peer: Peer) -> None:
         """Register peer to internal hostname list."""
-        if self.peer_available(peer.hostname):
+        if self.peer_available(peer.hostname) and (
+            multiplexer := self._peers[peer.hostname].multiplexer
+        ):
             _LOGGER.warning("Found stale peer connection")
-            self._peers[peer.hostname].multiplexer.shutdown()
+            multiplexer.shutdown()
 
         _LOGGER.debug("New peer connection: %s", peer.hostname)
         self._peers[peer.hostname] = peer
@@ -120,7 +122,7 @@ class PeerManager:
         """
         peers = list(self._peers.values())
         for peer in peers:
-            if peer.is_connected:
+            if peer.is_connected and peer.multiplexer:
                 peer.multiplexer.shutdown()
 
         if waiters := [peer.wait_disconnect() for peer in peers]:
