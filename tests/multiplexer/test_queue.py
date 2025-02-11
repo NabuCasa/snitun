@@ -16,7 +16,7 @@ from snitun.multiplexer.queue import (
     MultiplexerSingleChannelQueue,
 )
 
-MOCK_MSG_SIZE: int = 4
+MOCK_MSG_SIZE = 4
 
 
 def _make_mock_channel_id() -> MultiplexerChannelId:
