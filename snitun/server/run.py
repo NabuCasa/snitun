@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Iterable
+from collections.abc import Coroutine, Iterator
 from contextlib import suppress
 from dataclasses import dataclass
 from itertools import cycle
@@ -14,6 +14,7 @@ import select
 import signal
 import socket
 from threading import Thread
+from typing import Any
 
 from ..exceptions import ParseSNIIncompleteError
 from ..utils.asyncio import asyncio_timeout
@@ -55,7 +56,9 @@ class SniTunServer:
         """Return peer manager."""
         return self._peers
 
-    def start(self) -> Awaitable[None]:
+    def start(
+        self,
+    ) -> Coroutine[Any, Any, tuple[set[asyncio.Task[None]], set[asyncio.Task[None]]]]:
         """Run server.
 
         Return coroutine.
@@ -67,7 +70,9 @@ class SniTunServer:
             ],
         )
 
-    def stop(self) -> Awaitable[None]:
+    def stop(
+        self,
+    ) -> Coroutine[Any, Any, tuple[set[asyncio.Task[None]], set[asyncio.Task[None]]]]:
         """Stop server.
 
         Return coroutine.
@@ -91,7 +96,7 @@ class SniTunServerSingle:
         throttling: int | None = None,
     ) -> None:
         """Initialize SniTun Server."""
-        self._loop: asyncio.BaseEventLoop = asyncio.get_event_loop()
+        self._loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
         self._server: asyncio.AbstractServer | None = None
         self._peers: PeerManager = PeerManager(fernet_keys, throttling=throttling)
         self._list_sni: SNIProxy = SNIProxy(self._peers)
@@ -114,6 +119,7 @@ class SniTunServerSingle:
 
     async def stop(self) -> None:
         """Stop server."""
+        assert self._server is not None, "Server not started"
         self._server.close()
         await self._server.wait_closed()
 
@@ -245,16 +251,20 @@ class SniTunServerWorker(Thread):
             worker.close()
 
         self._workers.clear()
+        assert self._server is not None, "Server not started"
         self._server.close()
+        assert self._poller is not None, "Poller not started"
         self._poller.close()
 
     def run(self) -> None:
         """Handle incoming connection."""
+        assert self._server is not None, "Server not started"
         fd_server = self._server.fileno()
         connections: dict[int, Connection] = {}
         worker_lb = cycle(self._workers)
 
         _LOGGER.info("Server started, fd: %s", fd_server)
+        assert self._poller is not None, "Poller not started"
 
         while self._running:
             events = self._poller.poll(1)
@@ -272,7 +282,7 @@ class SniTunServerWorker(Thread):
 
                 # Read hello & forward to worker
                 elif event & select.EPOLLIN:
-                    client = connections.get(fileno)
+                    client = connections[fileno]
                     client.stale = 0  # reset stale count
 
                     # Process connection
@@ -291,7 +301,7 @@ class SniTunServerWorker(Thread):
 
             # cleanup stale connection
             for client_id in tuple(connections.keys()):
-                client = connections.get(client_id)
+                client = connections[client_id]
                 if client.stale >= WORKER_STALE_MAX:
                     connections.pop(client.fileno)
                     client.close_socket()
@@ -308,7 +318,7 @@ class SniTunServerWorker(Thread):
     def _process(
         self,
         client: Connection,
-        workers_lb: Iterable[ServerWorker],
+        workers_lb: Iterator[ServerWorker],
     ) -> None:
         """Process connection & helo."""
         try:
