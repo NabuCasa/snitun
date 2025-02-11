@@ -209,12 +209,18 @@ class MultiplexerMultiChannelQueue:
 
     def empty(self, channel_id: MultiplexerChannelId) -> bool:
         """Empty the queue."""
-        return self._channels[channel_id].total_bytes == 0
+        if not (channel := self._channels.get(channel_id)):
+            return True
+        return channel.total_bytes == 0
 
     def size(self, channel_id: MultiplexerChannelId) -> int:
         """Return the size of the channel queue in bytes."""
-        return self._channels[channel_id].total_bytes
+        if not (channel := self._channels.get(channel_id)):
+            return 0
+        return channel.total_bytes
 
     def full(self, channel_id: MultiplexerChannelId) -> bool:
         """Return True if the channel queue is full."""
-        return self._channels[channel_id].total_bytes >= self._channel_size_limit
+        if not (channel := self._channels.get(channel_id)):
+            return False
+        return channel.total_bytes >= self._channel_size_limit
