@@ -91,6 +91,9 @@ class MultiplexerMultiChannelQueue:
             try:
                 await putter
             except:
+                # channel may have been deleted while we were waiting
+                # so make sure we look it up again
+                channel = self._channels[channel_id]
                 putter.cancel()  # Just in case putter is not done yet.
                 with contextlib.suppress(ValueError):
                     # Clean self._putters from canceled putters.
@@ -100,6 +103,9 @@ class MultiplexerMultiChannelQueue:
                     # the call.  Wake up the next in line.
                     self._wakeup_next(channel.putters)
                 raise
+            # channel may have been deleted while we were waiting
+            # so make sure we look it up again
+            channel = self._channels[channel_id]
         self._put(channel_id, channel, message, size)
 
     def put_nowait(

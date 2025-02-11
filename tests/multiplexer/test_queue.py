@@ -239,6 +239,7 @@ async def test_put_cancel_race() -> None:
     await asyncio.sleep(0)
     assert put_1.done()
     assert not put_2.done()
+    assert not put_3.done()
 
     put_3.cancel()
     await asyncio.sleep(0)
