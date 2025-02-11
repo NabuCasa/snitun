@@ -28,7 +28,7 @@ class PeerListener:
         self._peer_manager = peer_manager
         self._host = host
         self._port = port or 8080
-        self._server = None
+        self._server: asyncio.Server | None = None
 
     async def start(self) -> None:
         """Start peer server."""
@@ -40,6 +40,7 @@ class PeerListener:
 
     async def stop(self) -> None:
         """Stop peer server."""
+        assert self._server is not None, "Server not started"
         self._server.close()
         await self._server.wait_closed()
 
