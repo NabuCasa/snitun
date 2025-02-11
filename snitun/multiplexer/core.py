@@ -73,7 +73,11 @@ class Multiplexer:
         crypto: CryptoTransport,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-        new_connections: Coroutine[Any, Any, None] | None = None,
+        new_connections: Callable[
+            [Multiplexer, MultiplexerChannel],
+            Coroutine[Any, Any, None],
+        ]
+        | None = None,
         throttling: int | None = None,
     ) -> None:
         """Initialize Multiplexer."""
@@ -81,7 +85,7 @@ class Multiplexer:
         self._reader = reader
         self._writer = writer
         self._loop = asyncio.get_event_loop()
-        self._queue: asyncio.Queue[MultiplexerMessage] = asyncio.Queue(QUEUE_MAX)
+        self._queue: asyncio.Queue[MultiplexerMessage | None] = asyncio.Queue(QUEUE_MAX)
         self._healthy = asyncio.Event()
         self._processing_task = self._loop.create_task(self._runner())
         self._channels: dict[MultiplexerChannelId, MultiplexerChannel] = {}
@@ -104,12 +108,15 @@ class Multiplexer:
         """Return True if the write transport should resume."""
         return self._queue.qsize() < LOW_WATER_MARK
 
-    def register_resume_writing_callback(self, callback: Callable[[], None]) -> None:
+    def register_resume_writing_callback(
+        self,
+        callback: Callable[[], None],
+    ) -> Callable[[], None]:
         """Register a callback to resume the protocol."""
         self._resume_writing_callbacks.add(callback)
         return partial(self._resume_writing_callbacks.discard, callback)
 
-    def wait(self) -> asyncio.Task:
+    def wait(self) -> asyncio.Future[None]:
         """Block until the connection is closed.
 
         Return a awaitable object.
@@ -183,16 +190,17 @@ class Multiplexer:
 
                 # From peer
                 if from_peer.done():
-                    if from_peer.exception():
-                        raise from_peer.exception()
+                    if from_peer_exc := from_peer.exception():
+                        raise from_peer_exc
                     await self._read_message(from_peer.result())
                     from_peer = None
 
                 # To peer
                 if to_peer.done():
-                    if to_peer.exception():
-                        raise to_peer.exception()
-                    self._write_message(to_peer.result())
+                    if to_peer_exc := to_peer.exception():
+                        raise to_peer_exc
+                    if msg := to_peer.result():
+                        self._write_message(msg)
                     to_peer = None
 
                     # Flush buffer

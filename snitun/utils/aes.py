@@ -5,6 +5,6 @@ from __future__ import annotations
 import os
 
 
-def generate_aes_keyset() -> tuple[bytes]:
+def generate_aes_keyset() -> tuple[bytes, bytes]:
     """Generate AES key + IV for CBC."""
     return (os.urandom(32), os.urandom(16))

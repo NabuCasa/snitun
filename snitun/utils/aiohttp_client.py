@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Coroutine
+from collections.abc import Callable, Coroutine
 import logging
 import ssl
 from typing import TYPE_CHECKING, Any
@@ -28,7 +28,7 @@ class SniTunClientAioHttp:
         snitun_port: int | None = None,
     ) -> None:
         """Initialize SniTunClient with aiohttp."""
-        self._connector = None
+        self._connector: Connector | None = None
         self._client = ClientPeer(snitun_server, snitun_port)
         self._server_name = f"{snitun_server}:{snitun_port}"
         # Init interface
@@ -47,14 +47,15 @@ class SniTunClientAioHttp:
             return self._connector.whitelist
         return set()
 
-    def wait(self) -> asyncio.Task:
+    def wait(self) -> asyncio.Future[None]:
         """Block until connection to snitun is closed."""
         return self._client.wait()
 
     async def start(
         self,
         whitelist: bool = False,
-        endpoint_connection_error_callback: Coroutine[Any, Any, None] | None = None,
+        endpoint_connection_error_callback: Callable[[], Coroutine[Any, Any, None]]
+        | None = None,
     ) -> None:
         """Start internal server."""
         self._connector = Connector(
@@ -88,6 +89,7 @@ class SniTunClientAioHttp:
         """Connect to SniTun server."""
         if self._client.is_connected:
             return
+        assert self._connector is not None, "Connector is not initialized"
         await self._client.start(
             self._connector,
             fernet_key,

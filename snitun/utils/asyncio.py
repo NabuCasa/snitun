@@ -1,8 +1,8 @@
 """Utils for asyncio."""
 
 import asyncio
-from collections.abc import Awaitable
-from typing import TypeVar
+from collections.abc import Coroutine
+from typing import Any, TypeVar
 
 _T = TypeVar("_T")
 
@@ -10,7 +10,7 @@ asyncio_timeout = asyncio
 
 
 def create_eager_task(
-    coro: Awaitable[_T],
+    coro: Coroutine[Any, Any, _T],
     *,
     name: str | None = None,
     loop: asyncio.AbstractEventLoop | None = None,

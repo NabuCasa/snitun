@@ -30,7 +30,8 @@ class Connector:
         protocol_factory: Callable[[], RequestHandler],
         ssl_context: SSLContext,
         whitelist: bool = False,
-        endpoint_connection_error_callback: Coroutine[Any, Any, None] | None = None,
+        endpoint_connection_error_callback: Callable[[], Coroutine[Any, Any, None]]
+        | None = None,
     ) -> None:
         """Initialize Connector."""
         self._loop = asyncio.get_running_loop()

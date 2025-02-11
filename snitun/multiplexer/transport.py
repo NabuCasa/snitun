@@ -8,6 +8,7 @@ import asyncio.sslproto
 from collections.abc import Callable
 import logging
 import sys
+from typing import TYPE_CHECKING
 
 from ..exceptions import MultiplexerTransportClose
 from ..multiplexer.channel import MultiplexerChannel
@@ -30,16 +31,16 @@ def _feed_data_to_buffered_proto(proto: asyncio.BufferedProtocol, data: bytes) -
     data_len = len(data)
     while data_len:  # pragma: no branch
         buf = proto.get_buffer(data_len)
-        buf_len = len(buf)
+        buf_len = len(buf)  # type: ignore[arg-type]
         if not buf_len:
             raise RuntimeError("get_buffer() returned an empty buffer")
 
         if buf_len >= data_len:
-            buf[:data_len] = data
+            buf[:data_len] = data  # type: ignore[index]
             proto.buffer_updated(data_len)
             return
 
-        buf[:buf_len] = data[:buf_len]
+        buf[:buf_len] = data[:buf_len]  # type: ignore[index]
         proto.buffer_updated(buf_len)
         data = data[buf_len:]
         data_len = len(data)
@@ -70,12 +71,16 @@ class ChannelTransport(Transport):
             name=f"TransportReaderTask {self._channel.ip_address} ({self._channel.id})",
         )
 
-    def get_protocol(self) -> asyncio.Protocol:
+    def get_protocol(self) -> asyncio.BufferedProtocol:
         """Return the protocol."""
+        assert self._protocol is not None, "Protocol not set"
         return self._protocol
 
-    def set_protocol(self, protocol: asyncio.Protocol) -> None:
+    def set_protocol(self, protocol: asyncio.BaseProtocol | None) -> None:
         """Set the protocol."""
+        assert isinstance(protocol, asyncio.BufferedProtocol), (
+            "Protocol must be a BufferedProtocol"
+        )
         self._protocol = protocol
 
     def is_closing(self) -> bool:
@@ -161,6 +166,9 @@ class ChannelTransport(Transport):
                 self._fatal_error(exc, "Fatal error: channel.read() call failed.")
                 raise
 
+            if TYPE_CHECKING:
+                assert self._protocol is not None, "Protocol not set"
+
             try:
                 _feed_data_to_buffered_proto(self._protocol, from_peer)
             except (SystemExit, KeyboardInterrupt):
@@ -192,13 +200,13 @@ class ChannelTransport(Transport):
         finally:
             self._reader_task = None
 
-    def _force_close(self, exc: Exception | None) -> None:
+    def _force_close(self, exc: BaseException | None) -> None:
         """Force close the transport."""
         self.close()
-        if self._protocol is not None:
+        if self._protocol is not None and (exc is None or isinstance(exc, Exception)):
             self._loop.call_soon(self._protocol.connection_lost, exc)
 
-    def _fatal_error(self, exc: Exception, message: str) -> None:
+    def _fatal_error(self, exc: BaseException, message: str) -> None:
         """Handle a fatal error."""
         self._loop.call_exception_handler(
             {

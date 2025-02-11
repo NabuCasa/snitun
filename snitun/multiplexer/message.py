@@ -26,7 +26,7 @@ class MultiplexerChannelId(bytes):
         return self
 
     @cached_property
-    def hex(self) -> str:
+    def hex(self) -> str:  # type: ignore[override]
         """Return hex representation of the channel ID."""
         return binascii.hexlify(self).decode("utf-8")
 
