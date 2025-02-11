@@ -1,4 +1,4 @@
-"""Test Multiplexer channels."""
+"""Test Multiplexer queue."""
 
 import asyncio
 import os
