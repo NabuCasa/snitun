@@ -54,9 +54,8 @@ async def test_single_channel_queue() -> None:
 async def test_multi_channel_queue_full() -> None:
     """Test MultiplexerMultiChannelQueue getting full."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
-    queue = MultiplexerMultiChannelQueue(
-        msg_size * 2,
-    )  # Max two mock messages per channel
+    # Max two mock messages per channel
+    queue = MultiplexerMultiChannelQueue(msg_size * 2)
     channel_one_id = _make_mock_channel_id()
     channel_two_id = _make_mock_channel_id()
 
@@ -76,18 +75,15 @@ async def test_multi_channel_queue_full() -> None:
         async with asyncio.timeout(0.1):
             await queue.put(channel_one_id, channel_one_msg)
 
-    assert queue.get_nowait() == channel_one_msg
+    assert queue.size(channel_one_id) == msg_size * 2
 
     add_task = asyncio.create_task(queue.put(channel_one_id, channel_one_msg))
-    await asyncio.sleep(0)
-    assert not add_task.done()
-    assert queue.get_nowait() == channel_two_msg
     await asyncio.sleep(0)
     assert not add_task.done()
     assert queue.get_nowait() == channel_one_msg
     await asyncio.sleep(0)
     assert add_task.done()
-    await add_task
+    assert queue.get_nowait() == channel_two_msg
 
 
 async def test_multi_channel_queue_round_robin_get() -> None:
@@ -190,6 +186,13 @@ async def test_concurrent_get() -> None:
 
 
 async def test_reader_cancellation() -> None:
+    """
+    Test behavior of the MultiplexerMultiChannelQueue when a reader task is cancelled.
+
+     Assertions:
+        - The cancelled reader task raises asyncio.CancelledError.
+        - The remaining reader tasks retrieve the messages from the queue in any order.
+    """
     queue = MultiplexerMultiChannelQueue(100000)
     channel_one_id = _make_mock_channel_id()
     channel_one_msg1 = _make_mock_message(channel_one_id)
@@ -214,3 +217,34 @@ async def test_reader_cancellation() -> None:
     # Any order is fine as long as we get both messages
     # since task order is not guaranteed
     assert {reader2.result(), reader3.result()} == {channel_one_msg1, channel_one_msg2}
+
+
+async def test_put_cancel_race() -> None:
+    msg_size = MOCK_MSG_SIZE + HEADER_SIZE
+    queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
+    channel_one_id = _make_mock_channel_id()
+
+    channel_one_msg_1 = _make_mock_message(channel_one_id)
+    channel_one_msg_2 = _make_mock_message(channel_one_id)
+    channel_one_msg_3 = _make_mock_message(channel_one_id)
+
+    queue.put_nowait(channel_one_id, channel_one_msg_1)
+    assert queue.get_nowait() == channel_one_msg_1
+    assert queue.empty(channel_one_id)
+
+    put_1 = asyncio.create_task(queue.put(channel_one_id, channel_one_msg_1))
+    put_2 = asyncio.create_task(queue.put(channel_one_id, channel_one_msg_2))
+    put_3 = asyncio.create_task(queue.put(channel_one_id, channel_one_msg_3))
+
+    await asyncio.sleep(0)
+    assert put_1.done()
+    assert not put_2.done()
+
+    put_3.cancel()
+    await asyncio.sleep(0)
+    assert put_3.done()
+    assert queue.get_nowait() == channel_one_msg_1
+    await asyncio.sleep(0)
+    assert queue.get_nowait() == channel_one_msg_2
+
+    await put_2
