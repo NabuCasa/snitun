@@ -39,7 +39,7 @@ class ClientPeer:
 
     def wait(self) -> asyncio.Future[None]:
         """Block until connection to peer is closed."""
-        if not self._multiplexer:
+        if not self._multiplexer or not self._handler_task:
             raise RuntimeError("No SniTun connection available")
         # Wait until the handler task is done
         # as we know the connection is closed
