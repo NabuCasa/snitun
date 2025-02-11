@@ -356,7 +356,7 @@ def test_snitun_worker_runner(
         waiter = multiplexer.wait()
         await waiter
 
-    loop.run_until_complete(_wait_for_shutdown)
+    loop.run_until_complete(_wait_for_shutdown())
     time.sleep(1)
 
     assert not any(worker.is_responsible_peer(hostname) for worker in server._workers)
