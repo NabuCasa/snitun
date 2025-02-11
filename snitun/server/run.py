@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Coroutine, Iterable
+from collections.abc import Coroutine, Iterator
 from contextlib import suppress
 from dataclasses import dataclass
 from itertools import cycle
@@ -258,6 +258,7 @@ class SniTunServerWorker(Thread):
 
     def run(self) -> None:
         """Handle incoming connection."""
+        assert self._server is not None, "Server not started"
         fd_server = self._server.fileno()
         connections: dict[int, Connection] = {}
         worker_lb = cycle(self._workers)
@@ -280,7 +281,7 @@ class SniTunServerWorker(Thread):
 
                 # Read hello & forward to worker
                 elif event & select.EPOLLIN:
-                    client = connections.get(fileno)
+                    client = connections[fileno]
                     client.stale = 0  # reset stale count
 
                     # Process connection
@@ -299,7 +300,7 @@ class SniTunServerWorker(Thread):
 
             # cleanup stale connection
             for client_id in tuple(connections.keys()):
-                client = connections.get(client_id)
+                client = connections[client_id]
                 if client.stale >= WORKER_STALE_MAX:
                     connections.pop(client.fileno)
                     client.close_socket()
@@ -316,7 +317,7 @@ class SniTunServerWorker(Thread):
     def _process(
         self,
         client: Connection,
-        workers_lb: Iterable[ServerWorker],
+        workers_lb: Iterator[ServerWorker],
     ) -> None:
         """Process connection & helo."""
         try:
