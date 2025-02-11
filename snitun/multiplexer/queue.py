@@ -12,7 +12,15 @@ from .message import HEADER_SIZE, MultiplexerChannelId, MultiplexerMessage
 
 @dataclass(slots=True)
 class _ChannelQueue:
-    """Channel queue."""
+    """Channel queue.
+
+    A queue that manages a single channel, with a size limit.
+
+    total_bytes: the size of the queue in bytes instead of the number of items.
+    queue: a deque of MultiplexerMessage | None.
+    putters: a deque of asyncio.Future[None] which is used to wake up putters
+    when the queue is full and space becomes available.
+    """
 
     total_bytes: int = 0
     queue: deque[MultiplexerMessage | None] = field(default_factory=deque)
