@@ -13,7 +13,6 @@ from snitun.exceptions import SniTunConnectionError
 from snitun.server.listener_peer import PeerListener
 from snitun.server.peer_manager import PeerManager
 
-from ..conftest import Client
 from ..server.const_fernet import create_peer_config
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
@@ -144,7 +143,6 @@ async def test_init_client_peer_wait(
 async def test_init_client_peer_wait_waits_for_task(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
-    test_endpoint: list[Client],
 ) -> None:
     """Test setup of ClientPeer."""
     client = ClientPeer("127.0.0.1", "8893")
@@ -179,7 +177,6 @@ async def test_init_client_peer_wait_waits_for_task(
 async def test_client_peer_can_start_again(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
-    test_endpoint: list[Client],
 ) -> None:
     """Test once the connection fails, we can start again."""
     client = ClientPeer("127.0.0.1", "8893")
