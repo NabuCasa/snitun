@@ -352,3 +352,19 @@ async def test_get_cancelled_race() -> None:
     await queue.put(channel_one_id, channel_one_msg_1)
     await asyncio.sleep(0)
     assert await t2 == channel_one_msg_1
+
+
+async def test_get_with_other_putters() -> None:
+    """Test that a get operation is correctly handled when other putters are waiting."""
+    loop = asyncio.get_running_loop()
+    queue = MultiplexerMultiChannelQueue(10000000)
+    channel_one_id = _make_mock_channel_id()
+    channel_one_msg_1 = _make_mock_message(channel_one_id)
+
+    queue.put_nowait(channel_one_id, channel_one_msg_1)
+    other_putter = loop.create_future()
+    queue._channels[channel_one_id].putters.append(other_putter)
+
+    assert await queue.get() == channel_one_msg_1
+    assert other_putter.done()
+    assert await other_putter is None
