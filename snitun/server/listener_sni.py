@@ -36,7 +36,7 @@ class SNIProxy:
         self._loop = asyncio.get_event_loop()
         self._host = host
         self._port = port or 443
-        self._server = None
+        self._server: asyncio.Server | None = None
 
     async def start(self) -> None:
         """Start Proxy server."""
@@ -48,6 +48,7 @@ class SNIProxy:
 
     async def stop(self) -> None:
         """Stop proxy server."""
+        assert self._server is not None, "Server not started"
         self._server.close()
         await self._server.wait_closed()
 
@@ -94,9 +95,10 @@ class SNIProxy:
                 _LOGGER.debug("Hostname %s not connected", hostname)
                 return
             peer = self._peer_manager.get_peer(hostname)
-
+            assert peer is not None, "Peer not found"
             # Proxy data over mutliplexer to client
             _LOGGER.debug("Processing for hostname %s started", hostname)
+            assert peer.multiplexer is not None, "Multiplexer not initialized"
             await self._proxy_peer(peer.multiplexer, client_hello, reader, writer)
 
         finally:
@@ -114,7 +116,7 @@ class SNIProxy:
         """Proxy data between end points."""
         transport = writer.transport
         try:
-            ip_address = ipaddress.ip_address(writer.get_extra_info("peername")[0])
+            ip_address = ipaddress.IPv4Address(writer.get_extra_info("peername")[0])
         except (TypeError, AttributeError):
             _LOGGER.error("Can't read source IP")
             return
@@ -147,16 +149,16 @@ class SNIProxy:
 
                 # From proxy
                 if from_proxy.done():
-                    if from_proxy.exception():
-                        raise from_proxy.exception()
+                    if from_proxy_exc := from_proxy.exception():
+                        raise from_proxy_exc
 
                     await channel.write(from_proxy.result())
                     from_proxy = None
 
                 # From peer
                 if from_peer.done():
-                    if from_peer.exception():
-                        raise from_peer.exception()
+                    if from_peer_exc := from_peer.exception():
+                        raise from_peer_exc
 
                     writer.write(from_peer.result())
                     from_peer = None

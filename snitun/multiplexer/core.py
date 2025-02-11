@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Coroutine
+from collections.abc import Callable, Coroutine
 from contextlib import suppress
 import ipaddress
 import logging
@@ -70,7 +70,11 @@ class Multiplexer:
         crypto: CryptoTransport,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-        new_connections: Coroutine[Any, Any, None] | None = None,
+        new_connections: Callable[
+            [Multiplexer, MultiplexerChannel],
+            Coroutine[Any, Any, None],
+        ]
+        | None = None,
         throttling: int | None = None,
     ) -> None:
         """Initialize Multiplexer."""
@@ -78,7 +82,7 @@ class Multiplexer:
         self._reader = reader
         self._writer = writer
         self._loop = asyncio.get_event_loop()
-        self._queue: asyncio.Queue[MultiplexerMessage] = asyncio.Queue(12000)
+        self._queue: asyncio.Queue[MultiplexerMessage | None] = asyncio.Queue(12000)
         self._healthy = asyncio.Event()
         self._healthy.set()
         self._read_task = self._loop.create_task(self._read_from_peer_loop())
@@ -184,8 +188,8 @@ class Multiplexer:
         transport = self._writer.transport
         try:
             while not transport.is_closing():
-                to_peer = await self._queue.get()
-                self._write_message(to_peer)
+                if to_peer := await self._queue.get():
+                    self._write_message(to_peer)
                 await self._writer.drain()
                 self._ranged_timeout.reschedule()
         except asyncio.CancelledError:

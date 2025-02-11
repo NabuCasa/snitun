@@ -26,7 +26,7 @@ class ClientPeer:
 
     def __init__(self, snitun_host: str, snitun_port: int | None = None) -> None:
         """Initialize ClientPeer connector."""
-        self._multiplexer = None
+        self._multiplexer: Multiplexer | None = None
         self._loop = asyncio.get_event_loop()
         self._snitun_host = snitun_host
         self._snitun_port = snitun_port or 8080
@@ -37,9 +37,9 @@ class ClientPeer:
         """Return true, if a connection exists."""
         return self._multiplexer is not None
 
-    def wait(self) -> asyncio.Future:
+    def wait(self) -> asyncio.Future[None]:
         """Block until connection to peer is closed."""
-        if not self._multiplexer:
+        if not self._multiplexer or not self._handler_task:
             raise RuntimeError("No SniTun connection available")
         # Wait until the handler task is done
         # as we know the connection is closed
@@ -137,6 +137,7 @@ class ClientPeer:
 
     async def _stop_handler(self) -> None:
         """Stop the handler."""
+        assert self._handler_task, "Handler task not started"
         self._handler_task.cancel()
         try:
             await self._handler_task
@@ -150,20 +151,21 @@ class ClientPeer:
     async def _handler(self) -> None:
         """Wait until connection is closed."""
 
-        async def _wait_with_timeout() -> None:
+        async def _wait_with_timeout(multiplexer: Multiplexer) -> None:
             try:
                 async with asyncio_timeout.timeout(50):
-                    await self._multiplexer.wait()
+                    await multiplexer.wait()
             except TimeoutError:
-                await self._multiplexer.ping()
+                await multiplexer.ping()
 
         try:
-            while self._multiplexer.is_connected:
-                await _wait_with_timeout()
+            while self._multiplexer and self._multiplexer.is_connected:
+                await _wait_with_timeout(self._multiplexer)
 
         except MultiplexerTransportError:
             pass
 
         finally:
-            self._multiplexer.shutdown()
-            self._multiplexer = None
+            if self._multiplexer:
+                self._multiplexer.shutdown()
+                self._multiplexer = None

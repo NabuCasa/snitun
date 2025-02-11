@@ -1,8 +1,8 @@
 """Utils for asyncio."""
 
 import asyncio
-from collections.abc import Awaitable, Callable
-from typing import TypeVar
+from collections.abc import Callable, Coroutine
+from typing import Any, TypeVar
 
 _T = TypeVar("_T")
 
@@ -88,7 +88,7 @@ def make_task_waiter_future(task: asyncio.Task) -> asyncio.Future[None]:
 
 
 def create_eager_task(
-    coro: Awaitable[_T],
+    coro: Coroutine[Any, Any, _T],
     *,
     name: str | None = None,
     loop: asyncio.AbstractEventLoop | None = None,

@@ -33,7 +33,7 @@ class Peer:
         self._valid = valid
         self._throttling = throttling
         self._alias = alias or []
-        self._multiplexer = None
+        self._multiplexer: Multiplexer | None = None
         self._crypto = CryptoTransport(aes_key, aes_iv)
 
     @property
