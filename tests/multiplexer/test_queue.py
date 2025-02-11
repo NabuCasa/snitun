@@ -194,8 +194,8 @@ async def test_cancel_one_get() -> None:
 
     await asyncio.sleep(0)
 
-    queue.put_nowait(channel_one_msg1)
-    queue.put_nowait(channel_one_msg2)
+    queue.put_nowait(channel_one_id, channel_one_msg1)
+    queue.put_nowait(channel_one_id, channel_one_msg2)
     reader.cancel()
 
     with pytest.raises(asyncio.CancelledError):
@@ -277,10 +277,11 @@ async def test_putters_cleaned_up_correctly_on_cancellation() -> None:
     queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
     channel_one_id = _make_mock_channel_id()
     channel_one_msg_1 = _make_mock_message(channel_one_id)
+    channel_one_msg_2 = _make_mock_message(channel_one_id)
 
-    queue.put_nowait(channel_one_msg_1)
+    queue.put_nowait(channel_one_id, channel_one_msg_1)
 
-    put_task = asyncio.create_task(queue.put(1))
+    put_task = asyncio.create_task(queue.put(channel_one_id, channel_one_msg_2))
     await asyncio.sleep(0)
 
     # Check that the putter is correctly removed from channel putters
@@ -310,8 +311,8 @@ async def test_cancelled_when_putter_already_removed() -> None:
     channel_one_id = _make_mock_channel_id()
     channel_one_msg_1 = _make_mock_message(channel_one_id)
 
-    queue.put_nowait(channel_one_msg_1)
-    put_task = asyncio.create_task(queue.put(1))
+    queue.put_nowait(channel_one_id, channel_one_msg_1)
+    put_task = asyncio.create_task(queue.put(channel_one_id, channel_one_msg_1))
     await asyncio.sleep(0)
 
     queue.get_nowait()
