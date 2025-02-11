@@ -30,6 +30,16 @@ def _make_mock_message(
     return MultiplexerMessage(channel_id, CHANNEL_FLOW_DATA, os.urandom(size))
 
 
+async def test_get_non_existent_channels() -> None:
+    """Test MultiplexerMultiChannelQueue get on non-existent channel."""
+    queue = MultiplexerMultiChannelQueue(100000)
+    assert queue.empty(_make_mock_channel_id())
+    assert not queue.full(_make_mock_channel_id())
+    assert queue.size(_make_mock_channel_id()) == 0
+    # Make sure defaultdict does not leak
+    assert not queue._channels
+
+
 async def test_single_channel_queue() -> None:
     """Test MultiplexerSingleChannelQueue."""
     queue = MultiplexerSingleChannelQueue()
