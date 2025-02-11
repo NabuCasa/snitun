@@ -1,4 +1,4 @@
-"""Multiplexer message handling."""
+"""Multiplexer message queues."""
 
 from __future__ import annotations
 
