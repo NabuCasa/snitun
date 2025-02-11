@@ -22,6 +22,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     needs: lint
+    environment: CI
     strategy:
       matrix:
         python-version:
