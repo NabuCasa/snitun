@@ -264,6 +264,7 @@ class SniTunServerWorker(Thread):
         worker_lb = cycle(self._workers)
 
         _LOGGER.info("Server started, fd: %s", fd_server)
+        assert self._poller is not None, "Poller not started"
 
         while self._running:
             events = self._poller.poll(1)
