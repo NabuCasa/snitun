@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
+from snitun.multiplexer import core as multi_core
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
@@ -414,8 +415,6 @@ async def test_multiplexer_core_peer_timeout(
     multiplexer_server: Multiplexer,
 ) -> None:
     """Test that new channels are created and graceful shutdown."""
-    from snitun.multiplexer import core as multi_core
-
     loop = event_loop
     with (
         patch.object(multi_core, "PEER_TCP_MAX_TIMEOUT", 0.2),
