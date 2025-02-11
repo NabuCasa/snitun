@@ -319,3 +319,36 @@ async def test_cancelled_when_putter_already_removed() -> None:
     put_task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await put_task
+
+
+async def test_multiple_getters_waiting_multiple_putters() -> None:
+    """Test that multiple getters and putters are correctly handled."""
+    msg_size = MOCK_MSG_SIZE + HEADER_SIZE
+    queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
+    channel_one_id = _make_mock_channel_id()
+    channel_one_msg_1 = _make_mock_message(channel_one_id)
+    channel_one_msg_2 = _make_mock_message(channel_one_id)
+    t1 = asyncio.create_task(queue.put(channel_one_id, channel_one_msg_1))
+    t2 = asyncio.create_task(queue.put(channel_one_id, channel_one_msg_2))
+    assert await queue.get() == channel_one_msg_1
+    assert await queue.get() == channel_one_msg_2
+    await t1
+    await t2
+
+
+async def test_get_cancelled_race() -> None:
+    """Test cancelling a get operation while another get operation is in progress."""
+    queue = MultiplexerMultiChannelQueue(10000000)
+    channel_one_id = _make_mock_channel_id()
+    channel_one_msg_1 = _make_mock_message(channel_one_id)
+
+    t1 = asyncio.create_task(queue.get())
+    t2 = asyncio.create_task(queue.get())
+
+    await asyncio.sleep(0)
+    t1.cancel()
+    await asyncio.sleep(0)
+    assert t1.done()
+    await queue.put(channel_one_id, channel_one_msg_1)
+    await asyncio.sleep(0)
+    assert await t2 == channel_one_msg_1
