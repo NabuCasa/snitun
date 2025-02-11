@@ -369,6 +369,10 @@ async def test_get_with_other_putters() -> None:
     assert other_putter.done()
     assert await other_putter is None
 
+    await queue.put(channel_one_id, channel_one_msg_1)
+    assert queue.get_nowait() == channel_one_msg_1
+
+
 async def test_get_with_other_putter_already_one() -> None:
     """Test that a get operation is correctly handled when other putters are waiting."""
     loop = asyncio.get_running_loop()
@@ -384,3 +388,6 @@ async def test_get_with_other_putter_already_one() -> None:
     assert await queue.get() == channel_one_msg_1
     assert other_putter.done()
     assert await other_putter is None
+
+    await queue.put(channel_one_id, channel_one_msg_1)
+    assert queue.get_nowait() == channel_one_msg_1
