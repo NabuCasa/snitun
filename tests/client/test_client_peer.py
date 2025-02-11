@@ -13,6 +13,7 @@ from snitun.exceptions import SniTunConnectionError
 from snitun.server.listener_peer import PeerListener
 from snitun.server.peer_manager import PeerManager
 
+from ..conftest import Client
 from ..server.const_fernet import create_peer_config
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
