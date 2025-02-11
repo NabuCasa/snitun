@@ -185,6 +185,25 @@ async def test_concurrent_get() -> None:
         queue.get_nowait()
 
 
+async def test_cancel_one_get() -> None:
+    queue = MultiplexerMultiChannelQueue(100000)
+    reader = asyncio.create_task(queue.get())
+    channel_one_id = _make_mock_channel_id()
+    channel_one_msg1 = _make_mock_message(channel_one_id)
+    channel_one_msg2 = _make_mock_message(channel_one_id)
+
+    await asyncio.sleep(0)
+
+    queue.put_nowait(channel_one_msg1)
+    queue.put_nowait(channel_one_msg2)
+    reader.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await reader
+
+    assert await queue.get() == channel_one_msg1
+
+
 async def test_reader_cancellation() -> None:
     """
     Test behavior of the MultiplexerMultiChannelQueue when a reader task is cancelled.
