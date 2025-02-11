@@ -27,7 +27,7 @@ def _make_mock_message(
     channel_id: MultiplexerChannelId,
     size: int = MOCK_MSG_SIZE,
 ) -> MultiplexerMessage:
-    return MultiplexerMessage(channel_id, CHANNEL_FLOW_DATA, b"x" * size)
+    return MultiplexerMessage(channel_id, CHANNEL_FLOW_DATA, os.urandom(size))
 
 
 async def test_single_channel_queue() -> None:
@@ -187,3 +187,30 @@ async def test_concurrent_get() -> None:
 
     with pytest.raises(asyncio.QueueEmpty):
         queue.get_nowait()
+
+
+async def test_reader_cancellation() -> None:
+    queue = MultiplexerMultiChannelQueue(100000)
+    channel_one_id = _make_mock_channel_id()
+    channel_one_msg1 = _make_mock_message(channel_one_id)
+    channel_one_msg2 = _make_mock_message(channel_one_id)
+
+    async with asyncio.TaskGroup() as tg:
+        reader1 = tg.create_task(queue.get())
+        reader2 = tg.create_task(queue.get())
+        reader3 = tg.create_task(queue.get())
+
+        await asyncio.sleep(0)
+
+        queue.put_nowait(channel_one_id, channel_one_msg1)
+        queue.put_nowait(channel_one_id, channel_one_msg2)
+        reader1.cancel()
+
+        with pytest.raises(asyncio.CancelledError):
+            await reader1
+
+        await reader3
+
+    # Any order is fine as long as we get both messages
+    # since task order is not guaranteed
+    assert {reader2.result(), reader3.result()} == {channel_one_msg1, channel_one_msg2}
