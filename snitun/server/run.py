@@ -251,7 +251,9 @@ class SniTunServerWorker(Thread):
             worker.close()
 
         self._workers.clear()
+        assert self._server is not None, "Server not started"
         self._server.close()
+        assert self._poller is not None, "Poller not started"
         self._poller.close()
 
     def run(self) -> None:
