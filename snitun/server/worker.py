@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from multiprocessing import Manager, Process, Queue
+from multiprocessing import Manager, Process
 from socket import socket
 from threading import Thread
 from typing import TYPE_CHECKING
@@ -38,12 +38,12 @@ class ServerWorker(Process):
         self._peers: PeerManager | None = None
         self._list_sni: SNIProxy | None = None
         self._list_peer: PeerListener | None = None
-        self._loop: asyncio.BaseEventLoop | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
 
         # Communication between Parent/Child
         self._manager: SyncManager = Manager()
-        self._new: Queue = self._manager.Queue()
-        self._sync: dict[str, None] = self._manager.dict()
+        self._new = self._manager.Queue()
+        self._sync = self._manager.dict()
         self._peer_count = self._manager.Value("peer_count", 0)
 
     @property
@@ -120,6 +120,7 @@ class ServerWorker(Process):
 
         # Shutdown worker
         _LOGGER.info("Stoping worker: %s", self.name)
+        assert self._peers is not None, "PeerManager not initialized"
         asyncio.run_coroutine_threadsafe(
             self._peers.close_connections(),
             loop=self._loop,
@@ -141,11 +142,14 @@ class ServerWorker(Process):
             return
 
         # Select the correct handler for process connection
+        assert self._loop is not None, "Event loop not initialized"
         if sni:
+            assert self._list_sni is not None, "SNIProxy not initialized"
             self._loop.create_task(
                 self._list_sni.handle_connection(reader, writer, data=data, sni=sni),
             )
         else:
+            assert self._list_peer is not None, "PeerListener not initialized"
             self._loop.create_task(
                 self._list_peer.handle_connection(reader, writer, data=data),
             )
