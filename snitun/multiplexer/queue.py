@@ -28,6 +28,12 @@ class MultiplexerSingleChannelQueue(asyncio.Queue[MultiplexerMessage | None]):
     """Multiplexer single channel queue.
 
     qsize is the size of the queue in bytes instead of the number of items.
+
+    Note that the queue is allowed to go over by one message
+    because we are subclassing asyncio.Queue and it is not
+    possible to prevent this without reimplementing the whole
+    class, which is not worth it since its ok if we go over by
+    one message.
     """
 
     _total_bytes: int = 0

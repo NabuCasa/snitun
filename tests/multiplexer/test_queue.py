@@ -31,14 +31,7 @@ def _make_mock_message(
 
 
 async def test_single_channel_queue() -> None:
-    """Test MultiplexerSingleChannelQueue.
-
-    Note that the queue is allowed to go over by one message
-    because we are subclassing asyncio.Queue and it is not
-    possible to prevent this without reimplementing the whole
-    class, which is not worth it since its ok if we go over by
-    one message.
-    """
+    """Test MultiplexerSingleChannelQueue."""
     queue = MultiplexerSingleChannelQueue()
     channel_id = _make_mock_channel_id()
     msg = _make_mock_message(channel_id)
@@ -186,6 +179,7 @@ async def test_concurrent_get() -> None:
 
 
 async def test_cancel_one_get() -> None:
+    """Test the cancellation of a single `get` operation on multiplexer queue."""
     queue = MultiplexerMultiChannelQueue(100000)
     reader = asyncio.create_task(queue.get())
     channel_one_id = _make_mock_channel_id()
@@ -239,7 +233,7 @@ async def test_reader_cancellation() -> None:
 
 
 async def test_put_cancel_race() -> None:
-    """Test the race condition between putting messages into the queue and cancelling the put operation."""
+    """Test race between putting messages and cancelling the put operation."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
     queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
     channel_one_id = _make_mock_channel_id()
@@ -294,7 +288,7 @@ async def test_putters_cleaned_up_correctly_on_cancellation() -> None:
 
 
 async def test_getters_cleaned_up_correctly_on_cancellation() -> None:
-    """Test that getters are cleaned up correctly when a get operation is canceled."""
+    """Test getters are cleaned up correctly when a get operation is canceled."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
     queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
     with pytest.raises(TimeoutError):
@@ -305,7 +299,7 @@ async def test_getters_cleaned_up_correctly_on_cancellation() -> None:
 
 
 async def test_cancelled_when_putter_already_removed() -> None:
-    """Test that a put operation is correctly cancelled when the putter is already removed."""
+    """Test put operation is correctly cancelled when the putter is already removed."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
     queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
     channel_one_id = _make_mock_channel_id()
