@@ -220,6 +220,7 @@ async def test_reader_cancellation() -> None:
 
 
 async def test_put_cancel_race() -> None:
+    """Test the race condition between putting messages into the queue and cancelling the put operation."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
     queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
     channel_one_id = _make_mock_channel_id()
@@ -249,3 +250,41 @@ async def test_put_cancel_race() -> None:
     assert queue.get_nowait() == channel_one_msg_2
 
     await put_2
+
+
+async def test_putters_cleaned_up_correctly_on_cancellation() -> None:
+    """Test that putters are cleaned up correctly when a put operation is canceled."""
+    msg_size = MOCK_MSG_SIZE + HEADER_SIZE
+    queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
+    channel_one_id = _make_mock_channel_id()
+    channel_one_msg_1 = _make_mock_message(channel_one_id)
+
+    queue.put_nowait(channel_one_msg_1)
+
+    put_task = asyncio.create_task(queue.put(1))
+    await asyncio.sleep(0)
+
+    # Check that the putter is correctly removed from channel putters
+    # the task is canceled.
+    assert len(queue._channels[channel_one_id].putters) == 1
+    put_task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await put_task
+    assert len(queue._channels[channel_one_id].putters) == 0
+
+
+async def test_cancelled_when_putter_already_removed() -> None:
+    """Test that a put operation is correctly cancelled when the putter is already removed."""
+    msg_size = MOCK_MSG_SIZE + HEADER_SIZE
+    queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
+    channel_one_id = _make_mock_channel_id()
+    channel_one_msg_1 = _make_mock_message(channel_one_id)
+
+    queue.put_nowait(channel_one_msg_1)
+    put_task = asyncio.create_task(queue.put(1))
+    await asyncio.sleep(0)
+
+    queue.get_nowait()
+    put_task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await put_task
