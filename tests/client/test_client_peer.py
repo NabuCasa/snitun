@@ -4,7 +4,6 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 import ipaddress
 import os
-import sys
 
 import pytest
 
@@ -243,6 +242,80 @@ async def test_init_client_peer_wait(
 
     with pytest.raises(RuntimeError):
         assert client.wait().done()
+
+
+async def test_init_client_peer_wait_waits_for_task(
+    peer_listener: PeerListener,
+    peer_manager: PeerManager,
+    test_endpoint: list[Client],
+) -> None:
+    """Test setup of ClientPeer."""
+    client = ClientPeer("127.0.0.1", "8893")
+    connector = Connector("127.0.0.1", "8822")
+
+    assert not client.is_connected
+    assert not peer_manager.peer_available("localhost")
+
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    hostname = "localhost"
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
+
+    await client.start(connector, fernet_token, aes_key, aes_iv)
+    await asyncio.sleep(0.1)
+    assert peer_manager.peer_available("localhost")
+    assert client.is_connected
+
+    assert not client.wait().done()
+
+    # Shutdown the multiplexer from under the client
+    client._multiplexer.shutdown()
+    await client.wait()
+    # Make sure the task is actually done
+    assert client._handler_task.done()
+    await client._stop_handler()
+    # Make sure _stop_handler cleans up the task reference
+    assert client._handler_task is None
+
+
+async def test_client_peer_can_start_again(
+    peer_listener: PeerListener,
+    peer_manager: PeerManager,
+    test_endpoint: list[Client],
+) -> None:
+    """Test once the connection fails, we can start again."""
+    client = ClientPeer("127.0.0.1", "8893")
+    connector = Connector("127.0.0.1", "8822")
+
+    assert not client.is_connected
+    assert not peer_manager.peer_available("localhost")
+
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    hostname = "localhost"
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
+
+    await client.start(connector, fernet_token, aes_key, aes_iv)
+    await asyncio.sleep(0.1)
+    assert peer_manager.peer_available("localhost")
+    assert client.is_connected
+
+    assert not client.wait().done()
+
+    # Shutdown the multiplexer from under the client
+    client._multiplexer.shutdown()
+    await client.wait()
+    assert not client.is_connected
+
+    # Now make sure we can start again
+    await client.start(connector, fernet_token, aes_key, aes_iv)
+    await asyncio.sleep(0.1)
+    assert peer_manager.peer_available("localhost")
+
+    await client.stop()
+    assert not client.is_connected
 
 
 async def test_init_client_peer_throttling(
