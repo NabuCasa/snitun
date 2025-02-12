@@ -122,6 +122,9 @@ class ConnectorHandler:
             # Process stream from multiplexer
             while not writer.transport.is_closing():
                 if not from_endpoint:
+                    # If the multiplexer channel queue is under water, pause the reader
+                    # by waiting for the future to be set, once the queue is not under
+                    # water the future will be set and cleared to resume the reader
                     from_endpoint = self._pause_future or self._loop.create_task(
                         reader.read(4096),  # type: ignore[arg-type]
                     )

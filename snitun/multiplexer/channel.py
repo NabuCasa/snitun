@@ -59,7 +59,7 @@ class MultiplexerChannel:
             INCOMING_QUEUE_MAX_BYTES_CHANNEL,
             INCOMING_QUEUE_LOW_WATERMARK,
             INCOMING_QUEUE_HIGH_WATERMARK,
-            self._local_input_under_water_callback,
+            self._on_local_output_under_water,
         )
         self._output = output
         self._id = channel_id or MultiplexerChannelId(os.urandom(16))
@@ -69,7 +69,7 @@ class MultiplexerChannel:
         # Backpressure
         self._local_output_under_water = False
         self._remote_input_under_water = False
-        self._output.create_channel(self._id, self._local_output_under_water_callback)
+        self._output.create_channel(self._id, self._on_local_input_under_water)
         self._pause_resume_reader_callback = pause_resume_reader_callback
 
     def set_pause_resume_reader_callback(
@@ -79,18 +79,20 @@ class MultiplexerChannel:
         """Set pause resume reader callback."""
         self._pause_resume_reader_callback = pause_resume_reader_callback
 
-    def _local_input_under_water_callback(self, under_water: bool) -> None:
-        """Set local input under water."""
+    def _on_local_input_under_water(self, under_water: bool) -> None:
+        """On callback from the input queue when goes under water or recovers."""
         msg_type = CHANNEL_FLOW_PAUSE if under_water else CHANNEL_FLOW_RESUME
+        # Tell the remote that our input queue is under water so it
+        # can pause reading from whatever is connected to this channel
         self.message_transport(MultiplexerMessage(self._id, msg_type))
 
-    def _local_output_under_water_callback(self, under_water: bool) -> None:
-        """Set local output under water."""
+    def _on_local_output_under_water(self, under_water: bool) -> None:
+        """On callback from the output queue when goes under water or recovers."""
         self._local_output_under_water = under_water
         self._pause_or_resume_reader()
 
-    def remote_input_under_water_callback(self, under_water: bool) -> None:
-        """Set remote input under water."""
+    def on_remote_input_under_water(self, under_water: bool) -> None:
+        """Call when remote input is under water."""
         self._remote_input_under_water = under_water
         self._pause_or_resume_reader()
 

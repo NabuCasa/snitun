@@ -326,15 +326,13 @@ class Multiplexer:
                     MultiplexerMessage(message.id, CHANNEL_FLOW_PING, b"", b"pong"),
                 )
 
-        # Pause
-        elif message.flow_type == CHANNEL_FLOW_PAUSE:
-            if message.id in self._channels:
-                self._channels[message.id].remote_input_under_water_callback(True)
-
-        # Resume
-        elif message.flow_type == CHANNEL_FLOW_RESUME:
-            if message.id in self._channels:
-                self._channels[message.id].remote_input_under_water_callback(False)
+        # Pause or Resume
+        elif message.flow_type in (CHANNEL_FLOW_PAUSE, CHANNEL_FLOW_RESUME):
+            # When the remote input is under water state changes
+            # call the on_remote_input_under_water method
+            under_water = message.flow_type == CHANNEL_FLOW_PAUSE
+            if channel_ := self._channels.get(message.id):
+                channel_.on_remote_input_under_water(under_water)
 
         else:
             _LOGGER.warning("Receive unknown message type")
