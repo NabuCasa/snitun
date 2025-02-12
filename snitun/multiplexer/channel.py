@@ -66,7 +66,10 @@ class MultiplexerChannel:
         self._ip_address = ip_address
         self._throttling = throttling
         self._closing = False
-        # Backpressure
+        # Backpressure - We track when our output queue is under water
+        # or the remote input queue is under water so we can pause reading
+        # of whatever is connected to this channel to prevent overflowing
+        # either queue.
         self._local_output_under_water = False
         self._remote_input_under_water = False
         self._output.create_channel(self._id, self._on_local_output_under_water)
