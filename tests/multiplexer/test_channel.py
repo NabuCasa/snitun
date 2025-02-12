@@ -233,7 +233,9 @@ async def test_channel_input_queue_goes_under_water() -> None:
     )
     with (
         patch.object(
-            channel_module, "INCOMING_QUEUE_MAX_BYTES_CHANNEL", HEADER_SIZE * 10,
+            channel_module,
+            "INCOMING_QUEUE_MAX_BYTES_CHANNEL",
+            HEADER_SIZE * 10,
         ),
         patch.object(channel_module, "INCOMING_QUEUE_LOW_WATERMARK", HEADER_SIZE),
         patch.object(channel_module, "INCOMING_QUEUE_HIGH_WATERMARK", HEADER_SIZE * 2),
@@ -272,7 +274,9 @@ async def test_channel_input_queue_goes_under_water_output_full(
     )
     with (
         patch.object(
-            channel_module, "INCOMING_QUEUE_MAX_BYTES_CHANNEL", HEADER_SIZE * 10,
+            channel_module,
+            "INCOMING_QUEUE_MAX_BYTES_CHANNEL",
+            HEADER_SIZE * 10,
         ),
         patch.object(channel_module, "INCOMING_QUEUE_LOW_WATERMARK", HEADER_SIZE),
         patch.object(channel_module, "INCOMING_QUEUE_HIGH_WATERMARK", HEADER_SIZE * 2),
