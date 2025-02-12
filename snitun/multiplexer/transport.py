@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 from asyncio import Transport
 import asyncio.sslproto
-from collections.abc import Callable
 import logging
 import sys
 from typing import TYPE_CHECKING
@@ -58,7 +57,6 @@ class ChannelTransport(Transport):
         self._protocol: asyncio.BufferedProtocol | None = None
         self._pause_future: asyncio.Future[None] | None = None
         self._reader_task: asyncio.Task[None] | None = None
-        self._cancel_resume_writing: Callable[[], None] | None = None
         self._multiplexer = multiplexer
         super().__init__(extra={"peername": (str(channel.ip_address), 0)})
 
@@ -95,13 +93,6 @@ class ChannelTransport(Transport):
         )
         self._channel.close()
         self._release_pause_future()
-        self._cancel_resume_writing_callback()
-
-    def _cancel_resume_writing_callback(self) -> None:
-        """Cancel the resume writing callback."""
-        if self._cancel_resume_writing is not None:
-            self._cancel_resume_writing()
-            self._cancel_resume_writing = None
 
     def write(self, data: bytes) -> None:
         """Write data to the channel."""
