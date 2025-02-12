@@ -186,7 +186,7 @@ async def test_multiplexer_cant_init_channel(
     # Disable new channels
     multiplexer_server._new_connections = None
 
-    await multiplexer_client.create_channel(IP_ADDR)
+    await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     assert multiplexer_client._channels
@@ -201,7 +201,7 @@ async def test_multiplexer_init_channel(
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
 
-    channel = await multiplexer_client.create_channel(IP_ADDR)
+    channel = await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     assert multiplexer_client._channels
@@ -221,7 +221,7 @@ async def test_multiplexer_init_channel_full(
     assert not multiplexer_client._channels
 
     with pytest.raises(MultiplexerTransportError):
-        channel = await multiplexer_client.create_channel(IP_ADDR)
+        await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     assert not multiplexer_client._channels
@@ -235,7 +235,7 @@ async def test_multiplexer_close_channel(
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
 
-    channel = await multiplexer_client.create_channel(IP_ADDR)
+    channel = await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     assert multiplexer_client._channels
@@ -257,7 +257,7 @@ async def test_multiplexer_close_channel_full(multiplexer_client: Multiplexer) -
     """Test that channels are nice removed but peer error is available."""
     assert not multiplexer_client._channels
 
-    channel = await multiplexer_client.create_channel(IP_ADDR)
+    channel = await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     assert multiplexer_client._channels
@@ -278,7 +278,7 @@ async def test_multiplexer_data_channel(
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
 
-    channel_client = await multiplexer_client.create_channel(IP_ADDR)
+    channel_client = await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     channel_server = multiplexer_server._channels.get(channel_client.id)
@@ -308,7 +308,7 @@ async def test_multiplexer_channel_shutdown(
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
 
-    channel_client = await multiplexer_client.create_channel(IP_ADDR)
+    channel_client = await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     channel_server = multiplexer_server._channels.get(channel_client.id)
@@ -344,7 +344,7 @@ async def test_multiplexer_data_channel_abort_full(
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
 
-    channel_client = await multiplexer_client.create_channel(IP_ADDR)
+    channel_client = await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     channel_server = multiplexer_server._channels.get(channel_client.id)
@@ -378,7 +378,7 @@ async def test_multiplexer_throttling(
     assert not multiplexer_server._channels
     data_in = []
 
-    channel_client = await multiplexer_client.create_channel(IP_ADDR)
+    channel_client = await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     channel_server = multiplexer_server._channels.get(channel_client.id)
@@ -426,7 +426,7 @@ async def test_multiplexer_core_peer_timeout(
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
 
-    channel_client = await multiplexer_client.create_channel(IP_ADDR)
+    channel_client = await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     channel_server = multiplexer_server._channels.get(channel_client.id)
