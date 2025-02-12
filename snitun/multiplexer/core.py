@@ -337,6 +337,12 @@ class Multiplexer:
                 channel_.on_remote_input_under_water(
                     message.flow_type == CHANNEL_FLOW_PAUSE,
                 )
+            else:
+                _LOGGER.debug(
+                    "Receive %s from unknown channel: %s",
+                    "pause" if flow_type == CHANNEL_FLOW_PAUSE else "resume",
+                    message.id,
+                )
 
         else:
             _LOGGER.warning(

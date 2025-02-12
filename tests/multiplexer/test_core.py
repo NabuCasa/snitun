@@ -3,6 +3,7 @@
 import asyncio
 from contextlib import suppress
 import ipaddress
+import os
 from unittest.mock import patch
 
 import pytest
@@ -12,8 +13,10 @@ from snitun.multiplexer import channel as channel_module, core as core_module
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.multiplexer.message import (
+    CHANNEL_FLOW_PAUSE,
     CHANNEL_FLOW_PING,
     HEADER_SIZE,
+    MultiplexerChannelId,
     MultiplexerMessage,
 )
 from snitun.utils.asyncio import asyncio_timeout
@@ -513,15 +516,9 @@ async def test_sending_unknown_message_type(
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
 
-    client_channel_under_water: list[bool] = []
-    server_channel_under_water: list[bool] = []
-
-    def _on_client_channel_under_water(under_water: bool) -> None:
-        client_channel_under_water.append(under_water)
-
     channel_client = await multiplexer_client.create_channel(
         IP_ADDR,
-        _on_client_channel_under_water,
+        lambda _: None,
     )
     await asyncio.sleep(0.1)
 
@@ -538,3 +535,34 @@ async def test_sending_unknown_message_type(
     await asyncio.sleep(0.1)
 
     assert "Receive unknown message type: 255" in caplog.text
+
+
+async def test_sending_pause_for_unknown_channel(
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test sending pause for unknown channel is logged."""
+    assert not multiplexer_client._channels
+    assert not multiplexer_server._channels
+
+    channel_client = await multiplexer_client.create_channel(
+        IP_ADDR,
+        lambda _: None,
+    )
+    await asyncio.sleep(0.1)
+
+    channel_server = multiplexer_server._channels.get(channel_client.id)
+
+    assert channel_client
+    assert channel_server
+
+    wrong_channel_id = MultiplexerChannelId(os.urandom(16))
+    channel_client._output.put_nowait(
+        channel_client.id,
+        MultiplexerMessage(wrong_channel_id, CHANNEL_FLOW_PAUSE),
+    )
+
+    await asyncio.sleep(0.1)
+
+    assert f"Receive pause from unknown channel: {wrong_channel_id.hex()}" in caplog.text
