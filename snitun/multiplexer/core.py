@@ -19,31 +19,23 @@ from ..exceptions import (
 from ..utils.asyncio import RangedTimeout, asyncio_timeout, make_task_waiter_future
 from ..utils.ipaddress import bytes_to_ip_address
 from .channel import MultiplexerChannel
+from .const import OUTGOING_QUEUE_MAX_BYTES_CHANNEL
 from .crypto import CryptoTransport
 from .message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
     CHANNEL_FLOW_NEW,
     CHANNEL_FLOW_PING,
+    HEADER_STRUCT,
     MultiplexerChannelId,
     MultiplexerMessage,
 )
+from .queue import MultiplexerMultiChannelQueue
 
 _LOGGER = logging.getLogger(__name__)
 
 PEER_TCP_MIN_TIMEOUT = 90
 PEER_TCP_MAX_TIMEOUT = 120
-
-# |-----------------HEADER---------------------------------|
-# |------ID-----|--FLAG--|--SIZE--|---------EXTRA ---------|
-# |   16 bytes  | 1 byte | 4 bytes|       11 bytes         |
-# |--------------------------------------------------------|
-# >:   All bytes are big-endian and unsigned
-# 16s: 16 bytes: Channel ID - random
-# B:   1 byte:   Flow type  - 1: NEW, 2: DATA, 4: CLOSE, 8: PING
-# I:   4 bytes:  Data size  - 0-4294967295
-# 11s: 11 bytes: Extra      - data + random padding
-HEADER_STRUCT = struct.Struct(">16sBI11s")
 
 
 class Multiplexer:
@@ -82,7 +74,7 @@ class Multiplexer:
         self._reader = reader
         self._writer = writer
         self._loop = asyncio.get_event_loop()
-        self._queue: asyncio.Queue[MultiplexerMessage | None] = asyncio.Queue(12000)
+        self._queue = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
         self._healthy = asyncio.Event()
         self._healthy.set()
         self._read_task = self._loop.create_task(self._read_from_peer_loop())
@@ -268,7 +260,7 @@ class Multiplexer:
             channel = self._channels[message.id]
             if channel.closing:
                 pass
-            elif channel.healthy:
+            elif channel.unhealthy:
                 _LOGGER.warning("Abort connection, channel is not healthy")
                 channel.close()
                 self._loop.create_task(self.delete_channel(channel))
@@ -329,7 +321,7 @@ class Multiplexer:
 
         try:
             async with asyncio_timeout.timeout(5):
-                await self._queue.put(message)
+                await self._queue.put(channel.id, message)
         except TimeoutError:
             raise MultiplexerTransportError from None
 
@@ -343,7 +335,7 @@ class Multiplexer:
 
         try:
             async with asyncio_timeout.timeout(5):
-                await self._queue.put(message)
+                await self._queue.put(channel.id, message)
         except TimeoutError:
             raise MultiplexerTransportError from None
         finally:

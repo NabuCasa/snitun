@@ -11,6 +11,7 @@ import os
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from ..utils.asyncio import asyncio_timeout
 from ..utils.ipaddress import ip_address_to_bytes
+from .const import INCOMING_QUEUE_MAX_BYTES_CHANNEL
 from .message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
@@ -18,6 +19,7 @@ from .message import (
     MultiplexerChannelId,
     MultiplexerMessage,
 )
+from .queue import MultiplexerMultiChannelQueue, MultiplexerSingleChannelQueue
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,13 +31,13 @@ class MultiplexerChannel:
 
     def __init__(
         self,
-        output: asyncio.Queue[MultiplexerMessage | None],
+        output: MultiplexerMultiChannelQueue,
         ip_address: IPv4Address,
         channel_id: MultiplexerChannelId | None = None,
         throttling: float | None = None,
     ) -> None:
         """Initialize Multiplexer Channel."""
-        self._input: asyncio.Queue[MultiplexerMessage | None] = asyncio.Queue(8000)
+        self._input = MultiplexerSingleChannelQueue(INCOMING_QUEUE_MAX_BYTES_CHANNEL)
         self._output = output
         self._id = channel_id or MultiplexerChannelId(os.urandom(16))
         self._ip_address = ip_address
@@ -53,8 +55,8 @@ class MultiplexerChannel:
         return self._ip_address
 
     @property
-    def healthy(self) -> bool:
-        """Return True if a error is occurse."""
+    def unhealthy(self) -> bool:
+        """Return True if a error has occurred."""
         return self._input.full()
 
     @property
@@ -83,7 +85,7 @@ class MultiplexerChannel:
 
         try:
             async with asyncio_timeout.timeout(5):
-                await self._output.put(message)
+                await self._output.put(self.id, message)
         except TimeoutError:
             _LOGGER.debug("Can't write to peer transport")
             raise MultiplexerTransportError from None
@@ -117,7 +119,7 @@ class MultiplexerChannel:
         return MultiplexerMessage(self._id, CHANNEL_FLOW_NEW, b"", extra)
 
     def message_transport(self, message: MultiplexerMessage) -> None:
-        """Only for internal ussage of core transport."""
+        """Only for internal usage of core transport."""
         if self._closing:
             return
 
