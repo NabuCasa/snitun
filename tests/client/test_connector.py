@@ -236,9 +236,7 @@ async def test_connector_handler_can_pause(
     handler = cast(ConnectorHandler, connector_handler)
     client_channel = handler._channel
     assert client_channel._pause_resume_reader_callback is not None
-    import pprint
-
-    pprint.pprint([client_channel._pause_resume_reader_callback])
+    assert client_channel._pause_resume_reader_callback == handler._pause_resume_reader_callback
 
     assert test_endpoint
     test_connection = test_endpoint[0]
