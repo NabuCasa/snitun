@@ -46,7 +46,6 @@ class Multiplexer:
         "_new_connections",
         "_processing_task",
         "_queue",
-        "_queue_max",
         "_reader",
         "_throttling",
         "_writer",
