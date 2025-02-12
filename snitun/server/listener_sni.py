@@ -122,6 +122,7 @@ class SNIProxy:
             return
 
         pause_future: asyncio.Future[None] = None
+
         def pause_resume_reader_callback(pause: bool) -> None:
             """Pause and resume reader."""
             nonlocal pause_future
@@ -133,7 +134,9 @@ class SNIProxy:
 
         # Open multiplexer channel
         try:
-            channel = await multiplexer.create_channel(ip_address, pause_resume_reader_callback)
+            channel = await multiplexer.create_channel(
+                ip_address, pause_resume_reader_callback
+            )
         except MultiplexerTransportError:
             _LOGGER.error("New transport channel to peer fails")
             return
@@ -148,7 +151,7 @@ class SNIProxy:
                 if not from_proxy:
                     if pause_future:
                         from_proxy = pause_future
-                    else:               
+                    else:
                         from_proxy = self._loop.create_task(reader.read(4096))
                 if not from_peer:
                     from_peer = self._loop.create_task(channel.read())
