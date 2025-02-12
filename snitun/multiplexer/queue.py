@@ -26,6 +26,7 @@ class _ChannelQueue:
     under_water_callback: Callable[[bool], None]
     total_bytes: int = 0
     under_water: bool = False
+    pending_close: bool = False
     queue: deque[MultiplexerMessage | None] = field(default_factory=deque)
     putters: deque[asyncio.Future[None]] = field(default_factory=deque)
 
@@ -128,8 +129,8 @@ class MultiplexerMultiChannelQueue:
 
     def delete_channel(self, channel_id: MultiplexerChannelId) -> None:
         """Delete a channel."""
-        self._channels.pop(channel_id, None)
-        self._order.pop(channel_id, None)
+        if channel := self._channels.get(channel_id):
+            channel.pending_close = True
 
     def _wakeup_next(self, waiters: deque[asyncio.Future[None]]) -> None:
         """Wake up the next waiter."""
@@ -237,6 +238,8 @@ class MultiplexerMultiChannelQueue:
             # Now put the channel_id back, but at the end of the queue
             # so the next get will get the next waiting channel_id.
             self._order[channel_id] = None
+        elif channel.pending_close:
+            del self._channels[channel_id]
         if channel.under_water and channel.total_bytes <= self._channel_low_water_mark:
             channel.under_water_callback(False)
         if channel.putters:
