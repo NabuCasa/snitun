@@ -196,7 +196,7 @@ async def test_connector_error_callback(
     callback = AsyncMock()
     connector = Connector("127.0.0.1", "8822", False, callback)
 
-    channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
+    channel = await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
 
     callback.assert_not_called()
 
