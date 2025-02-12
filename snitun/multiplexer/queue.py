@@ -85,7 +85,9 @@ class MultiplexerMultiChannelQueue:
         self._channels: defaultdict[MultiplexerChannelId, _ChannelQueue] = defaultdict(
             _ChannelQueue,
         )
-        # order controls which channel_id to get next
+        # _order controls which channel_id to get next. We use
+        # an OrderedDict because we need to use popitem(last=False)
+        # here to maintain FIFO order.
         self._order: OrderedDict[MultiplexerChannelId, None] = OrderedDict()
         self._getters: deque[asyncio.Future[None]] = deque()
         self._loop = asyncio.get_running_loop()
@@ -122,7 +124,7 @@ class MultiplexerMultiChannelQueue:
                     channel.putters.remove(putter)
                 if not self.full(channel_id) and not putter.cancelled():
                     # We were woken up by get_nowait(), but can't take
-                    # the call.  Wake up the next in line.
+                    # the call. Wake up the next in line.
                     self._wakeup_next(channel.putters)
                 raise
             else:
@@ -176,7 +178,7 @@ class MultiplexerMultiChannelQueue:
                 # order is which channel_id to get next
                 if self._order and not getter.cancelled():
                     # We were woken up by put_nowait(), but can't take
-                    # the call.  Wake up the next in line.
+                    # the call. Wake up the next in line.
                     self._wakeup_next(self._getters)
                 raise
         return self.get_nowait()

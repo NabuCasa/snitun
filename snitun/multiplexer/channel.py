@@ -56,7 +56,7 @@ class MultiplexerChannel:
 
     @property
     def unhealthy(self) -> bool:
-        """Return True if a error has occurred."""
+        """Return True if an error has occurred."""
         return self._input.full()
 
     @property
