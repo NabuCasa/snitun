@@ -123,6 +123,8 @@ class SNIProxy:
 
         # Open multiplexer channel
         try:
+            # TODO: be able to get a callback to switch out the reader
+            # for a future when paused
             channel = await multiplexer.create_channel(ip_address)
         except MultiplexerTransportError:
             _LOGGER.error("New transport channel to peer fails")
