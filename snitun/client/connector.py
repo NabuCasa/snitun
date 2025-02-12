@@ -50,24 +50,6 @@ class Connector:
         """Return True if the ip address can access to endpoint."""
         return not self._whitelist_enabled or ip_address in self._whitelist
 
-    async def _fail_to_start_tls(
-        self,
-        transport: ChannelTransport,
-        multiplexer: Multiplexer,
-        channel: MultiplexerChannel,
-        ex: Exception | None,
-    ) -> None:
-        """Handle failure to start TLS."""
-        _LOGGER.debug(
-            "Cannot start TLS for %s (%s): %s",
-            channel.ip_address,
-            channel.id,
-            ex,
-        )
-        with suppress(MultiplexerTransportError):
-            await multiplexer.delete_channel(channel)
-        await transport.stop_reader()
-
     async def handler(
         self,
         multiplexer: Multiplexer,
@@ -83,28 +65,93 @@ class Connector:
             return
 
         transport = ChannelTransport(channel, multiplexer)
-        transport.start_reader()
+
+        await ConnectorHandler(self._loop, multiplexer, channel, transport).start(
+            self._protocol_factory,
+            self._ssl_context,
+        )
+
+
+class ConnectorHandler:
+    """Handle connection to endpoint."""
+
+    def __init__(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        multiplexer: Multiplexer,
+        channel: MultiplexerChannel,
+        transport: ChannelTransport,
+    ) -> None:
+        """Initialize ConnectorHandler."""
+        self._loop = loop
+        self._pause_future: asyncio.Future[None] | None = None
+        self._multiplexer = multiplexer
+        self._channel = channel
+        self._transport = transport
+
+    def _pause_resume_reader_callback(self, pause: bool) -> None:
+        """Pause and resume reader."""
+        if pause:
+            _LOGGER.debug(
+                "Pause reader for %s (%s)",
+                self._channel.ip_address,
+                self._channel.id,
+            )
+            self._transport.pause_protocol()
+        else:
+            _LOGGER.debug(
+                "Resuming reader for %s (%s)",
+                self._channel.ip_address,
+                self._channel.id,
+            )
+            self._transport.resume_protocol()
+
+    async def _fail_to_start_tls(self, ex: Exception | None) -> None:
+        """Handle failure to start TLS."""
+        channel = self._channel
+        _LOGGER.debug(
+            "Cannot start TLS for %s (%s): %s",
+            channel.ip_address,
+            channel.id,
+            ex,
+        )
+        with suppress(MultiplexerTransportError):
+            await self._multiplexer.delete_channel(channel)
+        await self._transport.stop_reader()
+
+    async def start(
+        self,
+        protocol_factory: Callable[[], RequestHandler],
+        ssl_context: SSLContext,
+    ) -> None:
+        """Start handler."""
+        channel = self._channel
+
+        # TODO: Implement set_pause_resume_reader_callback
+        # channel.set_pause_resume_reader_callback(self._pause_resume_reader_callback)
+
+        self._transport.start_reader()
         # The request_handler is the aiohttp RequestHandler
         # that is generated from the protocol_factory that
         # was passed in the constructor.
-        request_handler_protocol = self._protocol_factory()
+        request_handler_protocol = protocol_factory()
 
         # Upgrade the transport to TLS
         try:
             new_transport = await self._loop.start_tls(
-                transport,
+                self._transport,
                 request_handler_protocol,
-                self._ssl_context,
+                ssl_context,
                 server_side=True,
             )
         except (OSError, SSLError) as ex:
             # This can can be just about any error, but mostly likely it's a TLS error
             # or the connection gets dropped in the middle of the handshake
-            await self._fail_to_start_tls(transport, multiplexer, channel, ex)
+            await self._fail_to_start_tls(ex)
             return
 
         if not new_transport:
-            await self._fail_to_start_tls(transport, multiplexer, channel, None)
+            await self._fail_to_start_tls(None)
             return
 
         # Now that we have the connection upgraded to TLS, we can
@@ -112,7 +159,7 @@ class Connector:
         _LOGGER.info("Connected peer: %s (%s)", channel.ip_address, channel.id)
         try:
             request_handler_protocol.connection_made(new_transport)
-            await transport.wait_for_close()
+            await self._transport.wait_for_close()
         except Exception as ex:  # noqa: BLE001
             # Make sure we catch any exception that might be raised
             # so it gets feed back to connection_lost
@@ -122,15 +169,3 @@ class Connector:
                 channel.id,
                 ex,
             )
-            with suppress(MultiplexerTransportError):
-                await multiplexer.delete_channel(channel)
-            request_handler_protocol.connection_lost(ex)
-        else:
-            _LOGGER.debug(
-                "Peer close connection for %s (%s)",
-                channel.ip_address,
-                channel.id,
-            )
-            request_handler_protocol.connection_lost(None)
-        finally:
-            new_transport.close()

@@ -58,7 +58,6 @@ class ChannelTransport(Transport):
         self._protocol: asyncio.BufferedProtocol | None = None
         self._pause_future: asyncio.Future[None] | None = None
         self._reader_task: asyncio.Task[None] | None = None
-        self._protocol_paused: bool = False
         self._cancel_resume_writing: Callable[[], None] | None = None
         self._multiplexer = multiplexer
         super().__init__(extra={"peername": (str(channel.ip_address), 0)})
@@ -108,19 +107,14 @@ class ChannelTransport(Transport):
         """Write data to the channel."""
         if not self._channel.closing:
             self._channel.write_no_wait(data)
-        if not self._protocol_paused and self._multiplexer.should_pause:
-            self._call_protocol_method("pause_writing")
-            self._protocol_paused = True
-            self._cancel_resume_writing = (
-                self._multiplexer.register_resume_writing_callback(
-                    self._resume_protocol,
-                )
-            )
 
-    def _resume_protocol(self) -> None:
+    def resume_protocol(self) -> None:
         """Resume the protocol."""
         self._call_protocol_method("resume_writing")
-        self._protocol_paused = False
+
+    def pause_protocol(self) -> None:
+        """Pause the protocol."""
+        self._call_protocol_method("pause_writing")
 
     def _call_protocol_method(self, method_name: str) -> None:
         """Call a method on the protocol."""
