@@ -72,6 +72,7 @@ class MultiplexerSingleChannelQueue(asyncio.Queue[MultiplexerMessage | None]):
         self._total_bytes += _effective_size(message)
         super()._put(message)
         if not self._under_water and self._total_bytes >= self._high_water_mark:
+            self._under_water = True
             self._under_water_callback(True)
 
     def _get(self) -> MultiplexerMessage | None:
@@ -79,6 +80,7 @@ class MultiplexerSingleChannelQueue(asyncio.Queue[MultiplexerMessage | None]):
         message = super()._get()
         self._total_bytes -= _effective_size(message)
         if self._under_water and self._total_bytes <= self._low_water_mark:
+            self._under_water = False
             self._under_water_callback(False)
         return message
 
