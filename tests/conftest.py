@@ -62,6 +62,7 @@ async def test_server() -> AsyncGenerator[list[Client], None]:
     yield connections
 
     server.close()
+    await server.wait_closed()
 
 
 @pytest.fixture
@@ -83,6 +84,7 @@ async def test_endpoint() -> AsyncGenerator[list[Client], None]:
     yield connections
 
     server.close()
+    await server.wait_closed()
 
 
 @pytest.fixture
@@ -93,6 +95,7 @@ async def test_client(test_server: list[Client]) -> AsyncGenerator[Client, None]
     yield Client(reader, writer)
 
     writer.close()
+    await writer.wait_closed()
 
 
 @pytest.fixture

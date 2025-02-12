@@ -157,7 +157,12 @@ class MultiplexerChannel:
             MultiplexerMessage,
             (self._id, CHANNEL_FLOW_DATA, data, b""),
         )
+        await self.put_message(message)
+        if self._throttling is not None:
+            await asyncio.sleep(self._throttling)
 
+    async def put_message(self, message: MultiplexerMessage) -> None:
+        """Put message to channel."""
         try:
             # Try to avoid the timer handle if we can
             # all to the queue without waiting
@@ -165,13 +170,10 @@ class MultiplexerChannel:
         except asyncio.QueueFull:
             try:
                 async with asyncio_timeout.timeout(5):
-                    await self._output.put(self.id, message)
+                    await self._output.put(self._id, message)
             except TimeoutError:
-                _LOGGER.debug("Can't write to peer transport")
+                _LOGGER.debug("Can't write to peer transport: %s", self._id)
                 raise MultiplexerTransportError from None
-
-        if self._throttling is not None:
-            await asyncio.sleep(self._throttling)
 
     async def read(self) -> bytes:
         """Read data from peer."""
