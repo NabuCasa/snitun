@@ -87,7 +87,10 @@ class MultiplexerChannel:
         msg_type = CHANNEL_FLOW_PAUSE if under_water else CHANNEL_FLOW_RESUME
         # Tell the remote that our input queue is under water so it
         # can pause reading from whatever is connected to this channel
-        self.message_transport(MultiplexerMessage(self._id, msg_type))
+        try:
+            self._output.put_nowait(self._id, MultiplexerMessage(self._id, msg_type))
+        except asyncio.QueueFull:
+            _LOGGER.warning("%s: Cannot send pause/resume message to peer", self._id)
 
     def _on_local_output_under_water(self, under_water: bool) -> None:
         """On callback from the output queue when goes under water or recovers."""

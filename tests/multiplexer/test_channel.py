@@ -5,7 +5,12 @@ import ipaddress
 from unittest.mock import patch
 
 import pytest
-
+from snitun.multiplexer.message import (
+    CHANNEL_FLOW_DATA,
+    HEADER_SIZE,
+    MultiplexerChannelId,
+    MultiplexerMessage,
+)
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer import channel as channel_module
 from snitun.multiplexer.channel import MultiplexerChannel
@@ -24,7 +29,7 @@ from snitun.multiplexer.message import (
 )
 from snitun.multiplexer.queue import MultiplexerMultiChannelQueue
 from snitun.utils.ipaddress import ip_address_to_bytes
-
+from snitun.multiplexer import channel as channel_module
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
 
@@ -160,7 +165,7 @@ async def test_read_data_on_close() -> None:
 
     channel.close()
     with pytest.raises(MultiplexerTransportClose):
-        data = await channel.read()
+        await channel.read()
 
     assert channel.closing
 
@@ -217,3 +222,34 @@ async def test_write_throttling(event_loop: asyncio.AbstractEventLoop) -> None:
     background_task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await background_task
+
+
+
+async def test_channel_input_queue_goes_under_water() -> None:
+    """Test when a channel input queue goes under water.
+
+    The channel should inform the peer to pause the reader.
+    """
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
+    with patch.object(channel_module, "INCOMING_QUEUE_MAX_BYTES_CHANNEL", HEADER_SIZE*10), patch.object(
+        channel_module, "INCOMING_QUEUE_LOW_WATERMARK", HEADER_SIZE
+    ), patch.object(channel_module, "INCOMING_QUEUE_HIGH_WATERMARK", HEADER_SIZE*2):
+       channel = MultiplexerChannel(output, IP_ADDR)
+       assert isinstance(channel.id, MultiplexerChannelId)
+
+    data_msg = MultiplexerMessage(channel.id, CHANNEL_FLOW_DATA)
+    channel.message_transport(data_msg)
+    channel.message_transport(data_msg)
+
+    message = channel.init_close()
+
+    await channel.read()
+
+
+    assert message.id == channel.id
+    assert message.flow_type == CHANNEL_FLOW_CLOSE
+    assert message.data == b""
