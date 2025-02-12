@@ -246,6 +246,8 @@ async def test_proxy_peer_handler_can_pause(
 
     # Now simulate that the remote input is under water
     client_channel.on_remote_input_under_water(True)
+    assert handler._pause_future is not None
+    assert not handler._pause_future.done()
 
     # This is an implementation detail that we might
     # change in the future, but for now we need to
@@ -258,18 +260,17 @@ async def test_proxy_peer_handler_can_pause(
     data = await server_channel.read()
     assert data == b"one more in before we pause"
 
-    read_task = loop.create_task(server_channel.read())
-    await asyncio.sleep(0.1)
-    assert not read_task.done()
-
     test_client_ssl.writer.write(b"now we are paused")
     await test_client_ssl.writer.drain()
 
+    read_task = loop.create_task(server_channel.read())
     await asyncio.sleep(0.1)
     # Make sure reader is actually paused
     assert not read_task.done()
 
     # Now simulate that the remote input is no longer under water
+    assert handler._pause_future is not None
+    assert not handler._pause_future.done()
     client_channel.on_remote_input_under_water(False)
     assert handler._pause_future is None
     data = await read_task
