@@ -1,12 +1,12 @@
 """Multiplexer message handling."""
 
-from enum import IntFlag
+from enum import IntEnum
 from functools import cached_property, lru_cache
 import struct
 from typing import NamedTuple
 
 
-class FlowType(IntFlag):
+class FlowType(IntEnum):
     """Flow type for multiplexer message.
 
     Note that only one byte is available for the flow type.
