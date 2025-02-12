@@ -65,9 +65,8 @@ class Connector:
             await multiplexer.delete_channel(channel)
             return
 
-        await ConnectorHandler(self._loop).start(
+        await ConnectorHandler(self._loop, channel).start(
             multiplexer,
-            channel,
             self._end_host,
             self._end_port,
             self._endpoint_connection_error_callback,
@@ -77,16 +76,31 @@ class Connector:
 class ConnectorHandler:
     """Handle connection to endpoint."""
 
-    def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
+    def __init__(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        channel: MultiplexerChannel,
+    ) -> None:
         """Initialize ConnectorHandler."""
         self._loop = loop
         self._pause_future: asyncio.Future[None] | None = None
+        self._channel: MultiplexerChannel = channel
 
     def _pause_resume_reader_callback(self, pause: bool) -> None:
         """Pause and resume reader."""
         if pause:
+            _LOGGER.debug(
+                "Pause reader for %s (%s)",
+                self._channel.ip_address,
+                self._channel.id,
+            )
             self._pause_future = self._loop.create_future()
         else:
+            _LOGGER.debug(
+                "Resuming reader for %s (%s)",
+                self._channel.ip_address,
+                self._channel.id,
+            )
             assert self._pause_future is not None, "Cannot resume non paused connection"
             self._pause_future.set_result(None)
             self._pause_future = None
@@ -94,13 +108,13 @@ class ConnectorHandler:
     async def start(
         self,
         multiplexer: Multiplexer,
-        channel: MultiplexerChannel,
         end_host: str,
         end_port: int,
         endpoint_connection_error_callback: Callable[[], Coroutine[Any, Any, None]]
         | None = None,
     ) -> None:
         """Start handler."""
+        channel = self._channel
         channel.set_pause_resume_reader_callback(self._pause_resume_reader_callback)
         # Open connection to endpoint
         try:

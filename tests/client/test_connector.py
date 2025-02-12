@@ -27,7 +27,7 @@ async def test_init_connector(
     connector = Connector("127.0.0.1", "8822")
     multiplexer_client._new_connections = connector.handler
 
-    channel = await multiplexer_server.create_channel(IP_ADDR)
+    channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     assert test_endpoint
@@ -51,7 +51,7 @@ async def test_flow_connector(
     connector = Connector("127.0.0.1", "8822")
     multiplexer_client._new_connections = connector.handler
 
-    channel = await multiplexer_server.create_channel(IP_ADDR)
+    channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     assert test_endpoint
@@ -81,7 +81,7 @@ async def test_close_connector_remote(
     connector = Connector("127.0.0.1", "8822")
     multiplexer_client._new_connections = connector.handler
 
-    channel = await multiplexer_server.create_channel(IP_ADDR)
+    channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     assert test_endpoint
@@ -115,7 +115,7 @@ async def test_close_connector_local(
     connector = Connector("127.0.0.1", "8822")
     multiplexer_client._new_connections = connector.handler
 
-    channel = await multiplexer_server.create_channel(IP_ADDR)
+    channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     assert test_endpoint
@@ -152,7 +152,7 @@ async def test_init_connector_whitelist(
 
     connector.whitelist.add(IP_ADDR)
     assert IP_ADDR in connector.whitelist
-    channel = await multiplexer_server.create_channel(IP_ADDR)
+    channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     assert test_endpoint
@@ -179,7 +179,7 @@ async def test_init_connector_whitelist_bad(
     connector.whitelist.add(IP_ADDR)
     assert IP_ADDR in connector.whitelist
     assert BAD_ADDR not in connector.whitelist
-    channel = await multiplexer_server.create_channel(BAD_ADDR)
+    channel = await multiplexer_server.create_channel(BAD_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     assert not test_endpoint
@@ -196,7 +196,7 @@ async def test_connector_error_callback(
     callback = AsyncMock()
     connector = Connector("127.0.0.1", "8822", False, callback)
 
-    channel = await multiplexer_server.create_channel(IP_ADDR)
+    channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
 
     callback.assert_not_called()
 
