@@ -46,6 +46,7 @@ class Multiplexer:
     """Multiplexer Socket wrapper."""
 
     __slots__ = [
+        "_channel_tasks",
         "_channels",
         "_crypto",
         "_healthy",
@@ -81,6 +82,7 @@ class Multiplexer:
             OUTGOING_QUEUE_HIGH_WATERMARK,
         )
         self._healthy = asyncio.Event()
+        self._channel_tasks: set[asyncio.Task[None]] = set()
         self._processing_task = self._loop.create_task(self._runner())
         self._channels: dict[MultiplexerChannelId, MultiplexerChannel] = {}
         self._new_connections = new_connections
@@ -283,8 +285,7 @@ class Multiplexer:
             elif channel.unhealthy:
                 _LOGGER.warning("Abort connection, channel is not healthy")
                 channel.close()
-                # TODO: hold a strong reference to the task
-                self._loop.create_task(self.delete_channel(channel))
+                self._create_channel_task(self.delete_channel(channel))
             else:
                 channel.message_transport(message)
 
@@ -299,14 +300,11 @@ class Multiplexer:
             channel = MultiplexerChannel(
                 self._queue,
                 ip_address,
-                # TODO: callback to tell the new_connections
-                # handler to pause or resume reading
                 channel_id=message.id,
                 throttling=self._throttling,
             )
             self._channels[channel.id] = channel
-            # TODO: hold a strong reference to the task
-            self._loop.create_task(self._new_connections(self, channel))
+            self._create_channel_task(self._new_connections(self, channel))
 
         # Close
         elif message.flow_type == CHANNEL_FLOW_CLOSE:
@@ -340,6 +338,12 @@ class Multiplexer:
 
         else:
             _LOGGER.warning("Receive unknown message type")
+
+    def _create_channel_task(self, coro: Coroutine[Any, Any, None]) -> None:
+        """Create a new task for channel."""
+        task = self._loop.create_task(coro)
+        self._channel_tasks.add(task)
+        task.add_done_callback(self._channel_tasks.remove)
 
     async def create_channel(
         self,
