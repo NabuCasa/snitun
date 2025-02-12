@@ -30,8 +30,8 @@ from .message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
     CHANNEL_FLOW_NEW,
-    CHANNEL_FLOW_PING,
     CHANNEL_FLOW_PAUSE,
+    CHANNEL_FLOW_PING,
     CHANNEL_FLOW_RESUME,
     HEADER_STRUCT,
     MultiplexerChannelId,
@@ -283,6 +283,7 @@ class Multiplexer:
             elif channel.unhealthy:
                 _LOGGER.warning("Abort connection, channel is not healthy")
                 channel.close()
+                # TODO: hold a strong reference to the task
                 self._loop.create_task(self.delete_channel(channel))
             else:
                 channel.message_transport(message)
@@ -304,6 +305,7 @@ class Multiplexer:
                 throttling=self._throttling,
             )
             self._channels[channel.id] = channel
+            # TODO: hold a strong reference to the task
             self._loop.create_task(self._new_connections(self, channel))
 
         # Close
