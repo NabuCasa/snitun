@@ -33,6 +33,7 @@ from .message import (
     CHANNEL_FLOW_PAUSE,
     CHANNEL_FLOW_PING,
     CHANNEL_FLOW_RESUME,
+    HEADER_SIZE,
     HEADER_STRUCT,
     MultiplexerChannelId,
     MultiplexerMessage,
@@ -150,7 +151,9 @@ class Multiplexer:
         try:
             while not transport.is_closing():
                 if not from_peer:
-                    from_peer = self._loop.create_task(self._reader.readexactly(32))
+                    from_peer = self._loop.create_task(
+                        self._reader.readexactly(HEADER_SIZE),
+                    )
 
                 if not to_peer:
                     to_peer = self._loop.create_task(self._queue.get())
