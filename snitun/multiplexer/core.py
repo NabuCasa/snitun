@@ -274,7 +274,8 @@ class Multiplexer:
         """Process received message."""
         # DATA
         _LOGGER.debug("Process message: %s", message)
-        if message.flow_type == CHANNEL_FLOW_DATA:
+        flow_type = message.flow_type
+        if flow_type == CHANNEL_FLOW_DATA:
             # check if message exists
             if message.id not in self._channels:
                 _LOGGER.debug("Receive data from unknown channel: %s", message.id)
@@ -291,7 +292,7 @@ class Multiplexer:
                 channel.message_transport(message)
 
         # New
-        elif message.flow_type == CHANNEL_FLOW_NEW:
+        elif flow_type == CHANNEL_FLOW_NEW:
             # Check if we would handle new connection
             if not self._new_connections:
                 _LOGGER.warning("Request new Channel is not allow")
@@ -308,7 +309,7 @@ class Multiplexer:
             self._create_channel_task(self._new_connections(self, channel))
 
         # Close
-        elif message.flow_type == CHANNEL_FLOW_CLOSE:
+        elif flow_type == CHANNEL_FLOW_CLOSE:
             # check if message exists
             if message.id not in self._channels:
                 _LOGGER.debug("Receive close from unknown channel")
@@ -317,7 +318,7 @@ class Multiplexer:
             channel.close()
 
         # Ping
-        elif message.flow_type == CHANNEL_FLOW_PING:
+        elif flow_type == CHANNEL_FLOW_PING:
             if message.extra.startswith(b"pong"):
                 _LOGGER.debug("Receive pong from peer / reset healthy")
                 self._healthy.set()
@@ -328,12 +329,13 @@ class Multiplexer:
                 )
 
         # Pause or Resume
-        elif message.flow_type in (CHANNEL_FLOW_PAUSE, CHANNEL_FLOW_RESUME):
+        elif flow_type in (CHANNEL_FLOW_PAUSE, CHANNEL_FLOW_RESUME):
             # When the remote input is under water state changes
             # call the on_remote_input_under_water method
-            under_water = message.flow_type == CHANNEL_FLOW_PAUSE
             if channel_ := self._channels.get(message.id):
-                channel_.on_remote_input_under_water(under_water)
+                channel_.on_remote_input_under_water(
+                    message.flow_type == CHANNEL_FLOW_PAUSE,
+                )
 
         else:
             _LOGGER.warning("Receive unknown message type: %s", message.flow_type)
