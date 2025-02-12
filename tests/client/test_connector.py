@@ -5,11 +5,12 @@ import ipaddress
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from typing import cast
 
-from snitun.client.connector import Connector
+from snitun.client.connector import Connector,ConnectorHandler
 from snitun.exceptions import MultiplexerTransportClose
 from snitun.multiplexer.core import Multiplexer
-
+from snitun.multiplexer.channel import MultiplexerChannel
 from ..conftest import Client
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
@@ -204,3 +205,56 @@ async def test_connector_error_callback(
         await connector.handler(multiplexer_client, channel)
 
     callback.assert_called_once()
+
+
+async def test_connector_handler_can_pause(
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+    test_endpoint: list[Client],
+) -> None:
+    """Test connector handler can pause."""
+    assert not test_endpoint
+
+    connector = Connector("127.0.0.1", "8822")
+    multiplexer_client._new_connections = connector.handler
+
+    connector_handler: ConnectorHandler | None = None
+
+    def save_connector_handler(loop: asyncio.AbstractEventLoop,        channel: MultiplexerChannel) -> ConnectorHandler:
+        nonlocal connector_handler
+        connector_handler = ConnectorHandler(loop, channel)
+        return connector_handler
+
+    with patch("snitun.client.connector.ConnectorHandler", save_connector_handler):
+        channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
+        await asyncio.sleep(0.1)
+
+    assert isinstance(connector_handler, ConnectorHandler)
+    handler = cast(ConnectorHandler, connector_handler)
+    assert channel._pause_resume_reader_callback is not None
+    import pprint
+    pprint.pprint([channel._pause_resume_reader_callback])
+
+    assert test_endpoint
+    test_connection = test_endpoint[0]
+
+    await channel.write(b"Hallo")
+    data = await test_connection.reader.read(1024)
+    assert data == b"Hallo"
+
+    test_connection.writer.write(b"Hiro")
+    await test_connection.writer.drain()
+
+    data = await channel.read()
+    assert data == b"Hiro"
+
+    test_connection.writer.close()
+    test_connection.close.set()
+    await asyncio.sleep(0.1)
+
+    with pytest.raises(MultiplexerTransportClose):
+        await channel.read()
+
+    assert handler._pause_future is None
+    channel.on_remote_input_under_water(True)
+    assert handler._pause_future is not None
