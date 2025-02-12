@@ -18,7 +18,11 @@ from .const import (
     INCOMING_QUEUE_MAX_BYTES_CHANNEL,
 )
 from .message import (
-    FlowType,
+    CHANNEL_FLOW_CLOSE,
+    CHANNEL_FLOW_DATA,
+    CHANNEL_FLOW_NEW,
+    CHANNEL_FLOW_PAUSE,
+    CHANNEL_FLOW_RESUME,
     MultiplexerChannelId,
     MultiplexerMessage,
 )
@@ -80,7 +84,7 @@ class MultiplexerChannel:
 
     def _on_local_input_under_water(self, under_water: bool) -> None:
         """On callback from the input queue when goes under water or recovers."""
-        msg_type = FlowType.PAUSE if under_water else FlowType.RESUME
+        msg_type = CHANNEL_FLOW_PAUSE if under_water else CHANNEL_FLOW_RESUME
         # Tell the remote that our input queue is under water so it
         # can pause reading from whatever is connected to this channel
         if under_water:
@@ -102,6 +106,7 @@ class MultiplexerChannel:
 
     def on_remote_input_under_water(self, under_water: bool) -> None:
         """Call when remote input is under water."""
+        _LOGGER.debug("Remote input is under water for %s", self._id)
         self._remote_input_under_water = under_water
         self._pause_or_resume_reader()
 
@@ -150,7 +155,7 @@ class MultiplexerChannel:
         # Create message
         message = tuple.__new__(
             MultiplexerMessage,
-            (self._id, FlowType.DATA, data, b""),
+            (self._id, CHANNEL_FLOW_DATA, data, b""),
         )
 
         try:
@@ -185,13 +190,13 @@ class MultiplexerChannel:
     def init_close(self) -> MultiplexerMessage:
         """Init close message for transport."""
         _LOGGER.debug("Close channel %s", self._id)
-        return MultiplexerMessage(self._id, FlowType.CLOSE)
+        return MultiplexerMessage(self._id, CHANNEL_FLOW_CLOSE)
 
     def init_new(self) -> MultiplexerMessage:
         """Init new session for transport."""
         _LOGGER.debug("New channel %s", self._id)
         extra = b"4" + ip_address_to_bytes(self.ip_address)
-        return MultiplexerMessage(self._id, FlowType.NEW, b"", extra)
+        return MultiplexerMessage(self._id, CHANNEL_FLOW_NEW, b"", extra)
 
     def message_transport(self, message: MultiplexerMessage) -> None:
         """Only for internal usage of core transport."""

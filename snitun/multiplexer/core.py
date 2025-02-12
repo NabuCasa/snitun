@@ -34,7 +34,6 @@ from .message import (
     CHANNEL_FLOW_PING,
     CHANNEL_FLOW_RESUME,
     HEADER_STRUCT,
-    FlowType,
     MultiplexerChannelId,
     MultiplexerMessage,
 )
@@ -123,7 +122,7 @@ class Multiplexer:
         channel_id = MultiplexerChannelId(os.urandom(16))
         try:
             self._write_message(
-                MultiplexerMessage(channel_id, FlowType.PING, b"", b"ping"),
+                MultiplexerMessage(channel_id, CHANNEL_FLOW_PING, b"", b"ping"),
             )
 
             # Wait until pong is received
@@ -224,14 +223,18 @@ class Multiplexer:
     def _write_message(self, message: MultiplexerMessage) -> None:
         """Write message to peer."""
         id_, flow_type, data, extra = message
+        data_len = len(data)
         header = HEADER_STRUCT.pack(
             id_.bytes,
             flow_type,
-            len(data),
+            data_len,
             extra + os.urandom(11 - len(extra)),
         )
         try:
-            self._writer.write(self._crypto.encrypt(header) + data)
+            encrypted_header = self._crypto.encrypt(header)
+            self._writer.write(
+                encrypted_header + data if data_len else encrypted_header,
+            )
         except RuntimeError:
             raise MultiplexerTransportClose from None
 
@@ -245,8 +248,9 @@ class Multiplexer:
         data_size: int
         extra: bytes
         try:
+            decrypted_header = self._crypto.decrypt(header)
             channel_id, flow_type, data_size, extra = HEADER_STRUCT.unpack(
-                self._crypto.decrypt(header),
+                decrypted_header,
             )
         except (struct.error, MultiplexerTransportDecrypt):
             _LOGGER.warning("Wrong message header received")
@@ -269,10 +273,11 @@ class Multiplexer:
     async def _process_message(self, message: MultiplexerMessage) -> None:
         """Process received message."""
         # DATA
+        _LOGGER.debug("Process message: %s", message)
         if message.flow_type == CHANNEL_FLOW_DATA:
             # check if message exists
             if message.id not in self._channels:
-                _LOGGER.debug("Receive data from unknown channel")
+                _LOGGER.debug("Receive data from unknown channel: %s", message.id)
                 return
 
             channel = self._channels[message.id]
@@ -319,7 +324,7 @@ class Multiplexer:
             else:
                 _LOGGER.debug("Receive ping from peer / send pong")
                 self._write_message(
-                    MultiplexerMessage(message.id, FlowType.PING, b"", b"pong"),
+                    MultiplexerMessage(message.id, CHANNEL_FLOW_PING, b"", b"pong"),
                 )
 
         # Pause or Resume
@@ -331,7 +336,7 @@ class Multiplexer:
                 channel_.on_remote_input_under_water(under_water)
 
         else:
-            _LOGGER.warning("Receive unknown message type")
+            _LOGGER.warning("Receive unknown message type: %s", message.flow_type)
 
     def _create_channel_task(self, coro: Coroutine[Any, Any, None]) -> None:
         """Create a new task for channel."""

@@ -8,7 +8,10 @@ from typing import NamedTuple
 
 
 class FlowType(IntFlag):
-    """Flow type for multiplexer message."""
+    """Flow type for multiplexer message.
+
+    Note that only one byte is available for the flow type.
+    """
 
     NEW = 0x01
     DATA = 0x02
@@ -37,7 +40,7 @@ CHANNEL_FLOW_RESUME = FlowType.RESUME.value
 # |--------------------------------------------------------|
 # >:   All bytes are big-endian and unsigned
 # 16s: 16 bytes: Channel ID - random
-# B:   1 byte:   Flow type  - 1: NEW, 2: DATA, 4: CLOSE, 8: PING
+# B:   1 byte:   Flow type  - 1: NEW, 2: DATA, 4: CLOSE, 8: PING, 16: PAUSE, 32: RESUME
 # I:   4 bytes:  Data size  - 0-4294967295
 # 11s: 11 bytes: Extra      - data + random padding
 HEADER_STRUCT = struct.Struct(">16sBI11s")
@@ -66,6 +69,17 @@ class MultiplexerMessage(NamedTuple):
     """Represent a message from multiplexer stream."""
 
     id: MultiplexerChannelId
-    flow_type: FlowType
+    flow_type: FlowType | int
     data: bytes = b""
     extra: bytes = b""
+
+    def __repr__(self) -> str:
+        """Return string representation for logger."""
+        return (
+            "MultiplexerMessage("
+            f"id={self.id.hex}, "
+            f"flow_type={FlowType(self.flow_type)!r}, "
+            f"data={self.data!r}, "
+            f"extra={self.extra!r}"
+            ")"
+        )
