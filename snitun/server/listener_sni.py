@@ -6,7 +6,6 @@ import asyncio
 from contextlib import suppress
 import ipaddress
 import logging
-from typing import cast
 
 from ..exceptions import (
     MultiplexerTransportClose,
@@ -115,8 +114,38 @@ class SNIProxy:
         writer: asyncio.StreamWriter,
     ) -> None:
         """Proxy data between end points."""
-        # TODO: make an object here so we can call the pause/resume
-        # callback on it
+        handler = ProxyPeerHandler(self._loop)
+        await handler.start(multiplexer, client_hello, reader, writer)
+
+
+class ProxyPeerHandler:
+    """Proxy Peer Handler."""
+
+    def __init__(
+        self,
+        loop: asyncio.AbstractEventLoop,
+    ) -> None:
+        """Initialize ProxyPeerHandler."""
+        self._loop = loop
+        self._pause_future: asyncio.Future[None] | None = None
+
+    def _pause_resume_reader_callback(self, pause: bool) -> None:
+        """Pause and resume reader."""
+        if pause:
+            self._pause_future = self._loop.create_future()
+        else:
+            assert self._pause_future is not None, "Cannot resume non paused connection"
+            self._pause_future.set_result(None)
+            self._pause_future = None
+
+    async def start(
+        self,
+        multiplexer: Multiplexer,
+        client_hello: bytes,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+    ) -> None:
+        """Start handler."""
         transport = writer.transport
         try:
             ip_address = ipaddress.IPv4Address(writer.get_extra_info("peername")[0])
@@ -124,22 +153,11 @@ class SNIProxy:
             _LOGGER.error("Can't read source IP")
             return
 
-        pause_future: asyncio.Future[None] | None = None
-
-        def pause_resume_reader_callback(pause: bool) -> None:
-            """Pause and resume reader."""
-            nonlocal pause_future
-            if pause:
-                pause_future = self._loop.create_future()
-            elif pause_future:
-                pause_future.set_result(None)
-                pause_future = None
-
         # Open multiplexer channel
         try:
             channel = await multiplexer.create_channel(
                 ip_address,
-                pause_resume_reader_callback,
+                self._pause_resume_reader_callback,
             )
         except MultiplexerTransportError:
             _LOGGER.error("New transport channel to peer fails")
@@ -153,10 +171,9 @@ class SNIProxy:
             # Process stream into multiplexer
             while not transport.is_closing():
                 if not from_proxy:
-                    if pause_future:
-                        from_proxy = cast(asyncio.Future[None], pause_future)
-                    else:
-                        from_proxy = self._loop.create_task(reader.read(4096))
+                    from_proxy = self._pause_future or self._loop.create_task(
+                        reader.read(4096),  # type: ignore[arg-type]
+                    )
                 if not from_peer:
                     from_peer = self._loop.create_task(channel.read())
 
