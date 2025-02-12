@@ -251,9 +251,8 @@ class Multiplexer:
         data_size: int
         extra: bytes
         try:
-            decrypted_header = self._crypto.decrypt(header)
             channel_id, flow_type, data_size, extra = HEADER_STRUCT.unpack(
-                decrypted_header,
+                self._crypto.decrypt(header),
             )
         except (struct.error, MultiplexerTransportDecrypt):
             _LOGGER.warning("Wrong message header received")
