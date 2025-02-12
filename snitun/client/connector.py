@@ -53,7 +53,7 @@ class Connector:
         channel: MultiplexerChannel,
     ) -> None:
         """Handle new connection from SNIProxy."""
-        from_endpoint = None
+        from_endpoint: asyncio.Future[bytes | None] = None
         from_peer = None
 
         _LOGGER.debug(
@@ -106,7 +106,8 @@ class Connector:
                     if from_endpoint_exc := from_endpoint.exception():
                         raise from_endpoint_exc
 
-                    await channel.write(from_endpoint.result())
+                    if (from_endpoint_result := from_endpoint.result()) is not None:
+                        await channel.write(from_endpoint_result)
                     from_endpoint = None
 
                 # From peer

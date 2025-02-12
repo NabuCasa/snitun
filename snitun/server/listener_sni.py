@@ -121,16 +121,24 @@ class SNIProxy:
             _LOGGER.error("Can't read source IP")
             return
 
+        pause_future: asyncio.Future[None] = None
+        def pause_resume_reader_callback(pause: bool) -> None:
+            """Pause and resume reader."""
+            nonlocal pause_future
+            if pause:
+                pause_future = self._loop.create_future()
+            elif pause_future:
+                pause_future.set_result(None)
+                pause_future = None
+
         # Open multiplexer channel
         try:
-            # TODO: be able to get a callback to switch out the reader
-            # for a future when paused
-            channel = await multiplexer.create_channel(ip_address)
+            channel = await multiplexer.create_channel(ip_address, pause_resume_reader_callback)
         except MultiplexerTransportError:
             _LOGGER.error("New transport channel to peer fails")
             return
 
-        from_proxy = None
+        from_proxy: asyncio.Future[bytes | None] = None
         from_peer = None
         try:
             await channel.write(client_hello)
@@ -138,9 +146,10 @@ class SNIProxy:
             # Process stream into multiplexer
             while not transport.is_closing():
                 if not from_proxy:
-                    # TODO: when paused make from_endpoint an asyncio.Future[None] that
-                    # will be set when the channel is unpaused                    
-                    from_proxy = self._loop.create_task(reader.read(4096))
+                    if pause_future:
+                        from_proxy = pause_future
+                    else:               
+                        from_proxy = self._loop.create_task(reader.read(4096))
                 if not from_peer:
                     from_peer = self._loop.create_task(channel.read())
 
@@ -156,7 +165,8 @@ class SNIProxy:
                     if from_proxy_exc := from_proxy.exception():
                         raise from_proxy_exc
 
-                    await channel.write(from_proxy.result())
+                    if (from_proxy_result := from_proxy.result()) is not None:
+                        await channel.write(from_proxy_result)
                     from_proxy = None
 
                 # From peer

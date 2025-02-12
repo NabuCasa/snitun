@@ -341,7 +341,7 @@ class Multiplexer:
     async def create_channel(
         self,
         ip_address: ipaddress.IPv4Address,
-        pause_resume_reader_callback: Callable[[MultiplexerChannelId, bool], None],
+        pause_resume_reader_callback: Callable[[bool], None],
     ) -> MultiplexerChannel:
         """Create a new channel for transport."""
         channel = MultiplexerChannel(

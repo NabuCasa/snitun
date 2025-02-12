@@ -50,7 +50,7 @@ class MultiplexerChannel:
         self,
         output: MultiplexerMultiChannelQueue,
         ip_address: IPv4Address,
-        pause_resume_reader_callback: Callable[[MultiplexerChannelId, bool], None],
+        pause_resume_reader_callback: Callable[[bool], None],
         channel_id: MultiplexerChannelId | None = None,
         throttling: float | None = None,
     ) -> None:
@@ -92,7 +92,6 @@ class MultiplexerChannel:
         # Pause if either local output or remote input is under water
         # Resume if both local output and remote input are not under water
         self._pause_resume_reader_callback(
-            self.id,
             self._local_output_under_water or self._remote_input_under_water,
         )
 
