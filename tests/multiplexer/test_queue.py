@@ -551,6 +551,19 @@ async def test_multiple_delete_channel_is_forgiving() -> None:
     queue.delete_channel(channel_id)
 
 
+async def test_delete_channel_when_queue_is_not_empty() -> None:
+    """Test a channel can be deleted when its queue is not empty."""
+    queue = MultiplexerMultiChannelQueue(100000, 10, 1000)
+    channel_id = _make_mock_channel_id()
+    queue.create_channel(channel_id, lambda _: None)
+    queue.put_nowait(channel_id, _make_mock_message(channel_id))
+    queue.delete_channel(channel_id)
+    assert not queue.empty(channel_id)
+    assert queue.get_nowait() is not None
+    queue.delete_channel(channel_id)
+    assert queue.empty(channel_id)
+
+
 async def test_multiple_create_channel_raises() -> None:
     """Test the same channel can only be created once."""
     queue = MultiplexerMultiChannelQueue(100000, 10, 1000)
