@@ -5,12 +5,7 @@ import ipaddress
 from unittest.mock import patch
 
 import pytest
-from snitun.multiplexer.message import (
-    CHANNEL_FLOW_DATA,
-    HEADER_SIZE,
-    MultiplexerChannelId,
-    MultiplexerMessage,
-)
+
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer import channel as channel_module
 from snitun.multiplexer.channel import MultiplexerChannel
@@ -23,13 +18,15 @@ from snitun.multiplexer.message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
     CHANNEL_FLOW_NEW,
+    CHANNEL_FLOW_PAUSE,
+    CHANNEL_FLOW_RESUME,
     HEADER_SIZE,
     MultiplexerChannelId,
     MultiplexerMessage,
 )
 from snitun.multiplexer.queue import MultiplexerMultiChannelQueue
 from snitun.utils.ipaddress import ip_address_to_bytes
-from snitun.multiplexer import channel as channel_module
+
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
 
@@ -224,32 +221,80 @@ async def test_write_throttling(event_loop: asyncio.AbstractEventLoop) -> None:
         await background_task
 
 
-
 async def test_channel_input_queue_goes_under_water() -> None:
     """Test when a channel input queue goes under water.
 
     The channel should inform the peer to pause the reader.
     """
     output = MultiplexerMultiChannelQueue(
-        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
-        OUTGOING_QUEUE_LOW_WATERMARK,
-        OUTGOING_QUEUE_HIGH_WATERMARK,
+        HEADER_SIZE * 2,
+        HEADER_SIZE,
+        HEADER_SIZE * 2,
     )
-    with patch.object(channel_module, "INCOMING_QUEUE_MAX_BYTES_CHANNEL", HEADER_SIZE*10), patch.object(
-        channel_module, "INCOMING_QUEUE_LOW_WATERMARK", HEADER_SIZE
-    ), patch.object(channel_module, "INCOMING_QUEUE_HIGH_WATERMARK", HEADER_SIZE*2):
-       channel = MultiplexerChannel(output, IP_ADDR)
-       assert isinstance(channel.id, MultiplexerChannelId)
+    with (
+        patch.object(
+            channel_module, "INCOMING_QUEUE_MAX_BYTES_CHANNEL", HEADER_SIZE * 10,
+        ),
+        patch.object(channel_module, "INCOMING_QUEUE_LOW_WATERMARK", HEADER_SIZE),
+        patch.object(channel_module, "INCOMING_QUEUE_HIGH_WATERMARK", HEADER_SIZE * 2),
+    ):
+        channel = MultiplexerChannel(output, IP_ADDR)
+        assert isinstance(channel.id, MultiplexerChannelId)
 
+    # Fake some data coming from the remote
     data_msg = MultiplexerMessage(channel.id, CHANNEL_FLOW_DATA)
     channel.message_transport(data_msg)
     channel.message_transport(data_msg)
+    # The input queue is now under water
+    assert channel._input._under_water
 
-    message = channel.init_close()
+    # We should have told the remote to pause
+    assert output.get_nowait() == MultiplexerMessage(channel.id, CHANNEL_FLOW_PAUSE)
 
-    await channel.read()
+    await channel.read() == data_msg.data
+    # The input queue is now back to normal
+
+    # We should have told the remote to resume
+    assert output.get_nowait() == MultiplexerMessage(channel.id, CHANNEL_FLOW_RESUME)
 
 
-    assert message.id == channel.id
-    assert message.flow_type == CHANNEL_FLOW_CLOSE
-    assert message.data == b""
+async def test_channel_input_queue_goes_under_water_output_full(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test when a channel input queue goes under water when output is full.
+
+    The channel should inform the peer to pause the reader.
+    """
+    output = MultiplexerMultiChannelQueue(
+        HEADER_SIZE * 2,
+        HEADER_SIZE,
+        HEADER_SIZE * 2,
+    )
+    with (
+        patch.object(
+            channel_module, "INCOMING_QUEUE_MAX_BYTES_CHANNEL", HEADER_SIZE * 10,
+        ),
+        patch.object(channel_module, "INCOMING_QUEUE_LOW_WATERMARK", HEADER_SIZE),
+        patch.object(channel_module, "INCOMING_QUEUE_HIGH_WATERMARK", HEADER_SIZE * 2),
+    ):
+        channel = MultiplexerChannel(output, IP_ADDR)
+        assert isinstance(channel.id, MultiplexerChannelId)
+
+    data_msg = MultiplexerMessage(channel.id, CHANNEL_FLOW_DATA)
+
+    # Fill the output queue so it's full
+    output.put_nowait(channel.id, data_msg)
+    output.put_nowait(channel.id, data_msg)
+
+    # Fake some data coming from the remote
+    channel.message_transport(data_msg)
+    channel.message_transport(data_msg)
+    # The input queue is now under water
+    assert channel._input._under_water
+
+    # We can't tell the remote to pause because
+    # our output queue is full
+    assert (
+        f"{channel.id}: Cannot send pause/resume message to peer, "
+        "output queue is full" in caplog.text
+    )

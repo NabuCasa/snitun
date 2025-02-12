@@ -231,7 +231,8 @@ async def test_connector_handler_can_pause(
 
     with patch("snitun.client.connector.ConnectorHandler", save_connector_handler):
         server_channel = await multiplexer_server.create_channel(
-            IP_ADDR, lambda _: None,
+            IP_ADDR,
+            lambda _: None,
         )
         await asyncio.sleep(0.1)
 

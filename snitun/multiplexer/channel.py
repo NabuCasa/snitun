@@ -90,7 +90,10 @@ class MultiplexerChannel:
         try:
             self._output.put_nowait(self._id, MultiplexerMessage(self._id, msg_type))
         except asyncio.QueueFull:
-            _LOGGER.warning("%s: Cannot send pause/resume message to peer", self._id)
+            _LOGGER.warning(
+                "%s: Cannot send pause/resume message to peer, output queue is full",
+                self._id,
+            )
 
     def _on_local_output_under_water(self, under_water: bool) -> None:
         """On callback from the output queue when goes under water or recovers."""
