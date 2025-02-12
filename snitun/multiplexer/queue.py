@@ -111,7 +111,9 @@ class MultiplexerMultiChannelQueue:
         self._channel_low_water_mark = channel_low_water_mark
         self._channel_high_water_mark = channel_high_water_mark
         self._channels: dict[MultiplexerChannelId, _ChannelQueue] = {}
-        # order controls which channel_id to get next
+        # order controls which channel_id to get next, we use an
+        # OrderedDict because we want to keep the order of the channels
+        # FIFO.
         self._order: OrderedDict[MultiplexerChannelId, None] = OrderedDict()
         self._getters: deque[asyncio.Future[None]] = deque()
         self._loop = asyncio.get_running_loop()
