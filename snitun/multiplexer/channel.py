@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from contextlib import suppress
 from ipaddress import IPv4Address
 import logging
@@ -20,6 +21,8 @@ from .message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
     CHANNEL_FLOW_NEW,
+    CHANNEL_FLOW_PAUSE,
+    CHANNEL_FLOW_RESUME,
     MultiplexerChannelId,
     MultiplexerMessage,
 )
@@ -36,9 +39,9 @@ class MultiplexerChannel:
         "_id",
         "_input",
         "_ip_address",
-        "_local_input_under_water",
         "_local_output_under_water",
         "_output",
+        "_pause_resume_reader_callback",
         "_remote_input_under_water",
         "_throttling",
     )
@@ -47,6 +50,7 @@ class MultiplexerChannel:
         self,
         output: MultiplexerMultiChannelQueue,
         ip_address: IPv4Address,
+        pause_resume_reader_callback: Callable[[bool], None],
         channel_id: MultiplexerChannelId | None = None,
         throttling: float | None = None,
     ) -> None:
@@ -55,7 +59,7 @@ class MultiplexerChannel:
             INCOMING_QUEUE_MAX_BYTES_CHANNEL,
             INCOMING_QUEUE_LOW_WATERMARK,
             INCOMING_QUEUE_HIGH_WATERMARK,
-            self._input_under_water,
+            self._local_input_under_water_callback,
         )
         self._output = output
         self._id = channel_id or MultiplexerChannelId(os.urandom(16))
@@ -63,18 +67,33 @@ class MultiplexerChannel:
         self._throttling = throttling
         self._closing = False
         # Backpressure
-        self._local_input_under_water = False
         self._local_output_under_water = False
         self._remote_input_under_water = False
-        self._output.create_channel(self._id, self._output_under_water)
+        self._output.create_channel(self._id, self._local_output_under_water_callback)
+        self._pause_resume_reader_callback = pause_resume_reader_callback
 
-    def _input_under_water(self, under_water: bool) -> None:
-        """Set input under water."""
-        self._local_input_under_water = under_water
+    def _local_input_under_water_callback(self, under_water: bool) -> None:
+        """Set local input under water."""
+        msg_type = CHANNEL_FLOW_PAUSE if under_water else CHANNEL_FLOW_RESUME
+        self.message_transport(MultiplexerMessage(self._id, msg_type))
 
-    def _output_under_water(self, under_water: bool) -> None:
-        """Set output under water."""
+    def _local_output_under_water_callback(self, under_water: bool) -> None:
+        """Set local output under water."""
         self._local_output_under_water = under_water
+        self._pause_or_resume_reader()
+
+    def remote_input_under_water_callback(self, under_water: bool) -> None:
+        """Set remote input under water."""
+        self._remote_input_under_water = under_water
+        self._pause_or_resume_reader()
+
+    def _pause_or_resume_reader(self) -> None:
+        """Pause or resume reader."""
+        # Pause if either local output or remote input is under water
+        # Resume if both local output and remote input are not under water
+        self._pause_resume_reader_callback(
+            self._local_output_under_water or self._remote_input_under_water,
+        )
 
     @property
     def id(self) -> MultiplexerChannelId:
