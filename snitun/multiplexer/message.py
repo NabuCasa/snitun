@@ -1,7 +1,7 @@
 """Multiplexer message handling."""
 
 from enum import IntFlag
-from functools import cached_property
+from functools import cached_property, lru_cache
 import struct
 from typing import NamedTuple
 
@@ -59,6 +59,15 @@ class MultiplexerChannelId(bytes):
         return self.hex()
 
 
+@lru_cache
+def try_parse_flow_type(flow_type: int) -> FlowType | int:
+    """Try to parse flow type."""
+    try:
+        return FlowType(flow_type)
+    except ValueError:
+        return flow_type
+
+
 class MultiplexerMessage(NamedTuple):
     """Represent a message from multiplexer stream."""
 
@@ -72,7 +81,7 @@ class MultiplexerMessage(NamedTuple):
         return (
             "MultiplexerMessage("
             f"id={self.id.hex()}, "
-            f"flow_type={FlowType(self.flow_type)!r}, "
+            f"flow_type={try_parse_flow_type(self.flow_type)!r}, "
             f"data={self.data!r}, "
             f"extra={self.extra!r}"
             ")"
