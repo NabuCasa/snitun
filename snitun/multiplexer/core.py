@@ -20,34 +20,24 @@ from ..exceptions import (
 from ..utils.asyncio import asyncio_timeout
 from ..utils.ipaddress import bytes_to_ip_address
 from .channel import MultiplexerChannel
+from .const import OUTGOING_QUEUE_MAX_BYTES_CHANNEL, PEER_TCP_TIMEOUT
 from .crypto import CryptoTransport
 from .message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
     CHANNEL_FLOW_NEW,
     CHANNEL_FLOW_PING,
+    HEADER_STRUCT,
     MultiplexerChannelId,
     MultiplexerMessage,
 )
+from .queue import MultiplexerMultiChannelQueue
 
 _LOGGER = logging.getLogger(__name__)
 
-PEER_TCP_TIMEOUT = 90
-
-# |-----------------HEADER---------------------------------|
-# |------ID-----|--FLAG--|--SIZE--|---------EXTRA ---------|
-# |   16 bytes  | 1 byte | 4 bytes|       11 bytes         |
-# |--------------------------------------------------------|
-# >:   All bytes are big-endian and unsigned
-# 16s: 16 bytes: Channel ID - random
-# B:   1 byte:   Flow type  - 1: NEW, 2: DATA, 4: CLOSE, 8: PING
-# I:   4 bytes:  Data size  - 0-4294967295
-# 11s: 11 bytes: Extra      - data + random padding
-HEADER_STRUCT = struct.Struct(">16sBI11s")
 
 HIGH_WATER_MARK = 10000
 LOW_WATER_MARK = 2000
-QUEUE_MAX = 12000
 
 
 class Multiplexer:
@@ -63,7 +53,6 @@ class Multiplexer:
         "_queue",
         "_queue_max",
         "_reader",
-        "_resume_writing_callbacks",
         "_throttling",
         "_writer",
     ]
@@ -85,36 +74,17 @@ class Multiplexer:
         self._reader = reader
         self._writer = writer
         self._loop = asyncio.get_event_loop()
-        self._queue: asyncio.Queue[MultiplexerMessage | None] = asyncio.Queue(QUEUE_MAX)
+        self._queue = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
         self._healthy = asyncio.Event()
         self._processing_task = self._loop.create_task(self._runner())
         self._channels: dict[MultiplexerChannelId, MultiplexerChannel] = {}
         self._new_connections = new_connections
         self._throttling = 1 / throttling if throttling else None
-        self._resume_writing_callbacks: set[Callable[[], None]] = set()
 
     @property
     def is_connected(self) -> bool:
         """Return True is they is connected."""
         return not self._processing_task.done()
-
-    @property
-    def should_pause(self) -> bool:
-        """Return True if the write transport should pause."""
-        return self._queue.qsize() > HIGH_WATER_MARK
-
-    @property
-    def should_resume(self) -> bool:
-        """Return True if the write transport should resume."""
-        return self._queue.qsize() < LOW_WATER_MARK
-
-    def register_resume_writing_callback(
-        self,
-        callback: Callable[[], None],
-    ) -> Callable[[], None]:
-        """Register a callback to resume the protocol."""
-        self._resume_writing_callbacks.add(callback)
-        return partial(self._resume_writing_callbacks.discard, callback)
 
     def wait(self) -> asyncio.Future[None]:
         """Block until the connection is closed.
@@ -205,12 +175,6 @@ class Multiplexer:
 
                     # Flush buffer
                     await self._writer.drain()
-                    # If writers are paused and we have space in the queue
-                    # callback the writers to resume writing
-                    if self._resume_writing_callbacks and self.should_resume:
-                        for callback_ in self._resume_writing_callbacks:
-                            callback_()
-                        self._resume_writing_callbacks.clear()
 
                 # throttling
                 if not self._throttling:
@@ -310,7 +274,7 @@ class Multiplexer:
             channel = self._channels[message.id]
             if channel.closing:
                 pass
-            elif channel.healthy:
+            elif channel.unhealthy:
                 _LOGGER.warning("Abort connection, channel is not healthy")
                 channel.close()
                 self._loop.create_task(self.delete_channel(channel))
@@ -371,7 +335,7 @@ class Multiplexer:
 
         try:
             async with asyncio_timeout.timeout(5):
-                await self._queue.put(message)
+                await self._queue.put(channel.id, message)
         except TimeoutError:
             raise MultiplexerTransportError from None
 
@@ -385,7 +349,7 @@ class Multiplexer:
 
         try:
             async with asyncio_timeout.timeout(5):
-                await self._queue.put(message)
+                await self._queue.put(channel.id, message)
         except TimeoutError:
             raise MultiplexerTransportError from None
         finally:

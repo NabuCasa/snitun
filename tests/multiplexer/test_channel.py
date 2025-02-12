@@ -2,18 +2,25 @@
 
 import asyncio
 import ipaddress
+from unittest.mock import patch
 
 import pytest
 
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
+from snitun.multiplexer import channel as channel_module
 from snitun.multiplexer.channel import MultiplexerChannel
+from snitun.multiplexer.const import (
+    OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+)
 from snitun.multiplexer.message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
     CHANNEL_FLOW_NEW,
+    HEADER_SIZE,
     MultiplexerChannelId,
     MultiplexerMessage,
 )
+from snitun.multiplexer.queue import MultiplexerMultiChannelQueue
 from snitun.utils.ipaddress import ip_address_to_bytes
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
@@ -21,7 +28,7 @@ IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
 async def test_initial_channel_msg() -> None:
     """Test new MultiplexerChannel with id."""
-    output = asyncio.Queue()
+    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -35,7 +42,7 @@ async def test_initial_channel_msg() -> None:
 
 async def test_close_channel_msg() -> None:
     """Test close MultiplexerChannel."""
-    output = asyncio.Queue()
+    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -48,12 +55,12 @@ async def test_close_channel_msg() -> None:
 
 async def test_write_data() -> None:
     """Test send data over MultiplexerChannel."""
-    output = asyncio.Queue()
+    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
     await channel.write(b"test")
-    assert not output.empty()
+    assert not output.empty(channel.id)
 
     message = output.get_nowait()
     assert message.id == channel.id
@@ -63,7 +70,7 @@ async def test_write_data() -> None:
 
 async def test_closing() -> None:
     """Test send data over MultiplexerChannel."""
-    output = asyncio.Queue()
+    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -74,7 +81,7 @@ async def test_closing() -> None:
 
 async def test_write_data_after_close() -> None:
     """Test send data over MultiplexerChannel."""
-    output = asyncio.Queue()
+    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
     assert not channel.closing
@@ -89,7 +96,7 @@ async def test_write_data_after_close() -> None:
 
 async def test_write_data_empty() -> None:
     """Test send data over MultiplexerChannel."""
-    output = asyncio.Queue()
+    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -99,7 +106,7 @@ async def test_write_data_empty() -> None:
 
 async def test_read_data() -> None:
     """Test send data over MultiplexerChannel."""
-    output = asyncio.Queue()
+    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -112,7 +119,7 @@ async def test_read_data() -> None:
 
 async def test_read_data_on_close() -> None:
     """Test send data over MultiplexerChannel on close."""
-    output = asyncio.Queue()
+    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
     assert not channel.closing
@@ -126,12 +133,12 @@ async def test_read_data_on_close() -> None:
 
 async def test_write_data_peer_error(raise_timeout: None) -> None:
     """Test send data over MultiplexerChannel but peer don't response."""
-    output = asyncio.Queue(1)
+    output = MultiplexerMultiChannelQueue(1)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
     # fill peer queue
-    output.put_nowait(None)
+    output.put_nowait(channel.id, None)
 
     with pytest.raises(MultiplexerTransportError):
         await channel.write(b"test")
@@ -151,33 +158,41 @@ async def test_write_data_no_wait_queue_full() -> None:
 
 
 async def test_message_transport_never_lock() -> None:
-    """Message transport should never lock down."""
-    output = asyncio.Queue(1)
-    channel = MultiplexerChannel(output, IP_ADDR)
+    """Message transport should never lock down even when it goes unhealthy."""
+    output = MultiplexerMultiChannelQueue(1)
+    with patch.object(channel_module, "INCOMING_QUEUE_MAX_BYTES_CHANNEL", 1):
+        channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
+    assert not channel.unhealthy
+    assert not channel.closing
 
-    for _ in range(1, 10000):
+    for _ in range(3):
         channel.message_transport(channel.init_close())
 
-    assert channel.healthy
+    assert channel.unhealthy
 
 
 async def test_write_throttling(event_loop: asyncio.AbstractEventLoop) -> None:
     """Message transport should never lock down."""
     loop = event_loop
-    output = asyncio.Queue(500)
+    output = MultiplexerMultiChannelQueue(500)
     channel = MultiplexerChannel(output, IP_ADDR, throttling=0.1)
     assert isinstance(channel.id, MultiplexerChannelId)
+    message = b"test"
+    message_size = HEADER_SIZE + len(message)
 
     async def _write_background():
         """Write message in background."""
         for _ in range(1, 10000):
-            await channel.write(b"test")
+            await channel.write(message)
 
     background_task = loop.create_task(_write_background())
 
     await asyncio.sleep(0.3)
     assert not background_task.done()
-    assert output.qsize() <= 4
+
+    assert output.size(channel.id) <= message_size * 4
 
     background_task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await background_task
