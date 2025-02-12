@@ -59,7 +59,7 @@ class MultiplexerChannel:
             INCOMING_QUEUE_MAX_BYTES_CHANNEL,
             INCOMING_QUEUE_LOW_WATERMARK,
             INCOMING_QUEUE_HIGH_WATERMARK,
-            self._on_local_output_under_water,
+            self._on_local_input_under_water,
         )
         self._output = output
         self._id = channel_id or MultiplexerChannelId(os.urandom(16))
@@ -69,7 +69,7 @@ class MultiplexerChannel:
         # Backpressure
         self._local_output_under_water = False
         self._remote_input_under_water = False
-        self._output.create_channel(self._id, self._on_local_input_under_water)
+        self._output.create_channel(self._id, self._on_local_output_under_water)
         self._pause_resume_reader_callback = pause_resume_reader_callback
 
     def set_pause_resume_reader_callback(
