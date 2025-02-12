@@ -233,7 +233,6 @@ class Multiplexer:
             data_len,
             extra + os.urandom(11 - len(extra)),
         )
-
         try:
             encrypted_header = self._crypto.encrypt(header)
             self._writer.write(
@@ -277,6 +276,7 @@ class Multiplexer:
     async def _process_message(self, message: MultiplexerMessage) -> None:
         """Process received message."""
         # DATA
+        _LOGGER.debug("Process message: %s", message)
         flow_type = message.flow_type
         if flow_type == CHANNEL_FLOW_DATA:
             # check if message exists
@@ -362,7 +362,13 @@ class Multiplexer:
             throttling=self._throttling,
         )
         message = channel.init_new()
-        await channel.put_message(message)
+
+        try:
+            async with asyncio_timeout.timeout(5):
+                await self._queue.put(channel.id, message)
+        except TimeoutError:
+            raise MultiplexerTransportError from None
+
         self._channels[channel.id] = channel
 
         return channel
