@@ -222,21 +222,27 @@ async def test_connector_handler_can_pause(
     connector_handler: ConnectorHandler | None = None
 
     def save_connector_handler(
-        loop: asyncio.AbstractEventLoop, channel: MultiplexerChannel,
+        loop: asyncio.AbstractEventLoop,
+        channel: MultiplexerChannel,
     ) -> ConnectorHandler:
         nonlocal connector_handler
         connector_handler = ConnectorHandler(loop, channel)
         return connector_handler
 
     with patch("snitun.client.connector.ConnectorHandler", save_connector_handler):
-        server_channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
+        server_channel = await multiplexer_server.create_channel(
+            IP_ADDR, lambda _: None,
+        )
         await asyncio.sleep(0.1)
 
     assert isinstance(connector_handler, ConnectorHandler)
     handler = cast(ConnectorHandler, connector_handler)
     client_channel = handler._channel
     assert client_channel._pause_resume_reader_callback is not None
-    assert client_channel._pause_resume_reader_callback == handler._pause_resume_reader_callback
+    assert (
+        client_channel._pause_resume_reader_callback
+        == handler._pause_resume_reader_callback
+    )
 
     assert test_endpoint
     test_connection = test_endpoint[0]
