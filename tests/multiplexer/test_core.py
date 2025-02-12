@@ -449,8 +449,8 @@ async def test_multiplexer_core_peer_timeout(
     multi_core.PEER_TCP_TIMEOUT = 90
 
 
-@patch.object(channel_module, "INCOMING_QUEUE_LOW_WATERMARK", HEADER_SIZE)
-@patch.object(channel_module, "INCOMING_QUEUE_HIGH_WATERMARK", HEADER_SIZE * 2)
+@patch.object(channel_module, "INCOMING_QUEUE_LOW_WATERMARK", HEADER_SIZE * 2)
+@patch.object(channel_module, "INCOMING_QUEUE_HIGH_WATERMARK", HEADER_SIZE * 3)
 async def test_remote_input_queue_goes_under_water(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
@@ -489,6 +489,7 @@ async def test_remote_input_queue_goes_under_water(
 
     await asyncio.sleep(0.1)
     assert client_channel_under_water == [True]
+    assert server_channel_under_water == []
 
     for i in range(message_count):
         data = await channel_server.read()
@@ -496,3 +497,4 @@ async def test_remote_input_queue_goes_under_water(
 
     await asyncio.sleep(0.1)
     assert client_channel_under_water == [True, False]
+    assert server_channel_under_water == []
