@@ -316,6 +316,7 @@ class Multiplexer:
                 _LOGGER.debug("Receive close from unknown channel")
                 return
             channel = self._channels.pop(message.id)
+            self._queue.delete_channel(channel.id)
             channel.close()
 
         # Ping
