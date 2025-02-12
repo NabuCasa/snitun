@@ -165,7 +165,7 @@ class MultiplexerChannel:
         except asyncio.QueueFull:
             try:
                 async with asyncio_timeout.timeout(5):
-                    await self._output.put(self.id, message)
+                    await self._output.put(self._id, message)
             except TimeoutError:
                 _LOGGER.debug("Can't write to peer transport")
                 raise MultiplexerTransportError from None
