@@ -340,7 +340,11 @@ class Multiplexer:
                 )
 
         else:
-            _LOGGER.warning("Receive unknown message type: %s", message.flow_type)
+            _LOGGER.warning(
+                "Receive unknown message type: %s for channel %s",
+                message.flow_type,
+                message.id,
+            )
 
     def _create_channel_task(self, coro: Coroutine[Any, Any, None]) -> None:
         """Create a new task for channel."""
