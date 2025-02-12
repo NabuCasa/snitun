@@ -1,6 +1,5 @@
 """Multiplexer message handling."""
 
-import binascii
 from enum import IntFlag
 from functools import cached_property
 import struct
@@ -55,14 +54,9 @@ class MultiplexerChannelId(bytes):
         """Return bytes representation of the channel ID."""
         return self
 
-    @cached_property
-    def hex(self) -> str:  # type: ignore[override]
-        """Return hex representation of the channel ID."""
-        return binascii.hexlify(self).decode("utf-8")
-
     def __str__(self) -> str:
         """Return string representation for logger."""
-        return self.hex
+        return self.hex()
 
 
 class MultiplexerMessage(NamedTuple):
@@ -77,7 +71,7 @@ class MultiplexerMessage(NamedTuple):
         """Return string representation for logger."""
         return (
             "MultiplexerMessage("
-            f"id={self.id.hex}, "
+            f"id={self.id.hex()}, "
             f"flow_type={FlowType(self.flow_type)!r}, "
             f"data={self.data!r}, "
             f"extra={self.extra!r}"
