@@ -126,7 +126,7 @@ class MultiplexerMultiChannelQueue:
 
     def delete_channel(self, channel_id: MultiplexerChannelId) -> None:
         """Delete a channel."""
-        del self._channels[channel_id]
+        self._channels.pop(channel_id, None)
         self._order.pop(channel_id, None)
 
     def _wakeup_next(self, waiters: deque[asyncio.Future[None]]) -> None:

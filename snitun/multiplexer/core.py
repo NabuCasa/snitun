@@ -110,6 +110,7 @@ class Multiplexer:
     def _graceful_channel_shutdown(self) -> None:
         """Graceful shutdown of channels."""
         for channel in self._channels.values():
+            self._queue.delete_channel(channel.id)
             channel.close()
         self._channels.clear()
 
@@ -373,3 +374,4 @@ class Multiplexer:
             raise MultiplexerTransportError from None
         finally:
             self._channels.pop(channel.id, None)
+            self._queue.delete_channel(channel.id)
