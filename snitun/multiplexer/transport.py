@@ -109,6 +109,8 @@ class ChannelTransport(Transport):
 
     def _call_protocol_method(self, method_name: str) -> None:
         """Call a method on the protocol."""
+        if self.is_closing():
+            return
         _LOGGER.debug(
             "Calling protocol.%s() for %s (%s)",
             method_name,
