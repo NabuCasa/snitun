@@ -65,6 +65,6 @@ class MultiplexerMessage(NamedTuple):
     """Represent a message from multiplexer stream."""
 
     id: MultiplexerChannelId
-    flow_type: int  # one of CHANNEL_FLOW_ALL
+    flow_type: FlowType
     data: bytes = b""
     extra: bytes = b""
