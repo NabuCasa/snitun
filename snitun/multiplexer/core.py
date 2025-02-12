@@ -254,10 +254,9 @@ class Multiplexer:
         else:
             data = b""
 
-        m_channel_id = MultiplexerChannelId(channel_id)
         message = tuple.__new__(
             MultiplexerMessage,
-            (m_channel_id, flow_type, data, extra),
+            (MultiplexerChannelId(channel_id), flow_type, data, extra),
         )
 
         # Process message to queue
