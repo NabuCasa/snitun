@@ -138,7 +138,10 @@ class MultiplexerMultiChannelQueue:
     def delete_channel(self, channel_id: MultiplexerChannelId) -> None:
         """Delete a channel."""
         if channel := self._channels.get(channel_id):
-            channel.pending_close = True
+            if channel.queue:
+                channel.pending_close = True
+            else:
+                del self._channels[channel_id]
 
     def _wakeup_next(self, waiters: deque[asyncio.Future[None]]) -> None:
         """Wake up the next waiter."""
@@ -251,7 +254,7 @@ class MultiplexerMultiChannelQueue:
             self._order[channel_id] = None
         elif channel.pending_close:
             # Got to the end of the queue and the channel wants
-            # to close so we now drop the channel.     
+            # to close so we now drop the channel.
             del self._channels[channel_id]
         if channel.under_water and channel.total_bytes <= self._channel_low_water_mark:
             channel.under_water = False
