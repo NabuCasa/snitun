@@ -3,7 +3,6 @@
 import asyncio
 import asyncio.sslproto
 import ssl
-import sys
 from typing import cast
 from unittest.mock import patch
 
@@ -21,10 +20,6 @@ from ..conftest import BAD_ADDR
 from . import helpers
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Requires Python 3.11+ for working start_tls",
-)
 async def test_connector_disallowed_ip_address(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
@@ -44,10 +39,6 @@ async def test_connector_disallowed_ip_address(
     await session.close()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Requires Python 3.11+ for working start_tls",
-)
 async def test_connector_missing_certificate(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
@@ -65,10 +56,6 @@ async def test_connector_missing_certificate(
     assert "NO_SHARED_CIPHER" in caplog.text
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Requires Python 3.11+ for working start_tls",
-)
 async def test_connector_non_existent_url(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
@@ -84,10 +71,6 @@ async def test_connector_non_existent_url(
     await session.close()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Requires Python 3.11+ for working start_tls",
-)
 async def test_connector_valid_url(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
@@ -105,10 +88,6 @@ async def test_connector_valid_url(
     await session.close()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Requires Python 3.11+ for working start_tls",
-)
 async def test_connector_stream_large_file(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
@@ -128,10 +107,6 @@ async def test_connector_stream_large_file(
     await session.close()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Requires Python 3.11+ for working start_tls",
-)
 async def test_connector_keep_alive_works(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
@@ -167,10 +142,6 @@ async def test_connector_keep_alive_works(
     assert transport_creation_calls == 1
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Requires Python 3.11+ for working start_tls",
-)
 async def test_connector_multiple_connection(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
@@ -208,10 +179,6 @@ async def test_connector_multiple_connection(
     assert transport_creation_calls > 1
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Requires Python 3.11+ for working start_tls",
-)
 async def test_connector_valid_url_empty_buffer_client_side(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
@@ -260,10 +227,6 @@ async def test_connector_valid_url_empty_buffer_client_side(
     assert transport_creation_calls == 1
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Requires Python 3.11+ for working start_tls",
-)
 async def test_connector_valid_url_buffer_too_small_client_side(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
@@ -313,10 +276,6 @@ async def test_connector_valid_url_buffer_too_small_client_side(
     assert transport_creation_calls == 1
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Requires Python 3.11+ for working start_tls",
-)
 @pytest.mark.parametrize("exception", [MultiplexerTransportClose, Exception])
 async def test_connector_valid_url_failed_to_get_buffer_unexpected_exception_client_side(
     multiplexer_client: Multiplexer,
@@ -366,10 +325,6 @@ async def test_connector_valid_url_failed_to_get_buffer_unexpected_exception_cli
     assert transport_creation_calls == 1
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Requires Python 3.11+ for working start_tls",
-)
 @pytest.mark.parametrize("exception", [MultiplexerTransportClose, Exception])
 async def test_connector_valid_url_buffer_updated_raises_client_side(
     multiplexer_client: Multiplexer,
@@ -419,10 +374,6 @@ async def test_connector_valid_url_buffer_updated_raises_client_side(
     assert transport_creation_calls == 1
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Requires Python 3.11+ for working start_tls",
-)
 async def test_connector_valid_url_empty_buffer_server_side(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
@@ -475,10 +426,6 @@ async def test_connector_valid_url_empty_buffer_server_side(
     assert "returned an empty buffer" in caplog.text
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Requires Python 3.11+ for working start_tls",
-)
 @pytest.mark.parametrize("exception", [MultiplexerTransportClose, Exception])
 async def test_connector_valid_url_failed_to_get_buffer_unexpected_exception_server_side(
     multiplexer_client: Multiplexer,
@@ -534,10 +481,6 @@ async def test_connector_valid_url_failed_to_get_buffer_unexpected_exception_ser
     assert "consuming buffer or protocol.buffer_updated() call failed" in caplog.text
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Requires Python 3.11+ for working start_tls",
-)
 @pytest.mark.parametrize("exception", [MultiplexerTransportClose, Exception])
 async def test_connector_valid_url_buffer_updated_raises_server_side(
     multiplexer_client: Multiplexer,

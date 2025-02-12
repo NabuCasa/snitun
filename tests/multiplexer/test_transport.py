@@ -1,7 +1,6 @@
 """Tests for core multiplexer transport."""
 
 import asyncio
-import sys
 from unittest.mock import patch
 
 import pytest
@@ -19,10 +18,6 @@ class PatchableMultiplexerChannel(MultiplexerChannel):
     """MultiplexerChannel that can be patched since it uses __slots__."""
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Requires Python 3.11+ required to prevent swallowing cancellation",
-)
 async def test_stopping_transport_reader_does_not_swallow_cancellation(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
@@ -117,10 +112,6 @@ async def test_exception_channel_read(
     await transport.stop_reader()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 12),
-    reason="Requires Python 3.12+ required for eager tasks",
-)
 async def test_keyboard_interrupt_channel_read_eager(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
