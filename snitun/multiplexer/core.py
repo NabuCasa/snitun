@@ -295,6 +295,8 @@ class Multiplexer:
             channel = MultiplexerChannel(
                 self._queue,
                 ip_address,
+                # TODO: callback to tell the new_connections
+                # handler to pause or resume reading
                 channel_id=message.id,
                 throttling=self._throttling,
             )
@@ -327,11 +329,13 @@ class Multiplexer:
     async def create_channel(
         self,
         ip_address: ipaddress.IPv4Address,
+        # TODO: callback to tell the creator to pause or resume reading
     ) -> MultiplexerChannel:
         """Create a new channel for transport."""
         channel = MultiplexerChannel(
             self._queue,
             ip_address,
+            # TODO: callback to tell the creator to pause or resume reading
             throttling=self._throttling,
         )
         message = channel.init_new()
