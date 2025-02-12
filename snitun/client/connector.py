@@ -165,3 +165,15 @@ class ConnectorHandler:
                 channel.id,
                 ex,
             )
+            with suppress(MultiplexerTransportError):
+                await self._multiplexer.delete_channel(channel)
+            request_handler_protocol.connection_lost(ex)
+        else:
+            _LOGGER.debug(
+                "Peer close connection for %s (%s)",
+                channel.ip_address,
+                channel.id,
+            )
+            request_handler_protocol.connection_lost(None)
+        finally:
+            new_transport.close()
