@@ -40,7 +40,7 @@ jobs:
         run: |
           python3 -m pip install -e .[test]
       - name: Test with Pytest
-        run: pytest --cov=snitun --cov-report=xml
+        run: pytest --cov=snitun --cov-report=xml --timeout=10
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
