@@ -136,6 +136,8 @@ class SNIProxy:
             # Process stream into multiplexer
             while not transport.is_closing():
                 if not from_proxy:
+                    # TODO: when paused make from_endpoint an asyncio.Future[None] that
+                    # will be set when the channel is unpaused                    
                     from_proxy = self._loop.create_task(reader.read(4096))
                 if not from_peer:
                     from_peer = self._loop.create_task(channel.read())
