@@ -53,6 +53,8 @@ class Connector:
         channel: MultiplexerChannel,
     ) -> None:
         """Handle new connection from SNIProxy."""
+        # TODO: make an object here so we can call the pause/resume
+        # callback on it
         from_endpoint: asyncio.Future[None] | asyncio.Task[bytes] | None = None
         from_peer = None
         pause_future: asyncio.Future[None] | None = None
