@@ -116,12 +116,11 @@ async def test_multiplexer_client_close(
 
 
 async def test_multiplexer_ping(
-    event_loop: asyncio.AbstractEventLoop,
     test_server: list[Client],
     multiplexer_client: Multiplexer,
 ) -> None:
     """Test a ping between peers."""
-    loop = event_loop
+    loop = asyncio.get_running_loop()
     client = test_server[0]
     ping_task = loop.create_task(multiplexer_client.ping())
 
@@ -413,14 +412,13 @@ async def test_multiplexer_throttling(
 
 
 async def test_multiplexer_core_peer_timeout(
-    event_loop: asyncio.AbstractEventLoop,
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
 ) -> None:
     """Test that new channels are created and graceful shutdown."""
     from snitun.multiplexer import core as multi_core
 
-    loop = event_loop
+    loop = asyncio.get_running_loop()
     multi_core.PEER_TCP_TIMEOUT = 0.2
 
     assert not multiplexer_client._channels
