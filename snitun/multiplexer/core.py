@@ -19,7 +19,12 @@ from ..exceptions import (
 from ..utils.asyncio import asyncio_timeout
 from ..utils.ipaddress import bytes_to_ip_address
 from .channel import MultiplexerChannel
-from .const import OUTGOING_QUEUE_MAX_BYTES_CHANNEL, PEER_TCP_TIMEOUT
+from .const import (
+    OUTGOING_QUEUE_HIGH_WATERMARK,
+    OUTGOING_QUEUE_LOW_WATERMARK,
+    OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+    PEER_TCP_TIMEOUT,
+)
 from .crypto import CryptoTransport
 from .message import (
     CHANNEL_FLOW_CLOSE,
@@ -68,7 +73,11 @@ class Multiplexer:
         self._reader = reader
         self._writer = writer
         self._loop = asyncio.get_event_loop()
-        self._queue = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
+        self._queue = MultiplexerMultiChannelQueue(
+            OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+            OUTGOING_QUEUE_LOW_WATERMARK,
+            OUTGOING_QUEUE_HIGH_WATERMARK,
+        )
         self._healthy = asyncio.Event()
         self._processing_task = self._loop.create_task(self._runner())
         self._channels: dict[MultiplexerChannelId, MultiplexerChannel] = {}

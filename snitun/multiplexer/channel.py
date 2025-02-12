@@ -11,7 +11,11 @@ import os
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from ..utils.asyncio import asyncio_timeout
 from ..utils.ipaddress import ip_address_to_bytes
-from .const import INCOMING_QUEUE_MAX_BYTES_CHANNEL
+from .const import (
+    INCOMING_QUEUE_HIGH_WATERMARK,
+    INCOMING_QUEUE_LOW_WATERMARK,
+    INCOMING_QUEUE_MAX_BYTES_CHANNEL,
+)
 from .message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
@@ -27,7 +31,17 @@ _LOGGER = logging.getLogger(__name__)
 class MultiplexerChannel:
     """Represent a multiplexer channel."""
 
-    __slots__ = ["_closing", "_id", "_input", "_ip_address", "_output", "_throttling"]
+    __slots__ = (
+        "_closing",
+        "_id",
+        "_input",
+        "_ip_address",
+        "_local_input_under_water",
+        "_local_output_under_water",
+        "_output",
+        "_remote_input_under_water",
+        "_throttling",
+    )
 
     def __init__(
         self,
@@ -37,12 +51,30 @@ class MultiplexerChannel:
         throttling: float | None = None,
     ) -> None:
         """Initialize Multiplexer Channel."""
-        self._input = MultiplexerSingleChannelQueue(INCOMING_QUEUE_MAX_BYTES_CHANNEL)
+        self._input = MultiplexerSingleChannelQueue(
+            INCOMING_QUEUE_MAX_BYTES_CHANNEL,
+            INCOMING_QUEUE_LOW_WATERMARK,
+            INCOMING_QUEUE_HIGH_WATERMARK,
+            self._input_under_water,
+        )
         self._output = output
         self._id = channel_id or MultiplexerChannelId(os.urandom(16))
         self._ip_address = ip_address
         self._throttling = throttling
         self._closing = False
+        # Backpressure
+        self._local_input_under_water = False
+        self._local_output_under_water = False
+        self._remote_input_under_water = False
+        self._output.create_channel(self._id, self._output_under_water)
+
+    def _input_under_water(self, under_water: bool) -> None:
+        """Set input under water."""
+        self._local_input_under_water = under_water
+
+    def _output_under_water(self, under_water: bool) -> None:
+        """Set output under water."""
+        self._local_output_under_water = under_water
 
     @property
     def id(self) -> MultiplexerChannelId:
