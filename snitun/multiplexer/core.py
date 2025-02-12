@@ -35,10 +35,6 @@ from .queue import MultiplexerMultiChannelQueue
 _LOGGER = logging.getLogger(__name__)
 
 
-HIGH_WATER_MARK = 10000
-LOW_WATER_MARK = 2000
-
-
 class Multiplexer:
     """Multiplexer Socket wrapper."""
 
