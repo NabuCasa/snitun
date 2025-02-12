@@ -10,9 +10,9 @@ from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportErr
 from snitun.multiplexer import channel as channel_module
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.const import (
-    OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
     OUTGOING_QUEUE_HIGH_WATERMARK,
     OUTGOING_QUEUE_LOW_WATERMARK,
+    OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
 )
 from snitun.multiplexer.message import (
     CHANNEL_FLOW_CLOSE,
@@ -30,7 +30,11 @@ IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
 async def test_initial_channel_msg() -> None:
     """Test new MultiplexerChannel with id."""
-    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL, OUTGOING_QUEUE_LOW_WATERMARK, OUTGOING_QUEUE_HIGH_WATERMARK)
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -44,7 +48,11 @@ async def test_initial_channel_msg() -> None:
 
 async def test_close_channel_msg() -> None:
     """Test close MultiplexerChannel."""
-    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL, OUTGOING_QUEUE_LOW_WATERMARK, OUTGOING_QUEUE_HIGH_WATERMARK)
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -57,7 +65,11 @@ async def test_close_channel_msg() -> None:
 
 async def test_write_data() -> None:
     """Test send data over MultiplexerChannel."""
-    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL, OUTGOING_QUEUE_LOW_WATERMARK, OUTGOING_QUEUE_HIGH_WATERMARK)
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -72,7 +84,11 @@ async def test_write_data() -> None:
 
 async def test_closing() -> None:
     """Test send data over MultiplexerChannel."""
-    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL, OUTGOING_QUEUE_LOW_WATERMARK, OUTGOING_QUEUE_HIGH_WATERMARK)
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -83,7 +99,11 @@ async def test_closing() -> None:
 
 async def test_write_data_after_close() -> None:
     """Test send data over MultiplexerChannel."""
-    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL, OUTGOING_QUEUE_LOW_WATERMARK, OUTGOING_QUEUE_HIGH_WATERMARK)
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
     assert not channel.closing
@@ -98,7 +118,11 @@ async def test_write_data_after_close() -> None:
 
 async def test_write_data_empty() -> None:
     """Test send data over MultiplexerChannel."""
-    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL, OUTGOING_QUEUE_LOW_WATERMARK, OUTGOING_QUEUE_HIGH_WATERMARK)
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -108,7 +132,11 @@ async def test_write_data_empty() -> None:
 
 async def test_read_data() -> None:
     """Test send data over MultiplexerChannel."""
-    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL, OUTGOING_QUEUE_LOW_WATERMARK, OUTGOING_QUEUE_HIGH_WATERMARK)
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -121,7 +149,11 @@ async def test_read_data() -> None:
 
 async def test_read_data_on_close() -> None:
     """Test send data over MultiplexerChannel on close."""
-    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL, OUTGOING_QUEUE_LOW_WATERMARK, OUTGOING_QUEUE_HIGH_WATERMARK)
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
     assert not channel.closing

@@ -42,7 +42,7 @@ async def test_get_non_existent_channels() -> None:
 
 async def test_single_channel_queue() -> None:
     """Test MultiplexerSingleChannelQueue."""
-    queue = MultiplexerSingleChannelQueue(100,10,50, lambda _: None)
+    queue = MultiplexerSingleChannelQueue(100, 10, 50, lambda _: None)
     channel_id = _make_mock_channel_id()
     msg = _make_mock_message(channel_id)
     assert queue.qsize() == 0
@@ -58,7 +58,7 @@ async def test_multi_channel_queue_full() -> None:
     """Test MultiplexerMultiChannelQueue getting full."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
     # Max two mock messages per channel
-    queue = MultiplexerMultiChannelQueue(msg_size * 2,msg_size, msg_size * 2)
+    queue = MultiplexerMultiChannelQueue(msg_size * 2, msg_size, msg_size * 2)
 
     channel_one_id = _make_mock_channel_id()
     channel_two_id = _make_mock_channel_id()
@@ -96,7 +96,7 @@ async def test_multi_channel_queue_round_robin_get() -> None:
     """Test MultiplexerMultiChannelQueue round robin get."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
     # Max two mock messages per channel
-    queue = MultiplexerMultiChannelQueue( msg_size * 2, msg_size, msg_size * 2)
+    queue = MultiplexerMultiChannelQueue(msg_size * 2, msg_size, msg_size * 2)
     channel_one_id = _make_mock_channel_id()
     channel_two_id = _make_mock_channel_id()
     channel_three_id = _make_mock_channel_id()
@@ -425,43 +425,49 @@ async def test_single_channel_queue_under_water() -> None:
     """Test MultiplexerSingleChannelQueue under water."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
     under_water_callbacks: list[bool] = []
+
     def on_under_water(under_water: bool) -> None:
         under_water_callbacks.append(under_water)
 
-    queue = MultiplexerSingleChannelQueue(msg_size*10, msg_size*2, msg_size*4, on_under_water)
+    queue = MultiplexerSingleChannelQueue(
+        msg_size * 10,
+        msg_size * 2,
+        msg_size * 4,
+        on_under_water,
+    )
     channel_id = _make_mock_channel_id()
     msg = _make_mock_message(channel_id)
     assert queue.qsize() == 0
     queue.put_nowait(msg)
     assert queue.qsize() == len(msg.data) + HEADER_SIZE
     assert not under_water_callbacks
-    queue.put_nowait(msg) # now 2 messages
+    queue.put_nowait(msg)  # now 2 messages
     assert not under_water_callbacks
-    queue.put_nowait(msg) # now 3 messages
+    queue.put_nowait(msg)  # now 3 messages
     assert not under_water_callbacks
-    queue.put_nowait(msg) # now 4 messages -- under water
+    queue.put_nowait(msg)  # now 4 messages -- under water
     assert under_water_callbacks == [True]
-    queue.put_nowait(msg) # now 5 messages -- still under water
+    queue.put_nowait(msg)  # now 5 messages -- still under water
     assert under_water_callbacks == [True]
-    queue.get_nowait() # now 4 messages -- have not reached low watermark
+    queue.get_nowait()  # now 4 messages -- have not reached low watermark
     assert under_water_callbacks == [True]
-    queue.get_nowait() # now 3 messages -- have not reached low watermark
+    queue.get_nowait()  # now 3 messages -- have not reached low watermark
     assert under_water_callbacks == [True]
-    queue.get_nowait() # now 2 messages -- reached low watermark
+    queue.get_nowait()  # now 2 messages -- reached low watermark
     assert under_water_callbacks == [True, False]
-    queue.get_nowait() # now 1 message -- still below low watermark
+    queue.get_nowait()  # now 1 message -- still below low watermark
     assert under_water_callbacks == [True, False]
-    queue.get_nowait() # now 0 messages -- empty
+    queue.get_nowait()  # now 0 messages -- empty
     assert under_water_callbacks == [True, False]
-    queue.put_nowait(msg) # now 1 message -- below high watermark
+    queue.put_nowait(msg)  # now 1 message -- below high watermark
     assert under_water_callbacks == [True, False]
-    queue.put_nowait(msg) # now 2 messages -- still below high watermark
+    queue.put_nowait(msg)  # now 2 messages -- still below high watermark
     assert under_water_callbacks == [True, False]
-    queue.put_nowait(msg) # now 3 messages -- still below high watermark
+    queue.put_nowait(msg)  # now 3 messages -- still below high watermark
     assert under_water_callbacks == [True, False]
-    queue.put_nowait(msg) # now 4 messages -- reached high watermark
+    queue.put_nowait(msg)  # now 4 messages -- reached high watermark
     assert under_water_callbacks == [True, False, True]
-    queue.get_nowait() # now 3 messages -- below high watermark, but still above low watermark
+    queue.get_nowait()  # now 3 messages -- below high watermark, but still above low watermark
     assert under_water_callbacks == [True, False, True]
-    queue.get_nowait() # now 2 messages -- below high watermark and below low watermark
+    queue.get_nowait()  # now 2 messages -- below high watermark and below low watermark
     assert under_water_callbacks == [True, False, True, False]

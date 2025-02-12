@@ -1,13 +1,13 @@
 """Multiplexer message handling."""
 
 import binascii
-from enum import IntEnum
+from enum import IntFlag
 from functools import cached_property
 import struct
 from typing import NamedTuple
 
 
-class FlowType(IntEnum):
+class FlowType(IntFlag):
     """Flow type for multiplexer message."""
 
     NEW = 0x01
