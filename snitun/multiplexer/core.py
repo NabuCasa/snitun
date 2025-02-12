@@ -31,6 +31,8 @@ from .message import (
     CHANNEL_FLOW_DATA,
     CHANNEL_FLOW_NEW,
     CHANNEL_FLOW_PING,
+    CHANNEL_FLOW_PAUSE,
+    CHANNEL_FLOW_RESUME,
     HEADER_STRUCT,
     MultiplexerChannelId,
     MultiplexerMessage,
@@ -322,6 +324,16 @@ class Multiplexer:
                 self._write_message(
                     MultiplexerMessage(message.id, CHANNEL_FLOW_PING, b"", b"pong"),
                 )
+
+        # Pause
+        elif message.flow_type == CHANNEL_FLOW_PAUSE:
+            if message.id in self._channels:
+                self._channels[message.id].remote_input_under_water_callback(True)
+
+        # Resume
+        elif message.flow_type == CHANNEL_FLOW_RESUME:
+            if message.id in self._channels:
+                self._channels[message.id].remote_input_under_water_callback(False)
 
         else:
             _LOGGER.warning("Receive unknown message type")
