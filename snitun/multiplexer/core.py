@@ -276,7 +276,6 @@ class Multiplexer:
     async def _process_message(self, message: MultiplexerMessage) -> None:
         """Process received message."""
         # DATA
-        _LOGGER.debug("Process message: %s", message)
         flow_type = message.flow_type
         if flow_type == CHANNEL_FLOW_DATA:
             # check if message exists
