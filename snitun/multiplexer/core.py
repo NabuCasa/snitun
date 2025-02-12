@@ -240,6 +240,10 @@ class Multiplexer:
         if not header:
             raise MultiplexerTransportClose
 
+        channel_id: bytes
+        flow_type: int
+        data_size: int
+        extra: bytes
         try:
             channel_id, flow_type, data_size, extra = HEADER_STRUCT.unpack(
                 self._crypto.decrypt(header),
