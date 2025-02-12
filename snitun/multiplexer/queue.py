@@ -235,11 +235,6 @@ class MultiplexerMultiChannelQueue:
             # Now put the channel_id back, but at the end of the queue
             # so the next get will get the next waiting channel_id.
             self._order[channel_id] = None
-        else:
-            # Got to the end of the queue
-            # As soon as we get to the end of the queue, we will
-            # drop the internal deque(), this may result in some churn.
-            del self._channels[channel_id]
         if channel.under_water and channel.total_bytes <= self._channel_low_water_mark:
             channel.under_water_callback(False)
         if channel.putters:
