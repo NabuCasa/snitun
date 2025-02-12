@@ -208,6 +208,17 @@ async def test_connector_error_callback(
     callback.assert_called_once()
 
 
+async def test_connector_no_error_callback(
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
+    """Test connector with not endpoint error callback."""
+    connector = Connector("127.0.0.1", "8822", False, None)
+    channel = await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
+    with patch("asyncio.open_connection", side_effect=OSError("Lorem ipsum...")):
+        await connector.handler(multiplexer_client, channel)
+
+
 async def test_connector_handler_can_pause(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,

@@ -531,7 +531,8 @@ async def test_sending_unknown_message_type(
     assert channel_server
 
     channel_client._output.put_nowait(
-        channel_client.id, MultiplexerMessage(channel_client.id, 255),
+        channel_client.id,
+        MultiplexerMessage(channel_client.id, 255),
     )
 
     await asyncio.sleep(0.1)
