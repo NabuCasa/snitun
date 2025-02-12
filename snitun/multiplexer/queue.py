@@ -7,8 +7,11 @@ from collections import OrderedDict, deque
 from collections.abc import Callable
 import contextlib
 from dataclasses import dataclass, field
+import logging
 
 from .message import HEADER_SIZE, MultiplexerChannelId, MultiplexerMessage
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -125,6 +128,7 @@ class MultiplexerMultiChannelQueue:
         under_water_callback: Callable[[bool], None],
     ) -> None:
         """Create a new channel."""
+        _LOGGER.debug("Queue creating channel %s", channel_id)
         self._channels[channel_id] = _ChannelQueue(under_water_callback)
 
     def delete_channel(self, channel_id: MultiplexerChannelId) -> None:
@@ -147,7 +151,8 @@ class MultiplexerMultiChannelQueue:
     ) -> None:
         """Put a message in the queue."""
         # Based on asyncio.Queue.put()
-        channel = self._channels[channel_id]
+        if not (channel := self._channels.get(channel_id)):
+            raise RuntimeError(f"Channel {channel_id} does not exist or already closed")
         size = _effective_size(message)
         while channel.total_bytes + size > self._channel_size_limit:  # full
             putter = self._loop.create_future()

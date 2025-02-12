@@ -1,25 +1,34 @@
 """Multiplexer message handling."""
 
 import binascii
+from enum import IntEnum
 from functools import cached_property
 import struct
 from typing import NamedTuple
 
-CHANNEL_FLOW_NEW = 0x01
-CHANNEL_FLOW_DATA = 0x02
-CHANNEL_FLOW_CLOSE = 0x04
-CHANNEL_FLOW_PING = 0x08
-CHANNEL_FLOW_PAUSE = 0x16
-CHANNEL_FLOW_RESUME = 0x32
 
-CHANNEL_FLOW_ALL = [
-    CHANNEL_FLOW_NEW,
-    CHANNEL_FLOW_CLOSE,
-    CHANNEL_FLOW_DATA,
-    CHANNEL_FLOW_PING,
-    CHANNEL_FLOW_PAUSE,
-    CHANNEL_FLOW_RESUME,
-]
+class FlowType(IntEnum):
+    """Flow type for multiplexer message."""
+
+    NEW = 0x01
+    DATA = 0x02
+    CLOSE = 0x04
+    PING = 0x08
+    PAUSE = 0x16
+    RESUME = 0x32
+
+    @cached_property
+    def value(self) -> int:
+        """Return the value of the flow type."""
+        return self._value_
+
+
+CHANNEL_FLOW_NEW = FlowType.NEW
+CHANNEL_FLOW_DATA = FlowType.DATA
+CHANNEL_FLOW_CLOSE = FlowType.CLOSE
+CHANNEL_FLOW_PING = FlowType.PING
+CHANNEL_FLOW_PAUSE = FlowType.PAUSE
+CHANNEL_FLOW_RESUME = FlowType.RESUME
 
 # |-----------------HEADER---------------------------------|
 # |------ID-----|--FLAG--|--SIZE--|---------EXTRA ---------|
