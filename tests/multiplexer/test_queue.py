@@ -533,7 +533,6 @@ async def test_put_nowait_to_non_existent_multi_channel_queue() -> None:
         queue.put_nowait(channel_id, msg)
 
 
-
 async def test_put_to_non_existent_multi_channel_queue() -> None:
     """Test writing to a non-existent channel."""
     queue = MultiplexerMultiChannelQueue(100000, 10, 1000)
@@ -541,3 +540,21 @@ async def test_put_to_non_existent_multi_channel_queue() -> None:
     msg = _make_mock_message(channel_id)
     with pytest.raises(RuntimeError, match=f"Channel {channel_id} does not exist"):
         await queue.put(channel_id, msg)
+
+
+async def test_multiple_delete_channel_is_forgiving() -> None:
+    """Test a channel can be deleted multiple times."""
+    queue = MultiplexerMultiChannelQueue(100000, 10, 1000)
+    channel_id = _make_mock_channel_id()
+    queue.create_channel(channel_id, lambda _: None)
+    queue.delete_channel(channel_id)
+    queue.delete_channel(channel_id)
+
+
+async def test_multiple_create_channel_raises() -> None:
+    """Test the same channel can only be created once."""
+    queue = MultiplexerMultiChannelQueue(100000, 10, 1000)
+    channel_id = _make_mock_channel_id()
+    queue.create_channel(channel_id, lambda _: None)
+    with pytest.raises(RuntimeError, match=f"Channel {channel_id} already exists"):
+        queue.create_channel(channel_id, lambda _: None)

@@ -131,6 +131,8 @@ class MultiplexerMultiChannelQueue:
     ) -> None:
         """Create a new channel."""
         _LOGGER.debug("Queue creating channel %s", channel_id)
+        if channel_id in self._channels:
+            raise RuntimeError(f"Channel {channel_id} already exists")
         self._channels[channel_id] = _ChannelQueue(under_water_callback)
 
     def delete_channel(self, channel_id: MultiplexerChannelId) -> None:
