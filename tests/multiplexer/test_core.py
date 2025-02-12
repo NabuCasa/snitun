@@ -11,7 +11,11 @@ from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportErr
 from snitun.multiplexer import channel as channel_module, core as core_module
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
-from snitun.multiplexer.message import CHANNEL_FLOW_PING, HEADER_SIZE
+from snitun.multiplexer.message import (
+    CHANNEL_FLOW_PING,
+    HEADER_SIZE,
+    MultiplexerMessage,
+)
 from snitun.utils.asyncio import asyncio_timeout
 
 from ..conftest import Client
@@ -498,3 +502,38 @@ async def test_remote_input_queue_goes_under_water(
     await asyncio.sleep(0.1)
     assert client_channel_under_water == [True, False]
     assert server_channel_under_water == []
+
+
+async def test_sending_unknown_message_type(
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that new channels are created."""
+    assert not multiplexer_client._channels
+    assert not multiplexer_server._channels
+
+    client_channel_under_water: list[bool] = []
+    server_channel_under_water: list[bool] = []
+
+    def _on_client_channel_under_water(under_water: bool) -> None:
+        client_channel_under_water.append(under_water)
+
+    channel_client = await multiplexer_client.create_channel(
+        IP_ADDR,
+        _on_client_channel_under_water,
+    )
+    await asyncio.sleep(0.1)
+
+    channel_server = multiplexer_server._channels.get(channel_client.id)
+
+    assert channel_client
+    assert channel_server
+
+    channel_client._output.put_nowait(
+        channel_client.id, MultiplexerMessage(channel_client.id, 255),
+    )
+
+    await asyncio.sleep(0.1)
+
+    assert "Receive unknown message type: 255" in caplog.text
