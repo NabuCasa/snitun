@@ -204,6 +204,7 @@ class MultiplexerMultiChannelQueue:
             not channel.under_water
             and channel.total_bytes >= self._channel_high_water_mark
         ):
+            channel.under_water = True
             channel.under_water_callback(True)
         self._wakeup_next(self._getters)
 
@@ -248,6 +249,7 @@ class MultiplexerMultiChannelQueue:
         elif channel.pending_close:
             del self._channels[channel_id]
         if channel.under_water and channel.total_bytes <= self._channel_low_water_mark:
+            channel.under_water = False
             channel.under_water_callback(False)
         if channel.putters:
             self._wakeup_next(channel.putters)

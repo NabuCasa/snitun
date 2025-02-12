@@ -471,3 +471,54 @@ async def test_single_channel_queue_under_water() -> None:
     assert under_water_callbacks == [True, False, True]
     queue.get_nowait()  # now 2 messages -- below high watermark and below low watermark
     assert under_water_callbacks == [True, False, True, False]
+
+
+async def test_multi_channel_queue_under_water() -> None:
+    """Test MultiplexerMultiChannelQueue under water."""
+    msg_size = MOCK_MSG_SIZE + HEADER_SIZE
+    under_water_callbacks: list[bool] = []
+
+    def on_under_water(under_water: bool) -> None:
+        under_water_callbacks.append(under_water)
+
+    queue = MultiplexerMultiChannelQueue(
+        msg_size * 10,
+        msg_size * 2,
+        msg_size * 4,
+    )
+    channel_id = _make_mock_channel_id()
+    queue.create_channel(channel_id, on_under_water)
+    msg = _make_mock_message(channel_id)
+    assert queue.empty(channel_id)
+    queue.put_nowait(channel_id, msg)
+    assert not under_water_callbacks
+    queue.put_nowait(channel_id, msg)  # now 2 messages
+    assert not under_water_callbacks
+    queue.put_nowait(channel_id, msg)  # now 3 messages
+    assert not under_water_callbacks
+    queue.put_nowait(channel_id, msg)  # now 4 messages -- under water
+    assert under_water_callbacks == [True]
+    queue.put_nowait(channel_id, msg)  # now 5 messages -- still under water
+    assert under_water_callbacks == [True]
+    queue.get_nowait()  # now 4 messages -- have not reached low watermark
+    assert under_water_callbacks == [True]
+    queue.get_nowait()  # now 3 messages -- have not reached low watermark
+    assert under_water_callbacks == [True]
+    queue.get_nowait()  # now 2 messages -- reached low watermark
+    assert under_water_callbacks == [True, False]
+    queue.get_nowait()  # now 1 message -- still below low watermark
+    assert under_water_callbacks == [True, False]
+    queue.get_nowait()  # now 0 messages -- empty
+    assert under_water_callbacks == [True, False]
+    queue.put_nowait(channel_id, msg)  # now 1 message -- below high watermark
+    assert under_water_callbacks == [True, False]
+    queue.put_nowait(channel_id, msg)  # now 2 messages -- still below high watermark
+    assert under_water_callbacks == [True, False]
+    queue.put_nowait(channel_id, msg)  # now 3 messages -- still below high watermark
+    assert under_water_callbacks == [True, False]
+    queue.put_nowait(channel_id, msg)  # now 4 messages -- reached high watermark
+    assert under_water_callbacks == [True, False, True]
+    queue.get_nowait()  # now 3 messages -- below high watermark, but still above low watermark
+    assert under_water_callbacks == [True, False, True]
+    queue.get_nowait()  # now 2 messages -- below high watermark and below low watermark
+    assert under_water_callbacks == [True, False, True, False]
