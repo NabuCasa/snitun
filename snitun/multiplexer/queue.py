@@ -250,6 +250,8 @@ class MultiplexerMultiChannelQueue:
             # so the next get will get the next waiting channel_id.
             self._order[channel_id] = None
         elif channel.pending_close:
+            # Got to the end of the queue and the channel wants
+            # to close so we now drop the channel.     
             del self._channels[channel_id]
         if channel.under_water and channel.total_bytes <= self._channel_low_water_mark:
             channel.under_water = False
