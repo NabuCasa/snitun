@@ -32,7 +32,7 @@ def _make_mock_message(
 
 async def test_get_non_existent_channels() -> None:
     """Test MultiplexerMultiChannelQueue get on non-existent channel."""
-    queue = MultiplexerMultiChannelQueue(100000)
+    queue = MultiplexerMultiChannelQueue(100000, 10, 1000)
     assert queue.empty(_make_mock_channel_id())
     assert not queue.full(_make_mock_channel_id())
     assert queue.size(_make_mock_channel_id()) == 0
@@ -42,7 +42,7 @@ async def test_get_non_existent_channels() -> None:
 
 async def test_single_channel_queue() -> None:
     """Test MultiplexerSingleChannelQueue."""
-    queue = MultiplexerSingleChannelQueue()
+    queue = MultiplexerSingleChannelQueue(100,10,50, lambda _: None)
     channel_id = _make_mock_channel_id()
     msg = _make_mock_message(channel_id)
     assert queue.qsize() == 0
@@ -58,9 +58,12 @@ async def test_multi_channel_queue_full() -> None:
     """Test MultiplexerMultiChannelQueue getting full."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
     # Max two mock messages per channel
-    queue = MultiplexerMultiChannelQueue(msg_size * 2)
+    queue = MultiplexerMultiChannelQueue(msg_size * 2,msg_size, msg_size * 2)
+
     channel_one_id = _make_mock_channel_id()
     channel_two_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
+    queue.create_channel(channel_two_id, lambda _: None)
 
     channel_one_msg = _make_mock_message(channel_one_id)
     channel_two_msg = _make_mock_message(channel_two_id)
@@ -92,12 +95,14 @@ async def test_multi_channel_queue_full() -> None:
 async def test_multi_channel_queue_round_robin_get() -> None:
     """Test MultiplexerMultiChannelQueue round robin get."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
-    queue = MultiplexerMultiChannelQueue(
-        msg_size * 2,
-    )  # Max two mock messages per channel
+    # Max two mock messages per channel
+    queue = MultiplexerMultiChannelQueue( msg_size * 2, msg_size, msg_size * 2)
     channel_one_id = _make_mock_channel_id()
     channel_two_id = _make_mock_channel_id()
     channel_three_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
+    queue.create_channel(channel_two_id, lambda _: None)
+    queue.create_channel(channel_three_id, lambda _: None)
 
     channel_one_msg = _make_mock_message(channel_one_id)
     assert queue.empty(channel_one_id)
@@ -162,12 +167,16 @@ async def test_multi_channel_queue_round_robin_get() -> None:
 async def test_concurrent_get() -> None:
     """Test MultiplexerMultiChannelQueue concurrent get."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
-    queue = MultiplexerMultiChannelQueue(
-        msg_size * 2,
-    )  # Max two mock messages per channel
+    # Max two mock messages per channel
+    queue = MultiplexerMultiChannelQueue(msg_size * 2, msg_size, msg_size * 2)
     channel_one_id = _make_mock_channel_id()
     channel_two_id = _make_mock_channel_id()
     channel_three_id = _make_mock_channel_id()
+
+    queue.create_channel(channel_one_id, lambda _: None)
+    queue.create_channel(channel_two_id, lambda _: None)
+    queue.create_channel(channel_three_id, lambda _: None)
+
     channel_one_msg = _make_mock_message(channel_one_id)
     channel_two_msg = _make_mock_message(channel_two_id)
     channel_three_msg = _make_mock_message(channel_three_id)
@@ -190,9 +199,11 @@ async def test_concurrent_get() -> None:
 
 async def test_cancel_one_get() -> None:
     """Test the cancellation of a single `get` operation on multiplexer queue."""
-    queue = MultiplexerMultiChannelQueue(100000)
+    queue = MultiplexerMultiChannelQueue(100000, 10, 10000)
     reader = asyncio.create_task(queue.get())
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
+
     channel_one_msg1 = _make_mock_message(channel_one_id)
     channel_one_msg2 = _make_mock_message(channel_one_id)
 
@@ -216,8 +227,9 @@ async def test_reader_cancellation() -> None:
         - The cancelled reader task raises asyncio.CancelledError.
         - The remaining reader tasks retrieve the messages from the queue in any order.
     """
-    queue = MultiplexerMultiChannelQueue(100000)
+    queue = MultiplexerMultiChannelQueue(100000, 10, 10000)
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
     channel_one_msg1 = _make_mock_message(channel_one_id)
     channel_one_msg2 = _make_mock_message(channel_one_id)
 
@@ -245,8 +257,10 @@ async def test_reader_cancellation() -> None:
 async def test_put_cancel_race() -> None:
     """Test race between putting messages and cancelling the put operation."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
-    queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
+    # Max one message
+    queue = MultiplexerMultiChannelQueue(msg_size, msg_size, msg_size)
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
 
     channel_one_msg_1 = _make_mock_message(channel_one_id)
     channel_one_msg_2 = _make_mock_message(channel_one_id)
@@ -278,8 +292,10 @@ async def test_put_cancel_race() -> None:
 async def test_putters_cleaned_up_correctly_on_cancellation() -> None:
     """Test that putters are cleaned up correctly when a put operation is canceled."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
-    queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
+    # Max one message
+    queue = MultiplexerMultiChannelQueue(msg_size, msg_size, msg_size)
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
     channel_one_msg_1 = _make_mock_message(channel_one_id)
     channel_one_msg_2 = _make_mock_message(channel_one_id)
 
@@ -300,7 +316,8 @@ async def test_putters_cleaned_up_correctly_on_cancellation() -> None:
 async def test_getters_cleaned_up_correctly_on_cancellation() -> None:
     """Test getters are cleaned up correctly when a get operation is canceled."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
-    queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
+    # Max one message
+    queue = MultiplexerMultiChannelQueue(msg_size, msg_size, msg_size)
     with pytest.raises(TimeoutError):
         async with asyncio.timeout(0.1):
             await queue.get()
@@ -311,8 +328,10 @@ async def test_getters_cleaned_up_correctly_on_cancellation() -> None:
 async def test_cancelled_when_putter_already_removed() -> None:
     """Test put operation is correctly cancelled when the putter is already removed."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
-    queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
+    # Max one message
+    queue = MultiplexerMultiChannelQueue(msg_size, msg_size, msg_size)
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
     channel_one_msg_1 = _make_mock_message(channel_one_id)
 
     queue.put_nowait(channel_one_id, channel_one_msg_1)
@@ -328,8 +347,10 @@ async def test_cancelled_when_putter_already_removed() -> None:
 async def test_multiple_getters_waiting_multiple_putters() -> None:
     """Test that multiple getters and putters are correctly handled."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
-    queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
+    # Max one message
+    queue = MultiplexerMultiChannelQueue(msg_size, msg_size, msg_size)
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
     channel_one_msg_1 = _make_mock_message(channel_one_id)
     channel_one_msg_2 = _make_mock_message(channel_one_id)
     t1 = asyncio.create_task(queue.put(channel_one_id, channel_one_msg_1))
@@ -342,8 +363,9 @@ async def test_multiple_getters_waiting_multiple_putters() -> None:
 
 async def test_get_cancelled_race() -> None:
     """Test cancelling a get operation while another get operation is in progress."""
-    queue = MultiplexerMultiChannelQueue(10000000)
+    queue = MultiplexerMultiChannelQueue(10000000, 10, 10000)
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
     channel_one_msg_1 = _make_mock_message(channel_one_id)
 
     t1 = asyncio.create_task(queue.get())
@@ -361,8 +383,9 @@ async def test_get_cancelled_race() -> None:
 async def test_get_with_other_putters() -> None:
     """Test that a get operation is correctly handled when other putters are waiting."""
     loop = asyncio.get_running_loop()
-    queue = MultiplexerMultiChannelQueue(10000000)
+    queue = MultiplexerMultiChannelQueue(10000000, 10, 10000)
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
     channel_one_msg_1 = _make_mock_message(channel_one_id)
 
     queue.put_nowait(channel_one_id, channel_one_msg_1)
@@ -380,8 +403,9 @@ async def test_get_with_other_putters() -> None:
 async def test_get_with_other_putter_already_one() -> None:
     """Test that a get operation is correctly handled when other putters are waiting."""
     loop = asyncio.get_running_loop()
-    queue = MultiplexerMultiChannelQueue(10000000)
+    queue = MultiplexerMultiChannelQueue(10000000, 10, 10000)
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
     channel_one_msg_1 = _make_mock_message(channel_one_id)
 
     queue.put_nowait(channel_one_id, channel_one_msg_1)
