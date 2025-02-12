@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
-from unittest.mock import patch
-import pytest
-import ip_address
 from typing import cast
+from unittest.mock import patch
+
+import ip_address
+import pytest
+
 from snitun.multiplexer.core import Multiplexer
-from snitun.server.listener_sni import SNIProxy, ProxyPeerHandler
+from snitun.server.listener_sni import ProxyPeerHandler, SNIProxy
 from snitun.server.peer import Peer
 from snitun.server.peer_manager import PeerManager
+
 from ..conftest import Client
 from .const_tls import TLS_1_2
 
@@ -195,10 +198,8 @@ async def test_sni_proxy_flow_timeout(
     assert not multiplexer_client._channels
 
 
-
 async def test_proxy_peer_handler_can_pause(
-    multiplexer_client: Multiplexer,
-    peer_manager: PeerManager
+    multiplexer_client: Multiplexer, peer_manager: PeerManager,
 ) -> None:
     """Test proxy peer handler can pause."""
     proxy_peer_handler: ProxyPeerHandler | None = None
