@@ -12,6 +12,7 @@ from ..exceptions import (
     MultiplexerTransportError,
     ParseSNIError,
 )
+from ..multiplexer.channel import MultiplexerChannel
 from ..multiplexer.core import Multiplexer
 from ..utils.asyncio import asyncio_timeout
 from .peer_manager import PeerManager
@@ -114,7 +115,12 @@ class SNIProxy:
         writer: asyncio.StreamWriter,
     ) -> None:
         """Proxy data between end points."""
-        handler = ProxyPeerHandler(self._loop)
+        try:
+            ip_address = ipaddress.IPv4Address(writer.get_extra_info("peername")[0])
+        except (TypeError, AttributeError):
+            _LOGGER.error("Can't read source IP")
+            return
+        handler = ProxyPeerHandler(self._loop, ip_address)
         await handler.start(multiplexer, client_hello, reader, writer)
 
 
@@ -124,16 +130,30 @@ class ProxyPeerHandler:
     def __init__(
         self,
         loop: asyncio.AbstractEventLoop,
+        ip_address: ipaddress.IPv4Address,
     ) -> None:
         """Initialize ProxyPeerHandler."""
         self._loop = loop
         self._pause_future: asyncio.Future[None] | None = None
+        self._ip_address = ip_address
+        self._channel: MultiplexerChannel | None = None
 
     def _pause_resume_reader_callback(self, pause: bool) -> None:
         """Pause and resume reader."""
+        assert self._channel is not None, "Channel not initialized"
         if pause:
+            _LOGGER.debug(
+                "Pause reader for %s (%s)",
+                self._ip_address,
+                self._channel.id,
+            )
             self._pause_future = self._loop.create_future()
         else:
+            _LOGGER.debug(
+                "Resuming reader for %s (%s)",
+                self._ip_address,
+                self._channel.id,
+            )
             assert self._pause_future is not None, "Cannot resume non paused connection"
             self._pause_future.set_result(None)
             self._pause_future = None
@@ -146,16 +166,13 @@ class ProxyPeerHandler:
         writer: asyncio.StreamWriter,
     ) -> None:
         """Start handler."""
+        ip_address = self._ip_address
         transport = writer.transport
-        try:
-            ip_address = ipaddress.IPv4Address(writer.get_extra_info("peername")[0])
-        except (TypeError, AttributeError):
-            _LOGGER.error("Can't read source IP")
-            return
-
+        from_proxy: asyncio.Future[None] | asyncio.Task[bytes] | None = None
+        from_peer = None
         # Open multiplexer channel
         try:
-            channel = await multiplexer.create_channel(
+            channel = self._channel = await multiplexer.create_channel(
                 ip_address,
                 self._pause_resume_reader_callback,
             )
@@ -163,8 +180,6 @@ class ProxyPeerHandler:
             _LOGGER.error("New transport channel to peer fails")
             return
 
-        from_proxy: asyncio.Future[None] | asyncio.Task[bytes] | None = None
-        from_peer = None
         try:
             await channel.write(client_hello)
 
