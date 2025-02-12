@@ -184,7 +184,8 @@ class MultiplexerMultiChannelQueue:
             asyncio.QueueFull: If the queue is full.
         """
         size = _effective_size(message)
-        channel = self._channels[channel_id]
+        if not (channel := self._channels.get(channel_id)):
+            raise RuntimeError(f"Channel {channel_id} does not exist or already closed")
         if channel.total_bytes + size > self._channel_size_limit:
             raise asyncio.QueueFull
         self._put(channel_id, channel, message, size)

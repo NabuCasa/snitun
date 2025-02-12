@@ -522,3 +522,22 @@ async def test_multi_channel_queue_under_water() -> None:
     assert under_water_callbacks == [True, False, True]
     queue.get_nowait()  # now 2 messages -- below high watermark and below low watermark
     assert under_water_callbacks == [True, False, True, False]
+
+
+async def test_put_nowait_to_non_existent_multi_channel_queue() -> None:
+    """Test writing to a non-existent channel."""
+    queue = MultiplexerMultiChannelQueue(100000, 10, 1000)
+    channel_id = _make_mock_channel_id()
+    msg = _make_mock_message(channel_id)
+    with pytest.raises(RuntimeError, match=f"Channel {channel_id} does not exist"):
+        queue.put_nowait(channel_id, msg)
+
+
+
+async def test_put_to_non_existent_multi_channel_queue() -> None:
+    """Test writing to a non-existent channel."""
+    queue = MultiplexerMultiChannelQueue(100000, 10, 1000)
+    channel_id = _make_mock_channel_id()
+    msg = _make_mock_message(channel_id)
+    with pytest.raises(RuntimeError, match=f"Channel {channel_id} does not exist"):
+        await queue.put(channel_id, msg)
