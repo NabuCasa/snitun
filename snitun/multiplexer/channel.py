@@ -169,9 +169,8 @@ class MultiplexerChannel:
                 _LOGGER.debug("Can't write to peer transport")
                 raise MultiplexerTransportError from None
 
-        if not self._throttling:
-            return
-        await asyncio.sleep(self._throttling)
+        if self._throttling is not None:
+            await asyncio.sleep(self._throttling)
 
     async def read(self) -> bytes:
         """Read data from peer."""
