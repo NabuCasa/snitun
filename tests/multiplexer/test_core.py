@@ -359,7 +359,7 @@ async def test_multiplexer_data_channel_abort_full(
 
     with pytest.raises(MultiplexerTransportClose):
         for count in range(1, 50000):
-            data = await channel_server.read()
+            await channel_server.read()
 
     await asyncio.sleep(0.1)
     assert not multiplexer_client._channels
