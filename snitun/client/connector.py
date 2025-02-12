@@ -8,7 +8,7 @@ from contextlib import suppress
 import ipaddress
 from ipaddress import IPv4Address
 import logging
-from typing import Any
+from typing import Any, cast
 
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from ..multiplexer.channel import MultiplexerChannel
@@ -53,8 +53,20 @@ class Connector:
         channel: MultiplexerChannel,
     ) -> None:
         """Handle new connection from SNIProxy."""
-        from_endpoint: asyncio.Future[bytes | None] = None
+        from_endpoint: asyncio.Future[None] | asyncio.Task[bytes] | None = None
         from_peer = None
+        pause_future: asyncio.Future[None] | None = None
+
+        def pause_resume_reader_callback(pause: bool) -> None:
+            """Pause and resume reader."""
+            nonlocal pause_future
+            if pause:
+                pause_future = self._loop.create_future()
+            elif pause_future:
+                pause_future.set_result(None)
+                pause_future = None
+
+        channel.set_pause_resume_reader_callback(pause_resume_reader_callback)
 
         _LOGGER.debug(
             "Receive from %s a request for %s",
@@ -89,9 +101,10 @@ class Connector:
             # Process stream from multiplexer
             while not writer.transport.is_closing():
                 if not from_endpoint:
-                    # TODO: when paused make from_endpoint an asyncio.Future[None] that
-                    # will be set when the channel is unpaused
-                    from_endpoint = self._loop.create_task(reader.read(4096))
+                    if pause_future:
+                        from_endpoint = cast(asyncio.Future[None], pause_future)
+                    else:
+                        from_endpoint = self._loop.create_task(reader.read(4096))
                 if not from_peer:
                     from_peer = self._loop.create_task(channel.read())
 

@@ -6,6 +6,7 @@ import asyncio
 from contextlib import suppress
 import ipaddress
 import logging
+from typing import cast
 
 from ..exceptions import (
     MultiplexerTransportClose,
@@ -121,7 +122,7 @@ class SNIProxy:
             _LOGGER.error("Can't read source IP")
             return
 
-        pause_future: asyncio.Future[None] = None
+        pause_future: asyncio.Future[None] | None = None
 
         def pause_resume_reader_callback(pause: bool) -> None:
             """Pause and resume reader."""
@@ -135,13 +136,14 @@ class SNIProxy:
         # Open multiplexer channel
         try:
             channel = await multiplexer.create_channel(
-                ip_address, pause_resume_reader_callback
+                ip_address,
+                pause_resume_reader_callback,
             )
         except MultiplexerTransportError:
             _LOGGER.error("New transport channel to peer fails")
             return
 
-        from_proxy: asyncio.Future[bytes | None] = None
+        from_proxy: asyncio.Future[None] | asyncio.Task[bytes] | None = None
         from_peer = None
         try:
             await channel.write(client_hello)
@@ -150,7 +152,7 @@ class SNIProxy:
             while not transport.is_closing():
                 if not from_proxy:
                     if pause_future:
-                        from_proxy = pause_future
+                        from_proxy = cast(asyncio.Future[None], pause_future)
                     else:
                         from_proxy = self._loop.create_task(reader.read(4096))
                 if not from_peer:
