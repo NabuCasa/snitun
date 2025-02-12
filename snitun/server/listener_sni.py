@@ -115,6 +115,8 @@ class SNIProxy:
         writer: asyncio.StreamWriter,
     ) -> None:
         """Proxy data between end points."""
+        # TODO: make an object here so we can call the pause/resume
+        # callback on it
         transport = writer.transport
         try:
             ip_address = ipaddress.IPv4Address(writer.get_extra_info("peername")[0])
