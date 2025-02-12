@@ -23,12 +23,13 @@ class FlowType(IntFlag):
         return self._value_
 
 
-CHANNEL_FLOW_NEW = FlowType.NEW
-CHANNEL_FLOW_DATA = FlowType.DATA
-CHANNEL_FLOW_CLOSE = FlowType.CLOSE
-CHANNEL_FLOW_PING = FlowType.PING
-CHANNEL_FLOW_PAUSE = FlowType.PAUSE
-CHANNEL_FLOW_RESUME = FlowType.RESUME
+CHANNEL_FLOW_NEW = FlowType.NEW.value
+CHANNEL_FLOW_DATA = FlowType.DATA.value
+CHANNEL_FLOW_CLOSE = FlowType.CLOSE.value
+CHANNEL_FLOW_PING = FlowType.PING.value
+CHANNEL_FLOW_PAUSE = FlowType.PAUSE.value
+CHANNEL_FLOW_RESUME = FlowType.RESUME.value
+
 
 # |-----------------HEADER---------------------------------|
 # |------ID-----|--FLAG--|--SIZE--|---------EXTRA ---------|

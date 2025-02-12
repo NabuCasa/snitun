@@ -34,6 +34,7 @@ from .message import (
     CHANNEL_FLOW_PING,
     CHANNEL_FLOW_RESUME,
     HEADER_STRUCT,
+    FlowType,
     MultiplexerChannelId,
     MultiplexerMessage,
 )
@@ -119,14 +120,10 @@ class Multiplexer:
     async def ping(self) -> None:
         """Send a ping flow message to hold the connection open."""
         self._healthy.clear()
+        channel_id = MultiplexerChannelId(os.urandom(16))
         try:
             self._write_message(
-                MultiplexerMessage(
-                    MultiplexerChannelId(os.urandom(16)),
-                    CHANNEL_FLOW_PING,
-                    b"",
-                    b"ping",
-                ),
+                MultiplexerMessage(channel_id, FlowType.PING, b"", b"ping"),
             )
 
             # Wait until pong is received
@@ -257,14 +254,10 @@ class Multiplexer:
         else:
             data = b""
 
+        m_channel_id = MultiplexerChannelId(channel_id)
         message = tuple.__new__(
             MultiplexerMessage,
-            (
-                MultiplexerChannelId(channel_id),
-                flow_type,
-                data,
-                extra,
-            ),
+            (m_channel_id, flow_type, data, extra),
         )
 
         # Process message to queue
@@ -323,7 +316,7 @@ class Multiplexer:
             else:
                 _LOGGER.debug("Receive ping from peer / send pong")
                 self._write_message(
-                    MultiplexerMessage(message.id, CHANNEL_FLOW_PING, b"", b"pong"),
+                    MultiplexerMessage(message.id, FlowType.PING, b"", b"pong"),
                 )
 
         # Pause or Resume
