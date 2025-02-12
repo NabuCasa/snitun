@@ -565,4 +565,6 @@ async def test_sending_pause_for_unknown_channel(
 
     await asyncio.sleep(0.1)
 
-    assert f"Receive pause from unknown channel: {wrong_channel_id.hex()}" in caplog.text
+    assert (
+        f"Receive pause from unknown channel: {wrong_channel_id.hex()}" in caplog.text
+    )
