@@ -259,6 +259,7 @@ async def test_connector_handler_can_pause(
     assert data == b"Hiro"
 
     assert handler._pause_future is None
+    # Simulate that the remote input goes under water
     client_channel.on_remote_input_under_water(True)
     assert handler._pause_future is not None
 
@@ -266,6 +267,11 @@ async def test_connector_handler_can_pause(
     data = await test_connection.reader.read(1024)
     assert data == b"Goodbye"
 
+    # This is an implementation detail that we might
+    # change in the future, but for now we need to
+    # to read one more message because we don't cancel
+    # the current read when the reader pauses as the additional
+    # complexity is not worth it.
     test_connection.writer.write(b"Should read one more")
     await test_connection.writer.drain()
     assert await server_channel.read() == b"Should read one more"
