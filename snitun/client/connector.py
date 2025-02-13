@@ -11,13 +11,13 @@ import logging
 from ssl import SSLContext, SSLError
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from aiohttp.web import RequestHandler
-
 from ..exceptions import MultiplexerTransportError
 from ..multiplexer.channel import MultiplexerChannel
 from ..multiplexer.core import Multiplexer
 from ..multiplexer.transport import ChannelTransport
+
+if TYPE_CHECKING:
+    from aiohttp.web import RequestHandler
 
 _LOGGER = logging.getLogger(__name__)
 
