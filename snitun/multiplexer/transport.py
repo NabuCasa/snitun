@@ -121,10 +121,12 @@ class ChannelTransport(Transport):
     def resume_protocol(self) -> None:
         """Resume the protocol."""
         self._call_protocol_method("resume_writing")
+        self._protocol_paused = False
 
     def pause_protocol(self) -> None:
         """Pause the protocol."""
         self._call_protocol_method("pause_writing")
+        self._protocol_paused = True
 
     def _call_protocol_method(
         self,
@@ -152,7 +154,6 @@ class ChannelTransport(Transport):
                     "protocol": self._protocol,
                 },
             )
-        self._protocol_paused = method_name == "pause_writing"
 
     async def wait_for_close(self) -> None:
         """Wait for the transport to close."""
