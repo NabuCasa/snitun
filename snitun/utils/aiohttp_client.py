@@ -55,11 +55,9 @@ class SniTunClientAioHttp:
         whitelist: bool = False,
     ) -> None:
         """Start internal server."""
-        self._connector = Connector(
-            self._protocol_factory,
-            self._ssl_context,
-            whitelist,
-        )
+        server = self._protocol_factory
+        assert server is not None, "Server is not initialized"
+        self._connector = Connector(server, self._ssl_context, whitelist)
         _LOGGER.info("AioHTTP snitun client started")
 
     async def stop(self, *, wait: bool = False) -> None:  # noqa: ARG002
