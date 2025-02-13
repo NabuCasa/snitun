@@ -16,7 +16,7 @@ from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.transport import ChannelTransport
 
-from ..conftest import BAD_ADDR, IP_ADDR, SNITunLoopback
+from ..conftest import BAD_ADDR, IP_ADDR, SNITunLoopback, make_snitun_connector
 from . import helpers
 
 
