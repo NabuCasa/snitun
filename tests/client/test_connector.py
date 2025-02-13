@@ -16,12 +16,8 @@ from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.transport import ChannelTransport
 
-from ..conftest import BAD_ADDR, IP_ADDR
+from ..conftest import BAD_ADDR, IP_ADDR, SNITunLoopback
 from . import helpers
-from .helpers import (
-    make_snitun_connector,
-    make_snitun_server_transport,
-)
 
 
 async def test_connector_disallowed_ip_address(
@@ -563,28 +559,17 @@ async def test_init_connector_whitelist_bad(
         await channel.read()
 
 
-async def test_connector_handler_can_pause(
-    multiplexer_client: Multiplexer,
-    multiplexer_server: Multiplexer,
-    client_ssl_context: ssl.SSLContext,
-    server_ssl_context: ssl.SSLContext,
-) -> None:
+async def test_connector_handler_can_pause(snitun_loopback: SNITunLoopback) -> None:
     """Test connector handler can pause."""
-    snitun_wrapper = await make_snitun_server_transport(
-        multiplexer_client,
-        multiplexer_server,
-        client_ssl_context,
-        server_ssl_context,
-    )
-    client_channel = snitun_wrapper.client.channel
-    client_protocol = snitun_wrapper.client.protocol
-    client_transport = snitun_wrapper.client.transport
+    client_channel = snitun_loopback.client.channel
+    client_protocol = snitun_loopback.client.protocol
+    client_transport = snitun_loopback.client.transport
     # In this case the server_protocol is the browser
     # and the client_protocol is the Home Assistant server
     # since the connection is initiated from the snitun server
     # back into Home Assistant
-    server_protocol = snitun_wrapper.server.protocol
-    server_channel = snitun_wrapper.server.channel
+    server_protocol = snitun_loopback.server.protocol
+    server_channel = snitun_loopback.server.channel
 
     server_protocol.writer.write(b"Hallo")
     await server_protocol.writer.drain()
