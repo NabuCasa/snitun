@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-from collections import OrderedDict, defaultdict, deque
+from collections import OrderedDict, deque
+from collections.abc import Callable
 import contextlib
 from dataclasses import dataclass, field
+import logging
 
 from .message import HEADER_SIZE, MultiplexerChannelId, MultiplexerMessage
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -22,7 +26,10 @@ class _ChannelQueue:
     when the queue is full and space becomes available.
     """
 
+    under_water_callback: Callable[[bool], None]
     total_bytes: int = 0
+    under_water: bool = False
+    pending_close: bool = False
     queue: deque[MultiplexerMessage | None] = field(default_factory=deque)
     putters: deque[asyncio.Future[None]] = field(default_factory=deque)
 
@@ -46,15 +53,35 @@ class MultiplexerSingleChannelQueue(asyncio.Queue[MultiplexerMessage | None]):
 
     _total_bytes: int = 0
 
+    def __init__(
+        self,
+        maxsize: int,
+        low_water_mark: int,
+        high_water_mark: int,
+        under_water_callback: Callable[[bool], None],
+    ) -> None:
+        """Initialize Multiplexer Queue."""
+        self._low_water_mark = low_water_mark
+        self._high_water_mark = high_water_mark
+        self._under_water_callback = under_water_callback
+        self._under_water: bool = False
+        super().__init__(maxsize)
+
     def _put(self, message: MultiplexerMessage | None) -> None:
         """Put a message in the queue."""
         self._total_bytes += _effective_size(message)
         super()._put(message)
+        if not self._under_water and self._total_bytes >= self._high_water_mark:
+            self._under_water = True
+            self._under_water_callback(True)
 
     def _get(self) -> MultiplexerMessage | None:
         """Get a message from the queue."""
         message = super()._get()
         self._total_bytes -= _effective_size(message)
+        if self._under_water and self._total_bytes <= self._low_water_mark:
+            self._under_water = False
+            self._under_water_callback(False)
         return message
 
     def qsize(self) -> int:
@@ -73,7 +100,12 @@ class MultiplexerMultiChannelQueue:
     fashion, ensuring that no channel is starved.
     """
 
-    def __init__(self, channel_size_limit: int) -> None:
+    def __init__(
+        self,
+        channel_size_limit: int,
+        channel_low_water_mark: int,
+        channel_high_water_mark: int,
+    ) -> None:
         """Initialize Multiplexer Queue.
 
         Args:
@@ -82,15 +114,34 @@ class MultiplexerMultiChannelQueue:
 
         """
         self._channel_size_limit = channel_size_limit
-        self._channels: defaultdict[MultiplexerChannelId, _ChannelQueue] = defaultdict(
-            _ChannelQueue,
-        )
+        self._channel_low_water_mark = channel_low_water_mark
+        self._channel_high_water_mark = channel_high_water_mark
+        self._channels: dict[MultiplexerChannelId, _ChannelQueue] = {}
         # _order controls which channel_id to get next. We use
         # an OrderedDict because we need to use popitem(last=False)
         # here to maintain FIFO order.
         self._order: OrderedDict[MultiplexerChannelId, None] = OrderedDict()
         self._getters: deque[asyncio.Future[None]] = deque()
         self._loop = asyncio.get_running_loop()
+
+    def create_channel(
+        self,
+        channel_id: MultiplexerChannelId,
+        under_water_callback: Callable[[bool], None],
+    ) -> None:
+        """Create a new channel."""
+        _LOGGER.debug("Queue creating channel %s", channel_id)
+        if channel_id in self._channels:
+            raise RuntimeError(f"Channel {channel_id} already exists")
+        self._channels[channel_id] = _ChannelQueue(under_water_callback)
+
+    def delete_channel(self, channel_id: MultiplexerChannelId) -> None:
+        """Delete a channel."""
+        if channel := self._channels.get(channel_id):
+            if channel.queue:
+                channel.pending_close = True
+            else:
+                del self._channels[channel_id]
 
     def _wakeup_next(self, waiters: deque[asyncio.Future[None]]) -> None:
         """Wake up the next waiter."""
@@ -107,7 +158,8 @@ class MultiplexerMultiChannelQueue:
     ) -> None:
         """Put a message in the queue."""
         # Based on asyncio.Queue.put()
-        channel = self._channels[channel_id]
+        if not (channel := self._channels.get(channel_id)):
+            raise RuntimeError(f"Channel {channel_id} does not exist or already closed")
         size = _effective_size(message)
         while channel.total_bytes + size > self._channel_size_limit:  # full
             putter = self._loop.create_future()
@@ -115,9 +167,6 @@ class MultiplexerMultiChannelQueue:
             try:
                 await putter
             except:
-                # channel may have been deleted while we were waiting
-                # so make sure we look it up again
-                channel = self._channels[channel_id]
                 putter.cancel()  # Just in case putter is not done yet.
                 with contextlib.suppress(ValueError):
                     # Clean self._putters from canceled putters.
@@ -127,10 +176,6 @@ class MultiplexerMultiChannelQueue:
                     # the call. Wake up the next in line.
                     self._wakeup_next(channel.putters)
                 raise
-            else:
-                # channel may have been deleted while we were waiting
-                # so make sure we look it up again
-                channel = self._channels[channel_id]
         self._put(channel_id, channel, message, size)
 
     def put_nowait(
@@ -144,7 +189,8 @@ class MultiplexerMultiChannelQueue:
             asyncio.QueueFull: If the queue is full.
         """
         size = _effective_size(message)
-        channel = self._channels[channel_id]
+        if not (channel := self._channels.get(channel_id)):
+            raise RuntimeError(f"Channel {channel_id} does not exist or already closed")
         if channel.total_bytes + size > self._channel_size_limit:
             raise asyncio.QueueFull
         self._put(channel_id, channel, message, size)
@@ -160,6 +206,12 @@ class MultiplexerMultiChannelQueue:
         channel.queue.append(message)
         channel.total_bytes += size
         self._order[channel_id] = None
+        if (
+            not channel.under_water
+            and channel.total_bytes >= self._channel_high_water_mark
+        ):
+            channel.under_water = True
+            channel.under_water_callback(True)
         self._wakeup_next(self._getters)
 
     async def get(self) -> MultiplexerMessage | None:
@@ -200,11 +252,13 @@ class MultiplexerMultiChannelQueue:
             # Now put the channel_id back, but at the end of the queue
             # so the next get will get the next waiting channel_id.
             self._order[channel_id] = None
-        else:
-            # Got to the end of the queue
-            # As soon as we get to the end of the queue, we will
-            # drop the internal deque(), this may result in some churn.
+        elif channel.pending_close:
+            # Got to the end of the queue and the channel wants
+            # to close so we now drop the channel.
             del self._channels[channel_id]
+        if channel.under_water and channel.total_bytes <= self._channel_low_water_mark:
+            channel.under_water = False
+            channel.under_water_callback(False)
         if channel.putters:
             self._wakeup_next(channel.putters)
         return message

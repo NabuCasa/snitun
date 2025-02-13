@@ -10,12 +10,16 @@ from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportErr
 from snitun.multiplexer import channel as channel_module
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.const import (
+    OUTGOING_QUEUE_HIGH_WATERMARK,
+    OUTGOING_QUEUE_LOW_WATERMARK,
     OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
 )
 from snitun.multiplexer.message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
     CHANNEL_FLOW_NEW,
+    CHANNEL_FLOW_PAUSE,
+    CHANNEL_FLOW_RESUME,
     HEADER_SIZE,
     MultiplexerChannelId,
     MultiplexerMessage,
@@ -28,7 +32,11 @@ IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
 async def test_initial_channel_msg() -> None:
     """Test new MultiplexerChannel with id."""
-    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -42,7 +50,11 @@ async def test_initial_channel_msg() -> None:
 
 async def test_close_channel_msg() -> None:
     """Test close MultiplexerChannel."""
-    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -55,7 +67,11 @@ async def test_close_channel_msg() -> None:
 
 async def test_write_data() -> None:
     """Test send data over MultiplexerChannel."""
-    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -70,7 +86,11 @@ async def test_write_data() -> None:
 
 async def test_closing() -> None:
     """Test send data over MultiplexerChannel."""
-    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -81,7 +101,11 @@ async def test_closing() -> None:
 
 async def test_write_data_after_close() -> None:
     """Test send data over MultiplexerChannel."""
-    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
     assert not channel.closing
@@ -96,7 +120,11 @@ async def test_write_data_after_close() -> None:
 
 async def test_write_data_empty() -> None:
     """Test send data over MultiplexerChannel."""
-    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -106,7 +134,11 @@ async def test_write_data_empty() -> None:
 
 async def test_read_data() -> None:
     """Test send data over MultiplexerChannel."""
-    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -119,21 +151,25 @@ async def test_read_data() -> None:
 
 async def test_read_data_on_close() -> None:
     """Test send data over MultiplexerChannel on close."""
-    output = MultiplexerMultiChannelQueue(OUTGOING_QUEUE_MAX_BYTES_CHANNEL)
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
     assert not channel.closing
 
     channel.close()
     with pytest.raises(MultiplexerTransportClose):
-        data = await channel.read()
+        await channel.read()
 
     assert channel.closing
 
 
 async def test_write_data_peer_error(raise_timeout: None) -> None:
     """Test send data over MultiplexerChannel but peer don't response."""
-    output = MultiplexerMultiChannelQueue(1)
+    output = MultiplexerMultiChannelQueue(1, 1, 1)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
@@ -146,7 +182,7 @@ async def test_write_data_peer_error(raise_timeout: None) -> None:
 
 async def test_message_transport_never_lock() -> None:
     """Message transport should never lock down even when it goes unhealthy."""
-    output = MultiplexerMultiChannelQueue(1)
+    output = MultiplexerMultiChannelQueue(1, 1, 1)
     with patch.object(channel_module, "INCOMING_QUEUE_MAX_BYTES_CHANNEL", 1):
         channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
@@ -159,10 +195,10 @@ async def test_message_transport_never_lock() -> None:
     assert channel.unhealthy
 
 
-async def test_write_throttling(event_loop: asyncio.AbstractEventLoop) -> None:
+async def test_write_throttling() -> None:
     """Message transport should never lock down."""
-    loop = event_loop
-    output = MultiplexerMultiChannelQueue(500)
+    loop = asyncio.get_running_loop()
+    output = MultiplexerMultiChannelQueue(500, 1, 100)
     channel = MultiplexerChannel(output, IP_ADDR, throttling=0.1)
     assert isinstance(channel.id, MultiplexerChannelId)
     message = b"test"
@@ -183,3 +219,86 @@ async def test_write_throttling(event_loop: asyncio.AbstractEventLoop) -> None:
     background_task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await background_task
+
+
+async def test_channel_input_queue_goes_under_water() -> None:
+    """Test when a channel input queue goes under water.
+
+    The channel should inform the peer to pause the reader.
+    """
+    output = MultiplexerMultiChannelQueue(
+        HEADER_SIZE * 2,
+        HEADER_SIZE,
+        HEADER_SIZE * 2,
+    )
+    with (
+        patch.object(
+            channel_module,
+            "INCOMING_QUEUE_MAX_BYTES_CHANNEL",
+            HEADER_SIZE * 10,
+        ),
+        patch.object(channel_module, "INCOMING_QUEUE_LOW_WATERMARK", HEADER_SIZE),
+        patch.object(channel_module, "INCOMING_QUEUE_HIGH_WATERMARK", HEADER_SIZE * 2),
+    ):
+        channel = MultiplexerChannel(output, IP_ADDR)
+        assert isinstance(channel.id, MultiplexerChannelId)
+
+    # Fake some data coming from the remote
+    data_msg = MultiplexerMessage(channel.id, CHANNEL_FLOW_DATA)
+    channel.message_transport(data_msg)
+    channel.message_transport(data_msg)
+    # The input queue is now under water
+    assert channel._input._under_water
+
+    # We should have told the remote to pause
+    assert output.get_nowait() == MultiplexerMessage(channel.id, CHANNEL_FLOW_PAUSE)
+
+    await channel.read() == data_msg.data
+    # The input queue is now back to normal
+
+    # We should have told the remote to resume
+    assert output.get_nowait() == MultiplexerMessage(channel.id, CHANNEL_FLOW_RESUME)
+
+
+async def test_channel_input_queue_goes_under_water_output_full(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test when a channel input queue goes under water when output is full.
+
+    The channel should inform the peer to pause the reader.
+    """
+    output = MultiplexerMultiChannelQueue(
+        HEADER_SIZE * 2,
+        HEADER_SIZE,
+        HEADER_SIZE * 2,
+    )
+    with (
+        patch.object(
+            channel_module,
+            "INCOMING_QUEUE_MAX_BYTES_CHANNEL",
+            HEADER_SIZE * 10,
+        ),
+        patch.object(channel_module, "INCOMING_QUEUE_LOW_WATERMARK", HEADER_SIZE),
+        patch.object(channel_module, "INCOMING_QUEUE_HIGH_WATERMARK", HEADER_SIZE * 2),
+    ):
+        channel = MultiplexerChannel(output, IP_ADDR)
+        assert isinstance(channel.id, MultiplexerChannelId)
+
+    data_msg = MultiplexerMessage(channel.id, CHANNEL_FLOW_DATA)
+
+    # Fill the output queue so it's full
+    output.put_nowait(channel.id, data_msg)
+    output.put_nowait(channel.id, data_msg)
+
+    # Fake some data coming from the remote
+    channel.message_transport(data_msg)
+    channel.message_transport(data_msg)
+    # The input queue is now under water
+    assert channel._input._under_water
+
+    # We can't tell the remote to pause because
+    # our output queue is full
+    assert (
+        f"{channel.id}: Cannot send pause/resume message to peer, "
+        "output queue is full" in caplog.text
+    )

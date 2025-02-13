@@ -53,9 +53,6 @@ class Connector:
         channel: MultiplexerChannel,
     ) -> None:
         """Handle new connection from SNIProxy."""
-        from_endpoint = None
-        from_peer = None
-
         _LOGGER.debug(
             "Receive from %s a request for %s",
             channel.ip_address,
@@ -68,28 +65,83 @@ class Connector:
             await multiplexer.delete_channel(channel)
             return
 
+        await ConnectorHandler(self._loop, channel).start(
+            multiplexer,
+            self._end_host,
+            self._end_port,
+            self._endpoint_connection_error_callback,
+        )
+
+
+class ConnectorHandler:
+    """Handle connection to endpoint."""
+
+    def __init__(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        channel: MultiplexerChannel,
+    ) -> None:
+        """Initialize ConnectorHandler."""
+        self._loop = loop
+        self._pause_future: asyncio.Future[None] | None = None
+        self._channel: MultiplexerChannel = channel
+
+    def _pause_resume_reader_callback(self, pause: bool) -> None:
+        """Pause and resume reader."""
+        if pause:
+            _LOGGER.debug(
+                "Pause reader for %s (%s)",
+                self._channel.ip_address,
+                self._channel.id,
+            )
+            self._pause_future = self._loop.create_future()
+        else:
+            _LOGGER.debug(
+                "Resuming reader for %s (%s)",
+                self._channel.ip_address,
+                self._channel.id,
+            )
+            assert self._pause_future is not None, "Cannot resume non paused connection"
+            self._pause_future.set_result(None)
+            self._pause_future = None
+
+    async def start(
+        self,
+        multiplexer: Multiplexer,
+        end_host: str,
+        end_port: int,
+        endpoint_connection_error_callback: Callable[[], Coroutine[Any, Any, None]]
+        | None = None,
+    ) -> None:
+        """Start handler."""
+        channel = self._channel
+        channel.set_pause_resume_reader_callback(self._pause_resume_reader_callback)
         # Open connection to endpoint
         try:
-            reader, writer = await asyncio.open_connection(
-                host=self._end_host,
-                port=self._end_port,
-            )
+            reader, writer = await asyncio.open_connection(host=end_host, port=end_port)
         except OSError:
             _LOGGER.error(
                 "Can't connect to endpoint %s:%s",
-                self._end_host,
-                self._end_port,
+                end_host,
+                end_port,
             )
             await multiplexer.delete_channel(channel)
-            if self._endpoint_connection_error_callback:
-                await self._endpoint_connection_error_callback()
+            if endpoint_connection_error_callback:
+                await endpoint_connection_error_callback()
             return
 
+        from_endpoint: asyncio.Future[None] | asyncio.Task[bytes] | None = None
+        from_peer: asyncio.Task[bytes] | None = None
         try:
             # Process stream from multiplexer
             while not writer.transport.is_closing():
                 if not from_endpoint:
-                    from_endpoint = self._loop.create_task(reader.read(4096))
+                    # If the multiplexer channel queue is under water, pause the reader
+                    # by waiting for the future to be set, once the queue is not under
+                    # water the future will be set and cleared to resume the reader
+                    from_endpoint = self._pause_future or self._loop.create_task(
+                        reader.read(4096),  # type: ignore[arg-type]
+                    )
                 if not from_peer:
                     from_peer = self._loop.create_task(channel.read())
 
@@ -104,7 +156,8 @@ class Connector:
                     if from_endpoint_exc := from_endpoint.exception():
                         raise from_endpoint_exc
 
-                    await channel.write(from_endpoint.result())
+                    if (from_endpoint_result := from_endpoint.result()) is not None:
+                        await channel.write(from_endpoint_result)
                     from_endpoint = None
 
                 # From peer
