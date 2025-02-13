@@ -141,7 +141,6 @@ class MultiplexerChannel:
 
     def close(self) -> None:
         """Close channel on next run."""
-        _LOGGER.debug("Close channel %s", self._id)
         self._closing = True
         with suppress(asyncio.QueueFull):
             self._input.put_nowait(None)
