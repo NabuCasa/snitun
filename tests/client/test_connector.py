@@ -4,20 +4,24 @@ import asyncio
 import asyncio.sslproto
 import ssl
 from typing import cast
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch
 
 import aiohttp
 from aiohttp import ClientConnectorError
 import pytest
 
-from snitun.client.connector import Connector,ConnectorHandler
+from snitun.client.connector import Connector
 from snitun.exceptions import MultiplexerTransportClose
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.transport import ChannelTransport
 
-from ..conftest import BAD_ADDR,IP_ADDR
+from ..conftest import BAD_ADDR, IP_ADDR
 from . import helpers
+from .helpers import (
+    make_snitun_connector,
+    make_snitun_server_transport,
+)
 
 
 async def test_connector_disallowed_ip_address(
@@ -536,16 +540,15 @@ async def test_connector_valid_url_buffer_updated_raises_server_side(
     assert "consuming buffer or protocol.buffer_updated() call failed" in caplog.text
 
 
-
 async def test_init_connector_whitelist_bad(
-    #test_endpoint: list[Client],
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
+    client_ssl_context: ssl.SSLContext,
+    server_ssl_context: ssl.SSLContext,
 ) -> None:
     """Test and init a connector with whitelist bad requests."""
-    #assert not test_endpoint
-
-    connector = Connector("127.0.0.1", "8822", True)
+    connector_with_streams = make_snitun_connector(server_ssl_context, whitelist=True)
+    connector = connector_with_streams.connector
     multiplexer_client._new_connections = connector.handler
 
     connector.whitelist.add(IP_ADDR)
@@ -554,123 +557,62 @@ async def test_init_connector_whitelist_bad(
     channel = await multiplexer_server.create_channel(BAD_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
-    #assert not test_endpoint
+    assert not connector_with_streams.connections
 
     with pytest.raises(MultiplexerTransportClose):
         await channel.read()
 
 
-async def test_connector_error_callback(
-    multiplexer_client: Multiplexer,
-    multiplexer_server: Multiplexer,
-) -> None:
-    """Test connector endpoint error callback."""
-    callback = AsyncMock()
-    connector = Connector("127.0.0.1", "8822", False, callback)
-
-    channel = await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
-
-    callback.assert_not_called()
-
-    with patch("asyncio.open_connection", side_effect=OSError("Lorem ipsum...")):
-        await connector.handler(multiplexer_client, channel)
-
-    callback.assert_called_once()
-
-
-async def test_connector_no_error_callback(
-    multiplexer_client: Multiplexer,
-    multiplexer_server: Multiplexer,
-) -> None:
-    """Test connector with not endpoint error callback."""
-    connector = Connector("127.0.0.1", "8822", False, None)
-    channel = await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
-    with patch("asyncio.open_connection", side_effect=OSError("Lorem ipsum...")):
-        await connector.handler(multiplexer_client, channel)
-
-
 async def test_connector_handler_can_pause(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
+    client_ssl_context: ssl.SSLContext,
+    server_ssl_context: ssl.SSLContext,
 ) -> None:
     """Test connector handler can pause."""
-    connector = Connector("127.0.0.1", "8822")
-    multiplexer_client._new_connections = connector.handler
-
-    connector_handler: ConnectorHandler | None = None
-
-    def save_connector_handler(
-        loop: asyncio.AbstractEventLoop,
-        channel: MultiplexerChannel,
-    ) -> ConnectorHandler:
-        nonlocal connector_handler
-        connector_handler = ConnectorHandler(loop, channel)
-        return connector_handler
-
-    with patch("snitun.client.connector.ConnectorHandler", save_connector_handler):
-        server_channel = await multiplexer_server.create_channel(
-            IP_ADDR,
-            lambda _: None,
-        )
-        await asyncio.sleep(0.1)
-
-    assert isinstance(connector_handler, ConnectorHandler)
-    handler = cast(ConnectorHandler, connector_handler)
-    client_channel = handler._channel
-    assert client_channel._pause_resume_reader_callback is not None
-    assert (
-        client_channel._pause_resume_reader_callback
-        == handler._pause_resume_reader_callback
+    snitun_wrapper = await make_snitun_server_transport(
+        multiplexer_client,
+        multiplexer_server,
+        client_ssl_context,
+        server_ssl_context,
     )
+    client_channel = snitun_wrapper.client.channel
+    client_protocol = snitun_wrapper.client.protocol
+    client_transport = snitun_wrapper.client.transport
+    # In this case the server_protocol is the browser
+    # and the client_protocol is the Home Assistant server
+    # since the connection is initiated from the snitun server
+    # back into Home Assistant
+    server_protocol = snitun_wrapper.server.protocol
+    server_channel = snitun_wrapper.server.channel
 
-    # TODO: replace protocol_factory with one that wrap TLS writes
-    assert test_endpoint
-    test_connection = test_endpoint[0]
+    server_protocol.writer.write(b"Hallo")
+    await server_protocol.writer.drain()
+    assert await client_protocol.reader.read(1024) == b"Hallo"
 
-    await server_channel.write(b"Hallo")
-    data = await test_connection.reader.read(1024)
-    assert data == b"Hallo"
+    client_protocol.writer.write(b"Hiro")
+    await client_protocol.writer.drain()
+    assert await server_protocol.reader.read(1024) == b"Hiro"
 
-    test_connection.writer.write(b"Hiro")
-    await test_connection.writer.drain()
-
-    data = await server_channel.read()
-    assert data == b"Hiro"
-
-    assert handler._pause_future is None
+    assert client_transport.protocol_paused is False
     # Simulate that the remote input goes under water
     client_channel.on_remote_input_under_water(True)
-    assert handler._pause_future is not None
+    assert client_transport.protocol_paused is True
 
-    await server_channel.write(b"Goodbye")
-    data = await test_connection.reader.read(1024)
-    assert data == b"Goodbye"
+    client_protocol.writer.write(b"ByeBye")
+    await client_protocol.writer.drain()
 
-    # This is an implementation detail that we might
-    # change in the future, but for now we need to
-    # to read one more message because we don't cancel
-    # the current read when the reader pauses as the additional
-    # complexity is not worth it.
-    test_connection.writer.write(b"Should read one more")
-    await test_connection.writer.drain()
-    assert await server_channel.read() == b"Should read one more"
-
-    test_connection.writer.write(b"ByeBye")
-    await test_connection.writer.drain()
-
-    read_task = asyncio.create_task(server_channel.read())
+    read_task = asyncio.create_task(server_protocol.reader.read(1024))
     await asyncio.sleep(0.1)
     # Make sure reader is actually paused
     assert not read_task.done()
 
     # Now simulate that the remote input is no longer under water
     client_channel.on_remote_input_under_water(False)
-    assert handler._pause_future is None
-    data = await read_task
-    assert data == b"ByeBye"
+    assert client_transport.protocol_paused is False
+    assert await read_task == b"ByeBye"
 
-    test_connection.writer.close()
-    test_connection.close.set()
+    client_protocol.writer.close()
     await asyncio.sleep(0.1)
 
     with pytest.raises(MultiplexerTransportClose):

@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import asyncio.sslproto
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable
 from contextlib import suppress
 import ipaddress
 import logging
 from ssl import SSLContext, SSLError
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from aiohttp.web import RequestHandler
@@ -30,14 +30,11 @@ class Connector:
         protocol_factory: Callable[[], RequestHandler],
         ssl_context: SSLContext,
         whitelist: bool = False,
-        endpoint_connection_error_callback: Callable[[], Coroutine[Any, Any, None]]
-        | None = None,
     ) -> None:
         """Initialize Connector."""
         self._loop = asyncio.get_running_loop()
         self._whitelist: set[ipaddress.IPv4Address] = set()
         self._whitelist_enabled = whitelist
-        self._endpoint_connection_error_callback = endpoint_connection_error_callback
         self._protocol_factory = protocol_factory
         self._ssl_context = ssl_context
 
@@ -84,26 +81,21 @@ class ConnectorHandler:
     ) -> None:
         """Initialize ConnectorHandler."""
         self._loop = loop
-        self._pause_future: asyncio.Future[None] | None = None
         self._multiplexer = multiplexer
         self._channel = channel
         self._transport = transport
 
     def _pause_resume_reader_callback(self, pause: bool) -> None:
         """Pause and resume reader."""
+        _LOGGER.debug(
+            "%s reader for %s (%s)",
+            "Pause" if pause else "Resume",
+            self._channel.ip_address,
+            self._channel.id,
+        )
         if pause:
-            _LOGGER.debug(
-                "Pause reader for %s (%s)",
-                self._channel.ip_address,
-                self._channel.id,
-            )
             self._transport.pause_protocol()
         else:
-            _LOGGER.debug(
-                "Resuming reader for %s (%s)",
-                self._channel.ip_address,
-                self._channel.id,
-            )
             self._transport.resume_protocol()
 
     async def _fail_to_start_tls(self, ex: Exception | None) -> None:

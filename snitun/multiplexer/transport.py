@@ -7,7 +7,7 @@ from asyncio import Transport
 import asyncio.sslproto
 import logging
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from ..exceptions import MultiplexerTransportClose
 from ..multiplexer.channel import MultiplexerChannel
@@ -56,9 +56,15 @@ class ChannelTransport(Transport):
         self._loop = asyncio.get_running_loop()
         self._protocol: asyncio.BufferedProtocol | None = None
         self._pause_future: asyncio.Future[None] | None = None
+        self._protocol_paused: bool = False
         self._reader_task: asyncio.Task[None] | None = None
         self._multiplexer = multiplexer
         super().__init__(extra={"peername": (str(channel.ip_address), 0)})
+
+    @property
+    def protocol_paused(self) -> bool:
+        """Return True if the protocol is paused."""
+        return self._protocol_paused
 
     def start_reader(self) -> None:
         """Start the transport."""
@@ -70,7 +76,9 @@ class ChannelTransport(Transport):
 
     def get_protocol(self) -> asyncio.BufferedProtocol:
         """Return the protocol."""
-        assert self._protocol is not None, "Protocol not set"
+        assert self._protocol is not None, (
+            "ChannelTransport.get_protocol(): Protocol not set"
+        )
         return self._protocol
 
     def set_protocol(self, protocol: asyncio.BaseProtocol | None) -> None:
@@ -107,7 +115,10 @@ class ChannelTransport(Transport):
         """Pause the protocol."""
         self._call_protocol_method("pause_writing")
 
-    def _call_protocol_method(self, method_name: str) -> None:
+    def _call_protocol_method(
+        self,
+        method_name: Literal["resume_writing", "pause_writing"],
+    ) -> None:
         """Call a method on the protocol."""
         if self.is_closing():
             return
@@ -130,6 +141,7 @@ class ChannelTransport(Transport):
                     "protocol": self._protocol,
                 },
             )
+        self._protocol_paused = method_name == "pause_writing"
 
     async def wait_for_close(self) -> None:
         """Wait for the transport to close."""

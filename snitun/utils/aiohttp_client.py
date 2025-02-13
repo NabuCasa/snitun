@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable, Coroutine
 import logging
 import ssl
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from aiohttp.web import AppRunner
@@ -54,15 +53,12 @@ class SniTunClientAioHttp:
     async def start(
         self,
         whitelist: bool = False,
-        endpoint_connection_error_callback: Callable[[], Coroutine[Any, Any, None]]
-        | None = None,
     ) -> None:
         """Start internal server."""
         self._connector = Connector(
             self._protocol_factory,
             self._ssl_context,
             whitelist,
-            endpoint_connection_error_callback=endpoint_connection_error_callback,
         )
         _LOGGER.info("AioHTTP snitun client started")
 
