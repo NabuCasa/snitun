@@ -602,3 +602,9 @@ async def test_connector_handler_can_pause(snitun_loopback: SNITunLoopback) -> N
 
     with pytest.raises(MultiplexerTransportClose):
         await server_channel.read()
+
+    # make sure writing to the transport after close swallows data
+    # as its common for SSLProtocol to do this and we do not want
+    # to raise and fill the logs with exceptions
+    assert client_transport.is_closing() is True
+    client_transport.write(b"write_after_close")
