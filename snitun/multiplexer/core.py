@@ -312,11 +312,11 @@ class Multiplexer:
         # Close
         elif flow_type == CHANNEL_FLOW_CLOSE:
             # check if message exists
-            if message.id not in self._channels:
-                _LOGGER.debug("Receive close from unknown channel")
-                return
             if channel_ := self._delete_channel_and_queue(message.id):
                 channel_.close()
+            else:
+                _LOGGER.debug("Receive close from unknown channel")
+            return
 
         # Ping
         elif flow_type == CHANNEL_FLOW_PING:
