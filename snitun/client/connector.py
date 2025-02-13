@@ -126,6 +126,7 @@ class ConnectorHandler:
     ) -> None:
         """Start handler."""
         channel = self._channel
+        channel.set_pause_resume_reader_callback(self._pause_resume_reader_callback)
         self._transport.start_reader()
         # The request_handler is the aiohttp RequestHandler
         # that is generated from the protocol_factory that

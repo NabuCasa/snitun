@@ -107,6 +107,35 @@ async def test_init_client_peer_invalid_token(
     assert not peer_manager.peer_available("localhost")
 
 
+async def test_close_client_peer(
+    peer_listener: PeerListener,
+    peer_manager: PeerManager,
+) -> None:
+    """Test setup of ClientPeer, test flow - close it."""
+    client = ClientPeer("127.0.0.1", "8893")
+    connector = Connector("127.0.0.1", "8822")
+
+    assert not peer_manager.peer_available("localhost")
+
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    hostname = "localhost"
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
+
+    await client.start(connector, fernet_token, aes_key, aes_iv)
+    await asyncio.sleep(0.1)
+    assert peer_manager.peer_available("localhost")
+
+    await asyncio.sleep(0.1)
+
+    await client.stop()
+    await asyncio.sleep(0.1)
+    assert not client.is_connected
+    assert not peer_manager.peer_available("localhost")
+
+
+
 async def test_init_client_peer_wait(
     peer_listener: PeerListener,
     peer_manager: PeerManager,

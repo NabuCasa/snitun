@@ -12,6 +12,7 @@ from ..exceptions import (
     MultiplexerTransportError,
     ParseSNIError,
 )
+from ..multiplexer.channel import MultiplexerChannel
 from ..multiplexer.core import Multiplexer
 from ..utils.asyncio import asyncio_timeout
 from .peer_manager import PeerManager
@@ -114,29 +115,83 @@ class SNIProxy:
         writer: asyncio.StreamWriter,
     ) -> None:
         """Proxy data between end points."""
-        transport = writer.transport
         try:
             ip_address = ipaddress.IPv4Address(writer.get_extra_info("peername")[0])
         except (TypeError, AttributeError):
             _LOGGER.error("Can't read source IP")
             return
+        handler = ProxyPeerHandler(self._loop, ip_address)
+        await handler.start(multiplexer, client_hello, reader, writer)
 
+
+class ProxyPeerHandler:
+    """Proxy Peer Handler."""
+
+    def __init__(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        ip_address: ipaddress.IPv4Address,
+    ) -> None:
+        """Initialize ProxyPeerHandler."""
+        self._loop = loop
+        self._pause_future: asyncio.Future[None] | None = None
+        self._ip_address = ip_address
+        self._channel: MultiplexerChannel | None = None
+
+    def _pause_resume_reader_callback(self, pause: bool) -> None:
+        """Pause and resume reader."""
+        assert self._channel is not None, "Channel not initialized"
+        if pause:
+            _LOGGER.debug(
+                "Pause reader for %s (%s)",
+                self._ip_address,
+                self._channel.id,
+            )
+            self._pause_future = self._loop.create_future()
+        else:
+            _LOGGER.debug(
+                "Resuming reader for %s (%s)",
+                self._ip_address,
+                self._channel.id,
+            )
+            assert self._pause_future is not None, "Cannot resume non paused connection"
+            self._pause_future.set_result(None)
+            self._pause_future = None
+
+    async def start(
+        self,
+        multiplexer: Multiplexer,
+        client_hello: bytes,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+    ) -> None:
+        """Start handler."""
+        ip_address = self._ip_address
+        transport = writer.transport
+        from_proxy: asyncio.Future[None] | asyncio.Task[bytes] | None = None
+        from_peer = None
         # Open multiplexer channel
         try:
-            channel = await multiplexer.create_channel(ip_address)
+            channel = self._channel = await multiplexer.create_channel(
+                ip_address,
+                self._pause_resume_reader_callback,
+            )
         except MultiplexerTransportError:
             _LOGGER.error("New transport channel to peer fails")
             return
 
-        from_proxy = None
-        from_peer = None
         try:
             await channel.write(client_hello)
 
             # Process stream into multiplexer
             while not transport.is_closing():
                 if not from_proxy:
-                    from_proxy = self._loop.create_task(reader.read(4096))
+                    # If the multiplexer channel queue is under water, pause the reader
+                    # by waiting for the future to be set, once the queue is not under
+                    # water the future will be set and cleared to resume the reader
+                    from_proxy = self._pause_future or self._loop.create_task(
+                        reader.read(4096),  # type: ignore[arg-type]
+                    )
                 if not from_peer:
                     from_peer = self._loop.create_task(channel.read())
 
@@ -152,7 +207,8 @@ class SNIProxy:
                     if from_proxy_exc := from_proxy.exception():
                         raise from_proxy_exc
 
-                    await channel.write(from_proxy.result())
+                    if (from_proxy_result := from_proxy.result()) is not None:
+                        await channel.write(from_proxy_result)
                     from_proxy = None
 
                 # From peer
