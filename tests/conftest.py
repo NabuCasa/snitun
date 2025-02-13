@@ -472,7 +472,25 @@ async def snitun_loopback(
     client_ssl_context: ssl.SSLContext,
     server_ssl_context: ssl.SSLContext,
 ) -> SNITunLoopback:
-    """Make a snitun end to end loopback."""
+    """Make a snitun end to end loopback.
+
+    This fixture will create two multiplexers, one for the client and one for the server.
+
+    The client multiplexer will be connected to the server multiplexer.
+
+    A protocol for the client and server will be created and connected to the multiplexers.
+
+    The client and server will be connected to each other.
+
+    The client and server will be wrapped in TLS.
+
+    For a real world case, its helpful to think of the connection a being
+    reversed from what you would typically expect since we are connecting
+    back through the Cloud service to an Home Assistant Instance.
+
+    - The client is what is connected to a Home Assistant instance
+    - The server is what is connected to the internet (browser)
+    """
     connector_with_streams = make_snitun_connector(server_ssl_context, whitelist=False)
     connector = connector_with_streams.connector
     multiplexer_client._new_connections = connector.handler  # noqa: SLF001
