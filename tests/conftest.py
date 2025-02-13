@@ -77,6 +77,27 @@ async def test_server() -> AsyncGenerator[list[Client], None]:
 
 
 @pytest.fixture
+async def test_endpoint() -> AsyncGenerator[list[Client], None]:
+    """Create a TCP test endpoint."""
+    connections = []
+
+    async def process_data(
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+    ) -> None:
+        """Read data from client."""
+        client = Client(reader, writer)
+        connections.append(client)
+        await client.close.wait()
+
+    server = await asyncio.start_server(process_data, host="127.0.0.1", port="8822")
+
+    yield connections
+
+    server.close()
+
+
+@pytest.fixture
 async def test_client(test_server: list[Client]) -> AsyncGenerator[Client, None]:
     """Create a TCP test client."""
     reader, writer = await asyncio.open_connection(host="127.0.0.1", port="8866")
