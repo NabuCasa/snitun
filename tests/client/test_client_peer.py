@@ -135,7 +135,6 @@ async def test_close_client_peer(
     assert not peer_manager.peer_available("localhost")
 
 
-
 async def test_init_client_peer_wait(
     peer_listener: PeerListener,
     peer_manager: PeerManager,

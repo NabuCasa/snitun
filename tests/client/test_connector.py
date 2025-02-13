@@ -10,7 +10,7 @@ import aiohttp
 from aiohttp import ClientConnectorError
 import pytest
 
-from snitun.client.connector import Connector, ConnectorHandler
+from snitun.client.connector import Connector
 from snitun.exceptions import MultiplexerTransportClose
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
