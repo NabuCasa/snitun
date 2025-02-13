@@ -257,6 +257,34 @@ async def test_multiplexer_close_channel(
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
 
+async def test_multiplexer_delete_channel_called_multiple_times(
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
+    """Test that channels can be deleted twice."""
+    assert not multiplexer_client._channels
+    assert not multiplexer_server._channels
+
+    channel = await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
+    await asyncio.sleep(0.1)
+
+    assert multiplexer_client._channels
+    assert multiplexer_server._channels
+
+    assert multiplexer_client._channels[channel.id]
+    assert multiplexer_server._channels[channel.id]
+    assert multiplexer_client._channels[channel.id].ip_address == IP_ADDR
+    assert multiplexer_server._channels[channel.id].ip_address == IP_ADDR
+
+    await multiplexer_client.delete_channel(channel)
+    assert not multiplexer_client._channels
+
+    await multiplexer_client.delete_channel(channel)
+    assert not multiplexer_client._channels
+    await asyncio.sleep(0.1)
+
+    assert not multiplexer_server._channels
+
 
 async def test_multiplexer_close_channel_full(multiplexer_client: Multiplexer) -> None:
     """Test that channels are nice removed but peer error is available."""
