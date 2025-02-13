@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable, Coroutine
 import logging
 import ssl
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from aiohttp.web import AppRunner
+from typing import TYPE_CHECKING, Any
+import warnings
 
 from ..client.client_peer import ClientPeer
 from ..client.connector import Connector
+
+if TYPE_CHECKING:
+    from aiohttp.web import AppRunner
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,8 +55,19 @@ class SniTunClientAioHttp:
     async def start(
         self,
         whitelist: bool = False,
+        endpoint_connection_error_callback: Callable[[], Coroutine[Any, Any, None]]
+        | None = None,
     ) -> None:
         """Start internal server."""
+        if endpoint_connection_error_callback:
+            warnings.warn(
+                "Passing endpoint_connection_error_callback to "
+                "SniTunClientAioHttp.start() is deprecated, "
+                "is not longer used, and it will be removed "
+                "in the future.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         server = self._protocol_factory
         assert server is not None, "Server is not initialized"
         self._connector = Connector(server, self._ssl_context, whitelist)
