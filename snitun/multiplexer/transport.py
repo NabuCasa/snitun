@@ -6,7 +6,6 @@ import asyncio
 from asyncio import Transport
 import asyncio.sslproto
 import logging
-import sys
 from typing import TYPE_CHECKING, Literal
 
 from ..exceptions import MultiplexerTransportClose
@@ -188,11 +187,7 @@ class ChannelTransport(Transport):
             await self._reader_task
         except asyncio.CancelledError:
             # Don't swallow cancellation
-            if (
-                sys.version_info >= (3, 11)
-                and (current_task := asyncio.current_task())
-                and current_task.cancelling()
-            ):
+            if (current_task := asyncio.current_task()) and current_task.cancelling():
                 raise
         except Exception:
             _LOGGER.exception("Error in transport_reader_task")
