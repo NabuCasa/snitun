@@ -151,12 +151,15 @@ async def test_pausing_and_resuming_the_protocol(
         transport.resume_protocol()
     assert transport.protocol_paused is True
 
-
     transport.resume_protocol()
     assert transport.protocol_paused is False
 
     await transport.stop_reader()
     assert transport.is_closing() is True
+
+    # Cannot pause if already closing
+    transport.pause_protocol()
+    assert transport.protocol_paused is False
 
 async def test_exception_channel_read(
     multiplexer_client: Multiplexer,
