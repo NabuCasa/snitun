@@ -316,7 +316,6 @@ class Multiplexer:
                 channel_.close()
             else:
                 _LOGGER.debug("Receive close from unknown channel: %s", message.id)
-            return
 
         # Ping
         elif flow_type == CHANNEL_FLOW_PING:
