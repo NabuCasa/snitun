@@ -182,7 +182,7 @@ async def test_write_data_peer_error(raise_timeout: None) -> None:
 
 async def test_write_data_no_wait_queue_full() -> None:
     """Test send data over MultiplexerChannel when the queue is full."""
-    output = MultiplexerMultiChannelQueue(1)
+    output = MultiplexerMultiChannelQueue(1, 1, 1)
     channel = MultiplexerChannel(output, IP_ADDR)
     assert isinstance(channel.id, MultiplexerChannelId)
 
