@@ -402,6 +402,6 @@ class Multiplexer:
         self,
         channel_id: MultiplexerChannelId,
     ) -> MultiplexerChannel | None:
-        """Delete channel from transport."""
+        """Delete channel from multiplexer if it exists."""
         self._queue.delete_channel(channel_id)
         return self._channels.pop(channel_id, None)
