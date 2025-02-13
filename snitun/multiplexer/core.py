@@ -315,7 +315,7 @@ class Multiplexer:
             if channel_ := self._delete_channel_and_queue(message.id):
                 channel_.close()
             else:
-                _LOGGER.debug("Receive close from unknown channel")
+                _LOGGER.debug("Receive close from unknown channel: %s", message.id)
             return
 
         # Ping
