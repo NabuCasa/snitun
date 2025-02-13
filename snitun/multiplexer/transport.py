@@ -19,11 +19,14 @@ _LOGGER = logging.getLogger(__name__)
 # this should be set to True so that the IP address can be
 # used to block requests and passed to the end resource.
 #
-# This is useful to block requests from specific IP addresses.
+# This is useful to block requests from specific IP addresses
+# and it means the client side will see the IP of the other
+# end of the multiplexed connection for failed logins and other
+# security features.
 #
 # If the Cloud servers are not able to get the real client IP
-# this should be set to False so that the IP address is not
-# used to block requests and passed to the end resource.
+# this should be set to False so that the IP continues to present
+# as 127.0.0.1
 CHANNEL_IP_IS_CLIENT_IP = False
 
 
