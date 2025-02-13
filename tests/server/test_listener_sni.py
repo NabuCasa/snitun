@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
+from typing import cast
+from unittest.mock import patch
 
 import pytest
 
 from snitun.multiplexer.core import Multiplexer
-from snitun.server.listener_sni import SNIProxy
+from snitun.server.listener_sni import ProxyPeerHandler, SNIProxy
 from snitun.server.peer import Peer
+from snitun.server.peer_manager import PeerManager
 
 from ..conftest import Client
 from .const_tls import TLS_1_2
@@ -101,10 +104,9 @@ async def test_sni_proxy_flow_close_by_client(
 async def test_sni_proxy_flow_close_by_server(
     multiplexer_client: Multiplexer,
     test_client_ssl: Client,
-    event_loop: asyncio.AbstractEventLoop,
 ) -> None:
     """Test a normal flow of connection data and close by server."""
-    loop = event_loop
+    loop = asyncio.get_running_loop()
     test_client_ssl.writer.write(TLS_1_2)
     await test_client_ssl.writer.drain()
     await asyncio.sleep(0.1)
@@ -193,3 +195,90 @@ async def test_sni_proxy_flow_timeout(
 
     await asyncio.sleep(0.3)
     assert not multiplexer_client._channels
+
+
+async def test_proxy_peer_handler_can_pause(
+    multiplexer_client: Multiplexer,
+    peer_manager: PeerManager,
+) -> None:
+    """Test proxy peer handler can pause."""
+    proxy_peer_handler: ProxyPeerHandler | None = None
+    loop = asyncio.get_running_loop()
+
+    def save_proxy_peer_handler(
+        loop: asyncio.AbstractEventLoop,
+        ip_address: ipaddress.IPv4Address,
+    ) -> ProxyPeerHandler:
+        nonlocal proxy_peer_handler
+        proxy_peer_handler = ProxyPeerHandler(loop, ip_address)
+        return proxy_peer_handler
+
+    with patch("snitun.server.listener_sni.ProxyPeerHandler", save_proxy_peer_handler):
+        proxy = SNIProxy(peer_manager, "127.0.0.1", "8863")
+        await proxy.start()
+        reader, writer = await asyncio.open_connection(host="127.0.0.1", port="8863")
+        test_client_ssl = Client(reader, writer)
+        test_client_ssl.writer.write(TLS_1_2)
+        await test_client_ssl.writer.drain()
+        await asyncio.sleep(0.1)
+
+    assert isinstance(proxy_peer_handler, ProxyPeerHandler)
+    handler = cast(ProxyPeerHandler, proxy_peer_handler)
+    client_channel = handler._channel
+    assert client_channel._pause_resume_reader_callback is not None
+    assert (
+        client_channel._pause_resume_reader_callback
+        == handler._pause_resume_reader_callback
+    )
+
+    assert multiplexer_client._channels
+    server_channel = next(iter(multiplexer_client._channels.values()))
+    assert server_channel.ip_address == IP_ADDR
+
+    client_hello = await server_channel.read()
+    assert client_hello == TLS_1_2
+
+    test_client_ssl.writer.write(b"Very secret!")
+    await test_client_ssl.writer.drain()
+
+    data = await server_channel.read()
+    assert data == b"Very secret!"
+
+    # Now simulate that the remote input is under water
+    client_channel.on_remote_input_under_water(True)
+    assert handler._pause_future is not None
+    assert not handler._pause_future.done()
+
+    # This is an implementation detail that we might
+    # change in the future, but for now we need to
+    # to read one more message because we don't cancel
+    # the current read when the reader pauses as the additional
+    # complexity is not worth it.
+    test_client_ssl.writer.write(b"one more in before we pause")
+    await test_client_ssl.writer.drain()
+
+    data = await server_channel.read()
+    assert data == b"one more in before we pause"
+
+    test_client_ssl.writer.write(b"now we are paused")
+    await test_client_ssl.writer.drain()
+
+    read_task = loop.create_task(server_channel.read())
+    await asyncio.sleep(0.1)
+    # Make sure reader is actually paused
+    assert not read_task.done()
+
+    # Now simulate that the remote input is no longer under water
+    assert handler._pause_future is not None
+    assert not handler._pause_future.done()
+    client_channel.on_remote_input_under_water(False)
+    assert handler._pause_future is None
+    data = await read_task
+    assert data == b"now we are paused"
+
+    test_client_ssl.writer.close()
+    await asyncio.sleep(0.1)
+
+    assert not multiplexer_client._channels
+
+    await proxy.stop()

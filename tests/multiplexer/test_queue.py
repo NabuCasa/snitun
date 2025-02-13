@@ -32,7 +32,7 @@ def _make_mock_message(
 
 async def test_get_non_existent_channels() -> None:
     """Test MultiplexerMultiChannelQueue get on non-existent channel."""
-    queue = MultiplexerMultiChannelQueue(100000)
+    queue = MultiplexerMultiChannelQueue(100000, 10, 1000)
     assert queue.empty(_make_mock_channel_id())
     assert not queue.full(_make_mock_channel_id())
     assert queue.size(_make_mock_channel_id()) == 0
@@ -42,7 +42,7 @@ async def test_get_non_existent_channels() -> None:
 
 async def test_single_channel_queue() -> None:
     """Test MultiplexerSingleChannelQueue."""
-    queue = MultiplexerSingleChannelQueue()
+    queue = MultiplexerSingleChannelQueue(100, 10, 50, lambda _: None)
     channel_id = _make_mock_channel_id()
     msg = _make_mock_message(channel_id)
     assert queue.qsize() == 0
@@ -58,9 +58,12 @@ async def test_multi_channel_queue_full() -> None:
     """Test MultiplexerMultiChannelQueue getting full."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
     # Max two mock messages per channel
-    queue = MultiplexerMultiChannelQueue(msg_size * 2)
+    queue = MultiplexerMultiChannelQueue(msg_size * 2, msg_size, msg_size * 2)
+
     channel_one_id = _make_mock_channel_id()
     channel_two_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
+    queue.create_channel(channel_two_id, lambda _: None)
 
     channel_one_msg = _make_mock_message(channel_one_id)
     channel_two_msg = _make_mock_message(channel_two_id)
@@ -92,12 +95,14 @@ async def test_multi_channel_queue_full() -> None:
 async def test_multi_channel_queue_round_robin_get() -> None:
     """Test MultiplexerMultiChannelQueue round robin get."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
-    queue = MultiplexerMultiChannelQueue(
-        msg_size * 2,
-    )  # Max two mock messages per channel
+    # Max two mock messages per channel
+    queue = MultiplexerMultiChannelQueue(msg_size * 2, msg_size, msg_size * 2)
     channel_one_id = _make_mock_channel_id()
     channel_two_id = _make_mock_channel_id()
     channel_three_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
+    queue.create_channel(channel_two_id, lambda _: None)
+    queue.create_channel(channel_three_id, lambda _: None)
 
     channel_one_msg = _make_mock_message(channel_one_id)
     assert queue.empty(channel_one_id)
@@ -162,12 +167,16 @@ async def test_multi_channel_queue_round_robin_get() -> None:
 async def test_concurrent_get() -> None:
     """Test MultiplexerMultiChannelQueue concurrent get."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
-    queue = MultiplexerMultiChannelQueue(
-        msg_size * 2,
-    )  # Max two mock messages per channel
+    # Max two mock messages per channel
+    queue = MultiplexerMultiChannelQueue(msg_size * 2, msg_size, msg_size * 2)
     channel_one_id = _make_mock_channel_id()
     channel_two_id = _make_mock_channel_id()
     channel_three_id = _make_mock_channel_id()
+
+    queue.create_channel(channel_one_id, lambda _: None)
+    queue.create_channel(channel_two_id, lambda _: None)
+    queue.create_channel(channel_three_id, lambda _: None)
+
     channel_one_msg = _make_mock_message(channel_one_id)
     channel_two_msg = _make_mock_message(channel_two_id)
     channel_three_msg = _make_mock_message(channel_three_id)
@@ -190,9 +199,11 @@ async def test_concurrent_get() -> None:
 
 async def test_cancel_one_get() -> None:
     """Test the cancellation of a single `get` operation on multiplexer queue."""
-    queue = MultiplexerMultiChannelQueue(100000)
+    queue = MultiplexerMultiChannelQueue(100000, 10, 10000)
     reader = asyncio.create_task(queue.get())
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
+
     channel_one_msg1 = _make_mock_message(channel_one_id)
     channel_one_msg2 = _make_mock_message(channel_one_id)
 
@@ -216,8 +227,9 @@ async def test_reader_cancellation() -> None:
         - The cancelled reader task raises asyncio.CancelledError.
         - The remaining reader tasks retrieve the messages from the queue in any order.
     """
-    queue = MultiplexerMultiChannelQueue(100000)
+    queue = MultiplexerMultiChannelQueue(100000, 10, 10000)
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
     channel_one_msg1 = _make_mock_message(channel_one_id)
     channel_one_msg2 = _make_mock_message(channel_one_id)
 
@@ -245,8 +257,10 @@ async def test_reader_cancellation() -> None:
 async def test_put_cancel_race() -> None:
     """Test race between putting messages and cancelling the put operation."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
-    queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
+    # Max one message
+    queue = MultiplexerMultiChannelQueue(msg_size, msg_size, msg_size)
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
 
     channel_one_msg_1 = _make_mock_message(channel_one_id)
     channel_one_msg_2 = _make_mock_message(channel_one_id)
@@ -278,8 +292,10 @@ async def test_put_cancel_race() -> None:
 async def test_putters_cleaned_up_correctly_on_cancellation() -> None:
     """Test that putters are cleaned up correctly when a put operation is canceled."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
-    queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
+    # Max one message
+    queue = MultiplexerMultiChannelQueue(msg_size, msg_size, msg_size)
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
     channel_one_msg_1 = _make_mock_message(channel_one_id)
     channel_one_msg_2 = _make_mock_message(channel_one_id)
 
@@ -300,7 +316,8 @@ async def test_putters_cleaned_up_correctly_on_cancellation() -> None:
 async def test_getters_cleaned_up_correctly_on_cancellation() -> None:
     """Test getters are cleaned up correctly when a get operation is canceled."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
-    queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
+    # Max one message
+    queue = MultiplexerMultiChannelQueue(msg_size, msg_size, msg_size)
     with pytest.raises(TimeoutError):
         async with asyncio.timeout(0.1):
             await queue.get()
@@ -311,8 +328,10 @@ async def test_getters_cleaned_up_correctly_on_cancellation() -> None:
 async def test_cancelled_when_putter_already_removed() -> None:
     """Test put operation is correctly cancelled when the putter is already removed."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
-    queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
+    # Max one message
+    queue = MultiplexerMultiChannelQueue(msg_size, msg_size, msg_size)
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
     channel_one_msg_1 = _make_mock_message(channel_one_id)
 
     queue.put_nowait(channel_one_id, channel_one_msg_1)
@@ -328,8 +347,10 @@ async def test_cancelled_when_putter_already_removed() -> None:
 async def test_multiple_getters_waiting_multiple_putters() -> None:
     """Test that multiple getters and putters are correctly handled."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE
-    queue = MultiplexerMultiChannelQueue(msg_size)  # Max one message
+    # Max one message
+    queue = MultiplexerMultiChannelQueue(msg_size, msg_size, msg_size)
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
     channel_one_msg_1 = _make_mock_message(channel_one_id)
     channel_one_msg_2 = _make_mock_message(channel_one_id)
     t1 = asyncio.create_task(queue.put(channel_one_id, channel_one_msg_1))
@@ -342,8 +363,9 @@ async def test_multiple_getters_waiting_multiple_putters() -> None:
 
 async def test_get_cancelled_race() -> None:
     """Test cancelling a get operation while another get operation is in progress."""
-    queue = MultiplexerMultiChannelQueue(10000000)
+    queue = MultiplexerMultiChannelQueue(10000000, 10, 10000)
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
     channel_one_msg_1 = _make_mock_message(channel_one_id)
 
     t1 = asyncio.create_task(queue.get())
@@ -361,8 +383,9 @@ async def test_get_cancelled_race() -> None:
 async def test_get_with_other_putters() -> None:
     """Test that a get operation is correctly handled when other putters are waiting."""
     loop = asyncio.get_running_loop()
-    queue = MultiplexerMultiChannelQueue(10000000)
+    queue = MultiplexerMultiChannelQueue(10000000, 10, 10000)
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
     channel_one_msg_1 = _make_mock_message(channel_one_id)
 
     queue.put_nowait(channel_one_id, channel_one_msg_1)
@@ -380,8 +403,9 @@ async def test_get_with_other_putters() -> None:
 async def test_get_with_other_putter_already_one() -> None:
     """Test that a get operation is correctly handled when other putters are waiting."""
     loop = asyncio.get_running_loop()
-    queue = MultiplexerMultiChannelQueue(10000000)
+    queue = MultiplexerMultiChannelQueue(10000000, 10, 10000)
     channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
     channel_one_msg_1 = _make_mock_message(channel_one_id)
 
     queue.put_nowait(channel_one_id, channel_one_msg_1)
@@ -395,3 +419,155 @@ async def test_get_with_other_putter_already_one() -> None:
 
     await queue.put(channel_one_id, channel_one_msg_1)
     assert queue.get_nowait() == channel_one_msg_1
+
+
+async def test_single_channel_queue_under_water() -> None:
+    """Test MultiplexerSingleChannelQueue under water."""
+    msg_size = MOCK_MSG_SIZE + HEADER_SIZE
+    under_water_callbacks: list[bool] = []
+
+    def on_under_water(under_water: bool) -> None:
+        under_water_callbacks.append(under_water)
+
+    queue = MultiplexerSingleChannelQueue(
+        msg_size * 10,
+        msg_size * 2,
+        msg_size * 4,
+        on_under_water,
+    )
+    channel_id = _make_mock_channel_id()
+    msg = _make_mock_message(channel_id)
+    assert queue.qsize() == 0
+    queue.put_nowait(msg)
+    assert queue.qsize() == len(msg.data) + HEADER_SIZE
+    assert not under_water_callbacks
+    queue.put_nowait(msg)  # now 2 messages
+    assert not under_water_callbacks
+    queue.put_nowait(msg)  # now 3 messages
+    assert not under_water_callbacks
+    queue.put_nowait(msg)  # now 4 messages -- under water
+    assert under_water_callbacks == [True]
+    queue.put_nowait(msg)  # now 5 messages -- still under water
+    assert under_water_callbacks == [True]
+    queue.get_nowait()  # now 4 messages -- have not reached low watermark
+    assert under_water_callbacks == [True]
+    queue.get_nowait()  # now 3 messages -- have not reached low watermark
+    assert under_water_callbacks == [True]
+    queue.get_nowait()  # now 2 messages -- reached low watermark
+    assert under_water_callbacks == [True, False]
+    queue.get_nowait()  # now 1 message -- still below low watermark
+    assert under_water_callbacks == [True, False]
+    queue.get_nowait()  # now 0 messages -- empty
+    assert under_water_callbacks == [True, False]
+    queue.put_nowait(msg)  # now 1 message -- below high watermark
+    assert under_water_callbacks == [True, False]
+    queue.put_nowait(msg)  # now 2 messages -- still below high watermark
+    assert under_water_callbacks == [True, False]
+    queue.put_nowait(msg)  # now 3 messages -- still below high watermark
+    assert under_water_callbacks == [True, False]
+    queue.put_nowait(msg)  # now 4 messages -- reached high watermark
+    assert under_water_callbacks == [True, False, True]
+    queue.get_nowait()  # now 3 messages -- below high watermark, but still above low watermark
+    assert under_water_callbacks == [True, False, True]
+    queue.get_nowait()  # now 2 messages -- below high watermark and below low watermark
+    assert under_water_callbacks == [True, False, True, False]
+
+
+async def test_multi_channel_queue_under_water() -> None:
+    """Test MultiplexerMultiChannelQueue under water."""
+    msg_size = MOCK_MSG_SIZE + HEADER_SIZE
+    under_water_callbacks: list[bool] = []
+
+    def on_under_water(under_water: bool) -> None:
+        under_water_callbacks.append(under_water)
+
+    queue = MultiplexerMultiChannelQueue(
+        msg_size * 10,
+        msg_size * 2,
+        msg_size * 4,
+    )
+    channel_id = _make_mock_channel_id()
+    queue.create_channel(channel_id, on_under_water)
+    msg = _make_mock_message(channel_id)
+    assert queue.empty(channel_id)
+    queue.put_nowait(channel_id, msg)
+    assert not under_water_callbacks
+    queue.put_nowait(channel_id, msg)  # now 2 messages
+    assert not under_water_callbacks
+    queue.put_nowait(channel_id, msg)  # now 3 messages
+    assert not under_water_callbacks
+    queue.put_nowait(channel_id, msg)  # now 4 messages -- under water
+    assert under_water_callbacks == [True]
+    queue.put_nowait(channel_id, msg)  # now 5 messages -- still under water
+    assert under_water_callbacks == [True]
+    queue.get_nowait()  # now 4 messages -- have not reached low watermark
+    assert under_water_callbacks == [True]
+    queue.get_nowait()  # now 3 messages -- have not reached low watermark
+    assert under_water_callbacks == [True]
+    queue.get_nowait()  # now 2 messages -- reached low watermark
+    assert under_water_callbacks == [True, False]
+    queue.get_nowait()  # now 1 message -- still below low watermark
+    assert under_water_callbacks == [True, False]
+    queue.get_nowait()  # now 0 messages -- empty
+    assert under_water_callbacks == [True, False]
+    queue.put_nowait(channel_id, msg)  # now 1 message -- below high watermark
+    assert under_water_callbacks == [True, False]
+    queue.put_nowait(channel_id, msg)  # now 2 messages -- still below high watermark
+    assert under_water_callbacks == [True, False]
+    queue.put_nowait(channel_id, msg)  # now 3 messages -- still below high watermark
+    assert under_water_callbacks == [True, False]
+    queue.put_nowait(channel_id, msg)  # now 4 messages -- reached high watermark
+    assert under_water_callbacks == [True, False, True]
+    queue.get_nowait()  # now 3 messages -- below high watermark, but still above low watermark
+    assert under_water_callbacks == [True, False, True]
+    queue.get_nowait()  # now 2 messages -- below high watermark and below low watermark
+    assert under_water_callbacks == [True, False, True, False]
+
+
+async def test_put_nowait_to_non_existent_multi_channel_queue() -> None:
+    """Test writing to a non-existent channel."""
+    queue = MultiplexerMultiChannelQueue(100000, 10, 1000)
+    channel_id = _make_mock_channel_id()
+    msg = _make_mock_message(channel_id)
+    with pytest.raises(RuntimeError, match=f"Channel {channel_id} does not exist"):
+        queue.put_nowait(channel_id, msg)
+
+
+async def test_put_to_non_existent_multi_channel_queue() -> None:
+    """Test writing to a non-existent channel."""
+    queue = MultiplexerMultiChannelQueue(100000, 10, 1000)
+    channel_id = _make_mock_channel_id()
+    msg = _make_mock_message(channel_id)
+    with pytest.raises(RuntimeError, match=f"Channel {channel_id} does not exist"):
+        await queue.put(channel_id, msg)
+
+
+async def test_multiple_delete_channel_is_forgiving() -> None:
+    """Test a channel can be deleted multiple times."""
+    queue = MultiplexerMultiChannelQueue(100000, 10, 1000)
+    channel_id = _make_mock_channel_id()
+    queue.create_channel(channel_id, lambda _: None)
+    queue.delete_channel(channel_id)
+    queue.delete_channel(channel_id)
+
+
+async def test_delete_channel_when_queue_is_not_empty() -> None:
+    """Test a channel can be deleted when its queue is not empty."""
+    queue = MultiplexerMultiChannelQueue(100000, 10, 1000)
+    channel_id = _make_mock_channel_id()
+    queue.create_channel(channel_id, lambda _: None)
+    queue.put_nowait(channel_id, _make_mock_message(channel_id))
+    queue.delete_channel(channel_id)
+    assert not queue.empty(channel_id)
+    assert queue.get_nowait() is not None
+    queue.delete_channel(channel_id)
+    assert queue.empty(channel_id)
+
+
+async def test_multiple_create_channel_raises() -> None:
+    """Test the same channel can only be created once."""
+    queue = MultiplexerMultiChannelQueue(100000, 10, 1000)
+    channel_id = _make_mock_channel_id()
+    queue.create_channel(channel_id, lambda _: None)
+    with pytest.raises(RuntimeError, match=f"Channel {channel_id} already exists"):
+        queue.create_channel(channel_id, lambda _: None)

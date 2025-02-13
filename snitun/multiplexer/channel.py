@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from contextlib import suppress
 from ipaddress import IPv4Address
 import logging
@@ -11,11 +12,17 @@ import os
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from ..utils.asyncio import asyncio_timeout
 from ..utils.ipaddress import ip_address_to_bytes
-from .const import INCOMING_QUEUE_MAX_BYTES_CHANNEL
+from .const import (
+    INCOMING_QUEUE_HIGH_WATERMARK,
+    INCOMING_QUEUE_LOW_WATERMARK,
+    INCOMING_QUEUE_MAX_BYTES_CHANNEL,
+)
 from .message import (
     CHANNEL_FLOW_CLOSE,
     CHANNEL_FLOW_DATA,
     CHANNEL_FLOW_NEW,
+    CHANNEL_FLOW_PAUSE,
+    CHANNEL_FLOW_RESUME,
     MultiplexerChannelId,
     MultiplexerMessage,
 )
@@ -27,22 +34,90 @@ _LOGGER = logging.getLogger(__name__)
 class MultiplexerChannel:
     """Represent a multiplexer channel."""
 
-    __slots__ = ["_closing", "_id", "_input", "_ip_address", "_output", "_throttling"]
+    __slots__ = (
+        "_closing",
+        "_id",
+        "_input",
+        "_ip_address",
+        "_local_output_under_water",
+        "_output",
+        "_pause_resume_reader_callback",
+        "_remote_input_under_water",
+        "_throttling",
+    )
 
     def __init__(
         self,
         output: MultiplexerMultiChannelQueue,
         ip_address: IPv4Address,
+        pause_resume_reader_callback: Callable[[bool], None] | None = None,
         channel_id: MultiplexerChannelId | None = None,
         throttling: float | None = None,
     ) -> None:
         """Initialize Multiplexer Channel."""
-        self._input = MultiplexerSingleChannelQueue(INCOMING_QUEUE_MAX_BYTES_CHANNEL)
+        self._input = MultiplexerSingleChannelQueue(
+            INCOMING_QUEUE_MAX_BYTES_CHANNEL,
+            INCOMING_QUEUE_LOW_WATERMARK,
+            INCOMING_QUEUE_HIGH_WATERMARK,
+            self._on_local_input_under_water,
+        )
         self._output = output
         self._id = channel_id or MultiplexerChannelId(os.urandom(16))
         self._ip_address = ip_address
         self._throttling = throttling
         self._closing = False
+        # Backpressure - We track when our output queue is under water
+        # or the remote input queue is under water so we can pause reading
+        # of whatever is connected to this channel to prevent overflowing
+        # either queue.
+        self._local_output_under_water = False
+        self._remote_input_under_water = False
+        self._output.create_channel(self._id, self._on_local_output_under_water)
+        self._pause_resume_reader_callback = pause_resume_reader_callback
+
+    def set_pause_resume_reader_callback(
+        self,
+        pause_resume_reader_callback: Callable[[bool], None],
+    ) -> None:
+        """Set pause resume reader callback."""
+        self._pause_resume_reader_callback = pause_resume_reader_callback
+
+    def _on_local_input_under_water(self, under_water: bool) -> None:
+        """On callback from the input queue when goes under water or recovers."""
+        msg_type = CHANNEL_FLOW_PAUSE if under_water else CHANNEL_FLOW_RESUME
+        # Tell the remote that our input queue is under water so it
+        # can pause reading from whatever is connected to this channel
+        if under_water:
+            _LOGGER.debug("Informing remote that %s input is now under water", self._id)
+        else:
+            _LOGGER.debug("Informing remote that %s input is now above water", self._id)
+        try:
+            self._output.put_nowait(self._id, MultiplexerMessage(self._id, msg_type))
+        except asyncio.QueueFull:
+            _LOGGER.warning(
+                "%s: Cannot send pause/resume message to peer, output queue is full",
+                self._id,
+            )
+
+    def _on_local_output_under_water(self, under_water: bool) -> None:
+        """On callback from the output queue when goes under water or recovers."""
+        self._local_output_under_water = under_water
+        self._pause_or_resume_reader()
+
+    def on_remote_input_under_water(self, under_water: bool) -> None:
+        """Call when remote input is under water."""
+        _LOGGER.debug("Remote input is under water for %s", self._id)
+        self._remote_input_under_water = under_water
+        self._pause_or_resume_reader()
+
+    def _pause_or_resume_reader(self) -> None:
+        """Pause or resume reader."""
+        # Pause if either local output or remote input is under water
+        # Resume if both local output and remote input are not under water
+        if self._pause_resume_reader_callback is not None:
+            self._pause_resume_reader_callback(
+                self._local_output_under_water or self._remote_input_under_water,
+            )
 
     @property
     def id(self) -> MultiplexerChannelId:
@@ -84,15 +159,19 @@ class MultiplexerChannel:
         )
 
         try:
-            async with asyncio_timeout.timeout(5):
-                await self._output.put(self.id, message)
-        except TimeoutError:
-            _LOGGER.debug("Can't write to peer transport")
-            raise MultiplexerTransportError from None
+            # Try to avoid the timer handle if we can
+            # all to the queue without waiting
+            self._output.put_nowait(self._id, message)
+        except asyncio.QueueFull:
+            try:
+                async with asyncio_timeout.timeout(5):
+                    await self._output.put(self._id, message)
+            except TimeoutError:
+                _LOGGER.debug("Can't write to peer transport")
+                raise MultiplexerTransportError from None
 
-        if not self._throttling:
-            return
-        await asyncio.sleep(self._throttling)
+        if self._throttling is not None:
+            await asyncio.sleep(self._throttling)
 
     async def read(self) -> bytes:
         """Read data from peer."""

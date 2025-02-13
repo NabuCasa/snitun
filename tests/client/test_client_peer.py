@@ -134,7 +134,7 @@ async def test_flow_client_peer(
 
     peer = peer_manager.get_peer("localhost")
 
-    channel = await peer.multiplexer.create_channel(IP_ADDR)
+    channel = await peer.multiplexer.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     assert test_endpoint
@@ -182,7 +182,7 @@ async def test_close_client_peer(
 
     peer = peer_manager.get_peer("localhost")
 
-    channel = await peer.multiplexer.create_channel(IP_ADDR)
+    channel = await peer.multiplexer.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
     assert test_endpoint
