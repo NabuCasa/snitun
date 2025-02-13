@@ -160,7 +160,7 @@ class MultiplexerChannel:
 
         try:
             # Try to avoid the timer handle if we can
-            # all to the queue without waiting
+            # add to the queue without waiting
             self._output.put_nowait(self._id, message)
         except asyncio.QueueFull:
             try:
