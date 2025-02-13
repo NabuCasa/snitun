@@ -10,6 +10,7 @@ import pytest
 
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer import channel as channel_module, core as core_module
+from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.multiplexer.message import (
@@ -256,6 +257,34 @@ async def test_multiplexer_close_channel(
 
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
+
+
+async def test_multiplexer_delete_unknown_channel(
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test deleting an unknown channel."""
+    assert not multiplexer_client._channels
+    assert not multiplexer_server._channels
+
+    non_existant_channel = MultiplexerChannel(
+        multiplexer_server._queue,
+        ipaddress.IPv4Address("127.0.0.1"),
+    )
+    await multiplexer_server._queue.put(
+        non_existant_channel.id,
+        non_existant_channel.init_close(),
+    )
+    await asyncio.sleep(0.1)
+
+    assert not multiplexer_client._channels
+    assert not multiplexer_server._channels
+
+    assert (
+        f"Receive close from unknown channel: {non_existant_channel.id}" in caplog.text
+    )
+
 
 async def test_multiplexer_delete_channel_called_multiple_times(
     multiplexer_client: Multiplexer,
