@@ -6,7 +6,7 @@ import asyncio
 from asyncio import Transport
 import asyncio.sslproto
 import logging
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from ..exceptions import MultiplexerTransportClose
 from ..multiplexer.channel import MultiplexerChannel
@@ -123,21 +123,17 @@ class ChannelTransport(Transport):
 
     def resume_protocol(self) -> None:
         """Resume the protocol."""
-        self._call_protocol_method("resume_writing")
-        self._protocol_paused = False
+        self._pause_or_resume_protocol(False)
 
     def pause_protocol(self) -> None:
         """Pause the protocol."""
-        self._call_protocol_method("pause_writing")
-        self._protocol_paused = True
+        self._pause_or_resume_protocol(True)
 
-    def _call_protocol_method(
-        self,
-        method_name: Literal["resume_writing", "pause_writing"],
-    ) -> None:
+    def _pause_or_resume_protocol(self, pause: bool) -> None:
         """Call a method on the protocol."""
-        if self.is_closing():
+        if not self._protocol or self.is_closing():
             return
+        method_name = "pause_writing" if pause else "resume_writing"
         _LOGGER.debug(
             "Calling protocol.%s() for %s (%s)",
             method_name,
@@ -145,7 +141,10 @@ class ChannelTransport(Transport):
             self._channel.id,
         )
         try:
-            getattr(self._protocol, method_name)()
+            if pause:
+                self._protocol.pause_writing()
+            else:
+                self._protocol.resume_writing()
         except (SystemExit, KeyboardInterrupt):
             raise
         except BaseException as exc:  # noqa: BLE001
@@ -157,6 +156,8 @@ class ChannelTransport(Transport):
                     "protocol": self._protocol,
                 },
             )
+        else:
+            self._protocol_paused = pause
 
     async def wait_for_close(self) -> None:
         """Wait for the transport to close."""

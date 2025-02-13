@@ -93,6 +93,71 @@ async def test_pausing_and_resuming_the_transport(
     assert transport.is_closing() is True
 
 
+
+async def test_pausing_and_resuming_the_protocol(
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
+    """Test pausing and resuming the protocol."""
+    channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
+    channel.message_transport(
+        MultiplexerMessage(channel.id, CHANNEL_FLOW_DATA, b"test"),
+    )
+
+    class _MockProtocol(asyncio.BufferedProtocol):
+        def __init__(self) -> None:
+            self.buffer = memoryview(bytearray(16))
+            self.buffer_updated_size = 0
+
+        def buffer_updated(self, nbytes: int) -> None:
+            self.buffer_updated_size = nbytes
+
+        def pause_writing(self) -> None:
+            """Pause writing."""
+
+        def resume_writing(self) -> None:
+            """Resume writing."""
+
+        def get_buffer(self, sizehint: int) -> memoryview:
+            return self.buffer
+
+    protocol = _MockProtocol()
+    transport = ChannelTransport(channel, multiplexer_server)
+
+    transport.set_protocol(protocol)
+    transport.pause_protocol()
+    transport.start_reader()
+
+    assert transport.protocol_paused is True
+    transport.resume_protocol()
+    assert transport.protocol_paused is False
+
+    with pytest.raises(SystemExit), patch.object(protocol, "pause_writing", side_effect=SystemExit):
+        transport.pause_protocol()
+    assert transport.protocol_paused is False
+
+    with patch.object(protocol, "pause_writing", side_effect=Exception):
+        transport.pause_protocol()
+    assert transport.protocol_paused is False
+
+    transport.pause_protocol()
+    assert transport.protocol_paused is True
+
+    with pytest.raises(SystemExit), patch.object(protocol, "resume_writing", side_effect=SystemExit):
+        transport.resume_protocol()
+    assert transport.protocol_paused is True
+
+    with patch.object(protocol, "resume_writing", side_effect=Exception):
+        transport.resume_protocol()
+    assert transport.protocol_paused is True
+
+
+    transport.resume_protocol()
+    assert transport.protocol_paused is False
+
+    await transport.stop_reader()
+    assert transport.is_closing() is True
+
 async def test_exception_channel_read(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
