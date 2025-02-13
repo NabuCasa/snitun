@@ -1,46 +1,37 @@
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = [
-  "setuptools>=62.3",
-]
+requires = ["setuptools>=62.3"]
 
 [project]
-authors = [
-  {name = "Nabu Casa, Inc.", email = "opensource@nabucasa.com"},
-]
+authors = [{ name = "Nabu Casa, Inc.", email = "opensource@nabucasa.com" }]
 classifiers = [
-    "Intended Audience :: End Users/Desktop",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
-    "Operating System :: OS Independent",
-    "Topic :: Internet :: Proxy Servers",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Development Status :: 5 - Production/Stable",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
+  "Intended Audience :: End Users/Desktop",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+  "Operating System :: OS Independent",
+  "Topic :: Internet :: Proxy Servers",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Development Status :: 5 - Production/Stable",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
 ]
-dependencies = [
-    "aiohttp>=3.9.3",
-    "cryptography>=2.5",
-]
+dependencies = ["aiohttp>=3.9.3", "cryptography>=2.5"]
 description = "SNI proxy with TCP multiplexer"
 keywords = ["sni", "proxy", "multiplexer", "tls"]
-license = {text = "GPL v3"}
+license = { text = "GPL v3" }
 name = "snitun"
 readme = "README.md"
 requires-python = ">=3.12"
-version = "0.40.0"
+version = "0.41.1"
 
 [project.optional-dependencies]
-lint = [
-    "ruff==0.9.5",
-]
+lint = ["ruff==0.9.5"]
 test = [
-    "covdefaults==2.3.0",
-    "pytest-aiohttp==1.1.0",
-    "pytest-cov==6.0.0",
-    "pytest-timeout==2.3.1",
-    "pytest==8.3.4",
+  "covdefaults==2.3.0",
+  "pytest-aiohttp==1.1.0",
+  "pytest-cov==6.0.0",
+  "pytest-timeout==2.3.1",
+  "pytest==8.3.4",
 ]
 
 [project.urls]
@@ -58,33 +49,29 @@ target-version = "py311"
 
 [tool.ruff.lint]
 ignore = [
-  "A005", # https://docs.astral.sh/ruff/rules/stdlib-module-shadowing/
+  "A005",     # https://docs.astral.sh/ruff/rules/stdlib-module-shadowing/
   "ASYNC110", # https://docs.astral.sh/ruff/rules/async-busy-wait/
-  "ANN101", # https://docs.astral.sh/ruff/rules/missing-type-self/
-  "EM101", # https://docs.astral.sh/ruff/rules/raw-string-in-exception/
-  "EM102", # https://docs.astral.sh/ruff/rules/f-string-in-exception/
-  "FBT", # https://docs.astral.sh/ruff/rules/#flake8-boolean-trap-fbt
-  "N818", # https://docs.astral.sh/ruff/rules/error-suffix-on-exception-name/
-  "PLR2004", # https://docs.astral.sh/ruff/rules/magic-value-comparison/
-  "PERF203", # https://docs.astral.sh/ruff/rules/try-except-in-loop/
-  "S101", # https://docs.astral.sh/ruff/rules/assert/
-  "S104", # https://docs.astral.sh/ruff/rules/hardcoded-bind-all-interfaces/
-  "TCH001", # https://docs.astral.sh/ruff/rules/typing-only-first-party-import/
-  "TCH003", # https://docs.astral.sh/ruff/rules/typing-only-standard-library-import/
-  "TID252", # https://docs.astral.sh/ruff/rules/relative-imports/
-  "TRY003", # https://docs.astral.sh/ruff/rules/raise-vanilla-args/
-  "TRY301", # https://docs.astral.sh/ruff/rules/raise-within-try/
-  "TRY400", # https://docs.astral.sh/ruff/rules/error-instead-of-exception/
+  "ANN101",   # https://docs.astral.sh/ruff/rules/missing-type-self/
+  "EM101",    # https://docs.astral.sh/ruff/rules/raw-string-in-exception/
+  "EM102",    # https://docs.astral.sh/ruff/rules/f-string-in-exception/
+  "FBT",      # https://docs.astral.sh/ruff/rules/#flake8-boolean-trap-fbt
+  "N818",     # https://docs.astral.sh/ruff/rules/error-suffix-on-exception-name/
+  "PLR2004",  # https://docs.astral.sh/ruff/rules/magic-value-comparison/
+  "PERF203",  # https://docs.astral.sh/ruff/rules/try-except-in-loop/
+  "S101",     # https://docs.astral.sh/ruff/rules/assert/
+  "S104",     # https://docs.astral.sh/ruff/rules/hardcoded-bind-all-interfaces/
+  "TCH001",   # https://docs.astral.sh/ruff/rules/typing-only-first-party-import/
+  "TCH003",   # https://docs.astral.sh/ruff/rules/typing-only-standard-library-import/
+  "TID252",   # https://docs.astral.sh/ruff/rules/relative-imports/
+  "TRY003",   # https://docs.astral.sh/ruff/rules/raise-vanilla-args/
+  "TRY301",   # https://docs.astral.sh/ruff/rules/raise-within-try/
+  "TRY400",   # https://docs.astral.sh/ruff/rules/error-instead-of-exception/
 ]
 
-select = [
-  "ALL",
-]
+select = ["ALL"]
 
 [tool.ruff.lint.extend-per-file-ignores]
-"py.typed" = [
-  "D100",
-]
+"py.typed" = ["D100"]
 
 [tool.ruff.lint.flake8-pytest-style]
 fixture-parentheses = false
@@ -93,9 +80,7 @@ mark-parentheses = false
 [tool.ruff.lint.isort]
 combine-as-imports = true
 force-sort-within-sections = true
-known-first-party = [
-  "snitun",
-]
+known-first-party = ["snitun"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 22
@@ -112,18 +97,16 @@ max-statements = 80
 
 [tool.setuptools]
 include-package-data = true
-platforms = [
-  "any",
-]
+platforms = ["any"]
 zip-safe = false
 
 [tool.setuptools.packages.find]
 include = [
-    "snitun",
-    "snitun.server",
-    "snitun.client",
-    "snitun.multiplexer",
-    "snitun.utils",
+  "snitun",
+  "snitun.server",
+  "snitun.client",
+  "snitun.multiplexer",
+  "snitun.utils",
 ]
 
 [tool.coverage.run]
