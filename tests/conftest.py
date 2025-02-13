@@ -472,7 +472,7 @@ async def snitun_loopback(
     client_ssl_context: ssl.SSLContext,
     server_ssl_context: ssl.SSLContext,
 ) -> SNITunLoopback:
-    """Make snitun server transport."""
+    """Make a snitun end to end loopback."""
     connector_with_streams = make_snitun_connector(server_ssl_context, whitelist=False)
     connector = connector_with_streams.connector
     multiplexer_client._new_connections = connector.handler  # noqa: SLF001
