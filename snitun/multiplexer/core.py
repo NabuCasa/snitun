@@ -32,6 +32,7 @@ from .message import (
     CHANNEL_FLOW_PAUSE,
     CHANNEL_FLOW_PING,
     CHANNEL_FLOW_RESUME,
+    HEADER_SIZE,
     HEADER_STRUCT,
     MultiplexerChannelId,
     MultiplexerMessage,
@@ -233,7 +234,7 @@ class Multiplexer:
 
     async def _read_message(self) -> None:
         """Read message from peer."""
-        header = await self._reader.readexactly(32)
+        header = await self._reader.readexactly(HEADER_SIZE)
 
         channel_id: bytes
         flow_type: int
