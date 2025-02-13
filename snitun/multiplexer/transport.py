@@ -15,6 +15,17 @@ from .core import Multiplexer
 
 _LOGGER = logging.getLogger(__name__)
 
+# When the Cloud servers are able to get the real client IP
+# this should be set to True so that the IP address can be
+# used to block requests and passed to the end resource.
+#
+# This is useful to block requests from specific IP addresses.
+#
+# If the Cloud servers are not able to get the real client IP
+# this should be set to False so that the IP address is not
+# used to block requests and passed to the end resource.
+CHANNEL_IP_IS_CLIENT_IP = False
+
 
 def _feed_data_to_buffered_proto(proto: asyncio.BufferedProtocol, data: bytes) -> None:
     """Feed data to a buffered protocol.
@@ -58,7 +69,8 @@ class ChannelTransport(Transport):
         self._protocol_paused: bool = False
         self._reader_task: asyncio.Task[None] | None = None
         self._multiplexer = multiplexer
-        super().__init__(extra={"peername": (str(channel.ip_address), 0)})
+        peername = str(channel.ip_address) if CHANNEL_IP_IS_CLIENT_IP else "127.0.0.1"
+        super().__init__(extra={"peername": (peername, 0)})
 
     @property
     def protocol_paused(self) -> bool:
