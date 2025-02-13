@@ -23,7 +23,7 @@ async def test_stopping_transport_reader_does_not_swallow_cancellation(
     multiplexer_server: Multiplexer,
 ) -> None:
     """Test that stopping transport does not swallow cancellation."""
-    channel = await multiplexer_server.create_channel(IP_ADDR)
+    channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
     transport = ChannelTransport(channel, multiplexer_server)
     transport.start_reader()
     task = asyncio.create_task(transport.stop_reader())
@@ -42,7 +42,7 @@ async def test_channel_read_on_closed_channel(
         "snitun.multiplexer.core.MultiplexerChannel",
         PatchableMultiplexerChannel,
     ):
-        channel = await multiplexer_server.create_channel(IP_ADDR)
+        channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
     with patch.object(channel, "read", side_effect=MultiplexerTransportClose):
         transport = ChannelTransport(channel, multiplexer_server)
         transport.start_reader()
@@ -57,7 +57,7 @@ async def test_pausing_and_resuming_the_transport(
     multiplexer_server: Multiplexer,
 ) -> None:
     """Test pausing and resuming the transport."""
-    channel = await multiplexer_server.create_channel(IP_ADDR)
+    channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
     channel.message_transport(
         MultiplexerMessage(channel.id, CHANNEL_FLOW_DATA, b"test"),
     )
@@ -102,7 +102,7 @@ async def test_exception_channel_read(
         "snitun.multiplexer.core.MultiplexerChannel",
         PatchableMultiplexerChannel,
     ):
-        channel = await multiplexer_server.create_channel(IP_ADDR)
+        channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
     with patch.object(channel, "read", side_effect=Exception):
         transport = ChannelTransport(channel, multiplexer_server)
         transport.start_reader()
@@ -121,7 +121,7 @@ async def test_keyboard_interrupt_channel_read_eager(
         "snitun.multiplexer.core.MultiplexerChannel",
         PatchableMultiplexerChannel,
     ):
-        channel = await multiplexer_server.create_channel(IP_ADDR)
+        channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
     with (
         patch.object(channel, "read", side_effect=SystemExit),
     ):
