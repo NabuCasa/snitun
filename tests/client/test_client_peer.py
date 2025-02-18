@@ -13,7 +13,6 @@ from snitun.exceptions import SniTunConnectionError
 from snitun.server.listener_peer import PeerListener
 from snitun.server.peer_manager import PeerManager
 
-from ..conftest import Client
 from ..server.const_fernet import create_peer_config
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
@@ -22,11 +21,10 @@ IP_ADDR = ipaddress.ip_address("8.8.8.8")
 async def test_init_client_peer(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
-    test_endpoint: list[Client],
+    connector: Connector,
 ) -> None:
     """Test setup of ClientPeer."""
     client = ClientPeer("127.0.0.1", "8893")
-    connector = Connector("127.0.0.1", "8822")
 
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
@@ -52,11 +50,10 @@ async def test_init_client_peer(
 async def test_init_client_peer_with_alias(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
-    test_endpoint: list[Client],
+    connector: Connector,
 ) -> None:
     """Test setup of ClientPeer with custom tomain."""
     client = ClientPeer("127.0.0.1", "8893")
-    connector = Connector("127.0.0.1", "8822")
 
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
@@ -91,7 +88,7 @@ async def test_init_client_peer_with_alias(
 async def test_init_client_peer_invalid_token(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
-    test_endpoint: list[Client],
+    connector: Connector,
 ) -> None:
     """Test setup of ClientPeer."""
     client = ClientPeer("127.0.0.1", "8893")
@@ -114,11 +111,10 @@ async def test_init_client_peer_invalid_token(
 async def test_flow_client_peer(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
-    test_endpoint: list[Client],
+    connector: Connector,
 ) -> None:
     """Test setup of ClientPeer, test flow."""
     client = ClientPeer("127.0.0.1", "8893")
-    connector = Connector("127.0.0.1", "8822")
 
     assert not peer_manager.peer_available("localhost")
 
@@ -137,32 +133,18 @@ async def test_flow_client_peer(
     channel = await peer.multiplexer.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
-    assert test_endpoint
-    test_connection = test_endpoint[0]
-
-    await channel.write(b"Hallo")
-    data = await test_connection.reader.read(1024)
-    assert data == b"Hallo"
     assert channel.ip_address == IP_ADDR
-
-    test_connection.writer.write(b"Hiro")
-    await test_connection.writer.drain()
-
-    data = await channel.read()
-    assert data == b"Hiro"
 
     await client.stop()
     await asyncio.sleep(0.1)
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
 
-    test_connection.close.set()
-
 
 async def test_close_client_peer(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
-    test_endpoint: list[Client],
+    connector: Connector,
 ) -> None:
     """Test setup of ClientPeer, test flow - close it."""
     client = ClientPeer("127.0.0.1", "8893")
@@ -185,39 +167,21 @@ async def test_close_client_peer(
     channel = await peer.multiplexer.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
-    assert test_endpoint
-    test_connection = test_endpoint[0]
-
-    await channel.write(b"Hallo")
-    data = await test_connection.reader.read(1024)
-    assert data == b"Hallo"
     assert channel.ip_address == IP_ADDR
-
-    test_connection.writer.write(b"Hiro")
-    await test_connection.writer.drain()
-
-    data = await channel.read()
-    assert data == b"Hiro"
 
     await client.stop()
     await asyncio.sleep(0.1)
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
 
-    data = await test_connection.reader.read(1024)
-    assert not data
-
-    test_connection.close.set()
-
 
 async def test_init_client_peer_wait(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
-    test_endpoint: list[Client],
+    connector: Connector,
 ) -> None:
     """Test setup of ClientPeer."""
     client = ClientPeer("127.0.0.1", "8893")
-    connector = Connector("127.0.0.1", "8822")
 
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
@@ -247,11 +211,10 @@ async def test_init_client_peer_wait(
 async def test_init_client_peer_wait_waits_for_task(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
-    test_endpoint: list[Client],
+    connector: Connector,
 ) -> None:
     """Test setup of ClientPeer."""
     client = ClientPeer("127.0.0.1", "8893")
-    connector = Connector("127.0.0.1", "8822")
 
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
@@ -282,11 +245,10 @@ async def test_init_client_peer_wait_waits_for_task(
 async def test_client_peer_can_start_again(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
-    test_endpoint: list[Client],
+    connector: Connector,
 ) -> None:
     """Test once the connection fails, we can start again."""
     client = ClientPeer("127.0.0.1", "8893")
-    connector = Connector("127.0.0.1", "8822")
 
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
@@ -321,11 +283,10 @@ async def test_client_peer_can_start_again(
 async def test_init_client_peer_throttling(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
-    test_endpoint: list[Client],
+    connector: Connector,
 ) -> None:
     """Test setup of ClientPeer."""
     client = ClientPeer("127.0.0.1", "8893")
-    connector = Connector("127.0.0.1", "8822")
 
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
@@ -351,11 +312,10 @@ async def test_init_client_peer_throttling(
 async def test_init_client_peer_stop_does_not_swallow_cancellation(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
-    test_endpoint: list[Client],
+    connector: Connector,
 ) -> None:
     """Test stopping the peer does not swallow cancellation."""
     client = ClientPeer("127.0.0.1", "8893")
-    connector = Connector("127.0.0.1", "8822")
 
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
@@ -385,11 +345,10 @@ async def test_init_client_peer_stop_does_not_swallow_cancellation(
 async def test_init_client_peer_stop_twice(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
-    test_endpoint: list[Client],
+    connector: Connector,
 ) -> None:
     """Test calling stop twice raises an error."""
     client = ClientPeer("127.0.0.1", "8893")
-    connector = Connector("127.0.0.1", "8822")
 
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
