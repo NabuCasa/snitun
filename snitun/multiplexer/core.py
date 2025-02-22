@@ -312,12 +312,10 @@ class Multiplexer:
         # Close
         elif flow_type == CHANNEL_FLOW_CLOSE:
             # check if message exists
-            if message.id not in self._channels:
-                _LOGGER.debug("Receive close from unknown channel")
-                return
-            channel = self._channels.pop(message.id)
-            self._queue.delete_channel(channel.id)
-            channel.close()
+            if channel_ := self._delete_channel_and_queue(message.id):
+                channel_.close()
+            else:
+                _LOGGER.debug("Receive close from unknown channel: %s", message.id)
 
         # Ping
         elif flow_type == CHANNEL_FLOW_PING:
@@ -384,6 +382,12 @@ class Multiplexer:
 
     async def delete_channel(self, channel: MultiplexerChannel) -> None:
         """Delete channel from transport."""
+        if channel.id not in self._channels:
+            # Make sure the queue is cleaned up if the channel
+            # is already deleted
+            self._queue.delete_channel(channel.id)
+            return
+
         message = channel.init_close()
 
         try:
@@ -392,5 +396,12 @@ class Multiplexer:
         except TimeoutError:
             raise MultiplexerTransportError from None
         finally:
-            self._channels.pop(channel.id, None)
-            self._queue.delete_channel(channel.id)
+            self._delete_channel_and_queue(channel.id)
+
+    def _delete_channel_and_queue(
+        self,
+        channel_id: MultiplexerChannelId,
+    ) -> MultiplexerChannel | None:
+        """Delete channel and queue from multiplexer if it exists."""
+        self._queue.delete_channel(channel_id)
+        return self._channels.pop(channel_id, None)
