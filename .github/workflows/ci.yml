@@ -19,6 +19,25 @@ jobs:
           python-version: "3.12"
       - uses: pre-commit/action@v3.0.1
 
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python3 -m pip install -e .[test]
+      - name: Run benchmarks
+        uses: CodSpeedHQ/action@v3
+        with:
+          token: ${{ secrets.CODSPEED_TOKEN }}
+          run: pytest --no-cov -vvvvv --codspeed tests/benchmarks
+
   build:
     runs-on: ubuntu-latest
     needs: lint
