@@ -27,7 +27,7 @@ def _make_mock_message(
     channel_id: MultiplexerChannelId,
     size: int = MOCK_MSG_SIZE,
 ) -> MultiplexerMessage:
-    return MultiplexerMessage(channel_id, CHANNEL_FLOW_DATA, os.urandom(size))
+    return MultiplexerMessage(channel_id, CHANNEL_FLOW_DATA, os.urandom(size), b"", HEADER_SIZE + size)
 
 
 async def test_get_non_existent_channels() -> None:
