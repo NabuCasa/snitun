@@ -8,6 +8,7 @@ import ipaddress
 import logging
 
 from ..exceptions import (
+    MultiplexerTransportClose,
     MultiplexerTransportError,
     ParseSNIError,
 )
@@ -223,7 +224,13 @@ class ProxyPeerHandler:
                 writer.write_eof()
                 await writer.drain()
             raise
-        except (MultiplexerTransportError, OSError, RuntimeError, ConnectionResetError):
+        except (
+            MultiplexerTransportClose,
+            MultiplexerTransportError,
+            OSError,
+            RuntimeError,
+            ConnectionResetError,
+        ):
             _LOGGER.debug("Peer loop: transport was closed")
         finally:
             if not writer.transport.is_closing():
@@ -250,6 +257,7 @@ class ProxyPeerHandler:
                 await channel.write(await reader.read(8192))
                 self._ranged_timeout.reschedule()
         except (
+            MultiplexerTransportClose,
             MultiplexerTransportError,
             OSError,
             RuntimeError,
