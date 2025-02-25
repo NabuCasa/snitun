@@ -60,7 +60,6 @@ class Multiplexer:
         "_read_task",
         "_reader",
         "_throttling",
-        "_timed_out",
         "_write_task",
         "_writer",
     ]
@@ -96,7 +95,6 @@ class Multiplexer:
             PEER_TCP_MAX_TIMEOUT,
             self._on_timeout,
         )
-        self._timed_out: bool = False
         self._channel_tasks: set[asyncio.Task[None]] = set()
         self._channels: dict[MultiplexerChannelId, MultiplexerChannel] = {}
         self._new_connections = new_connections
@@ -115,7 +113,6 @@ class Multiplexer:
 
     def _on_timeout(self) -> None:
         """Handle timeout."""
-        self._timed_out = True
         _LOGGER.error("Timed out reading and writing to peer")
         self._write_task.cancel()
 
