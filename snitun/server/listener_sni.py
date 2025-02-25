@@ -188,7 +188,7 @@ class ProxyPeerHandler:
         ip_address = self._ip_address
         # Open multiplexer channel
         try:
-            self._channel = await multiplexer.create_channel(
+            channel = self._channel = await multiplexer.create_channel(
                 ip_address,
                 self._pause_resume_reader_callback,
             )
@@ -196,20 +196,22 @@ class ProxyPeerHandler:
             _LOGGER.error("New transport channel to peer fails")
             return
 
-        self._peer_task = self._loop.create_task(self._peer_loop(writer))
+        self._peer_task = self._loop.create_task(self._peer_loop(channel, writer))
         self._proxy_task = self._loop.create_task(
-            self._proxy_loop(reader, client_hello),
+            self._proxy_loop(multiplexer, channel, reader, client_hello),
         )
         await asyncio.wait((self._proxy_task,))
         self._peer_task.cancel()
         with suppress(asyncio.CancelledError):
             await self._peer_task
 
-    async def _peer_loop(self, writer: asyncio.StreamWriter) -> None:
+    async def _peer_loop(
+        self,
+        channel: MultiplexerChannel,
+        writer: asyncio.StreamWriter,
+    ) -> None:
         """Read from peer loop."""
         transport = writer.transport
-        channel = self._channel
-        assert channel is not None, "Channel not initialized"
         try:
             while not transport.is_closing():
                 writer.write(await channel.read())
@@ -230,13 +232,13 @@ class ProxyPeerHandler:
 
     async def _proxy_loop(
         self,
+        multiplexer: Multiplexer,
+        channel: MultiplexerChannel,
         reader: asyncio.StreamReader,
         client_hello: bytes,
     ) -> None:
         """Write to peer loop."""
-        channel = self._channel
         assert channel is not None, "Channel not initialized"
-        assert self._multiplexer is not None, "Multiplexer not initialized"
         try:
             await channel.write(client_hello)
             while not channel.closing:
@@ -258,5 +260,5 @@ class ProxyPeerHandler:
         finally:
             with suppress(MultiplexerTransportError):
                 await asyncio.shield(
-                    create_eager_task(self._multiplexer.delete_channel(channel)),
+                    create_eager_task(multiplexer.delete_channel(channel)),
                 )
