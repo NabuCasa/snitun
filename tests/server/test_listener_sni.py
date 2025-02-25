@@ -170,30 +170,31 @@ async def test_sni_proxy_flow_timeout(
     """Test a normal flow of connection and exchange data."""
     from snitun.server import listener_sni
 
-    listener_sni.TCP_SESSION_TIMEOUT = 0.2
+    with patch.object(listener_sni,"PEER_TCP_SESSION_MIN_TIMEOUT", 0.1), patch.object(listener_sni,"PEER_TCP_SESSION_MAX_TIMEOUT", 0.2):
 
-    test_client_ssl.writer.write(TLS_1_2)
-    await test_client_ssl.writer.drain()
-    await asyncio.sleep(0.1)
+        test_client_ssl.writer.write(TLS_1_2)
+        await test_client_ssl.writer.drain()
+        await asyncio.sleep(0.1)
 
-    assert multiplexer_client._channels
-    channel = next(iter(multiplexer_client._channels.values()))
-    assert channel.ip_address == IP_ADDR
+        assert multiplexer_client._channels
+        channel = next(iter(multiplexer_client._channels.values()))
+        assert channel.ip_address == IP_ADDR
 
-    client_hello = await channel.read()
-    assert client_hello == TLS_1_2
+        client_hello = await channel.read()
+        assert client_hello == TLS_1_2
 
-    test_client_ssl.writer.write(b"Very secret!")
-    await test_client_ssl.writer.drain()
+        test_client_ssl.writer.write(b"Very secret!")
+        await test_client_ssl.writer.drain()
 
-    data = await channel.read()
-    assert data == b"Very secret!"
+        data = await channel.read()
+        assert data == b"Very secret!"
 
-    await channel.write(b"my answer")
-    data = await test_client_ssl.reader.read(1024)
-    assert data == b"my answer"
+        await channel.write(b"my answer")
+        data = await test_client_ssl.reader.read(1024)
+        assert data == b"my answer"
 
-    await asyncio.sleep(0.3)
+        await asyncio.sleep(0.3)
+
     assert not multiplexer_client._channels
 
 
