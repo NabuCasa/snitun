@@ -273,7 +273,10 @@ class Multiplexer:
             if channel.closing:
                 pass
             elif channel.unhealthy:
-                _LOGGER.warning("Abort connection, channel is not healthy")
+                _LOGGER.warning(
+                    "Abort connection, channel %s is not healthy",
+                    channel.id,
+                )
                 channel.close()
                 self._create_channel_task(self.delete_channel(channel))
             else:

@@ -423,6 +423,7 @@ async def test_multiplexer_data_channel_abort_full(
     with pytest.raises(MultiplexerTransportClose):
         for _ in range(1, 50000):
             await channel_client.write(large_msg)
+            await asyncio.sleep(0)
 
     with pytest.raises(MultiplexerTransportClose):
         for _ in range(1, 50000):
