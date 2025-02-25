@@ -403,7 +403,6 @@ async def test_multiplexer_channel_shutdown(
 
 
 @patch.object(channel_module, "INCOMING_QUEUE_MAX_BYTES_CHANNEL", 1)
-@patch.object(core_module, "OUTGOING_QUEUE_MAX_BYTES_CHANNEL", 1)
 async def test_multiplexer_data_channel_abort_full(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
