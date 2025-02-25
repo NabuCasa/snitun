@@ -75,6 +75,7 @@ class MultiplexerMessage(NamedTuple):
     flow_type: FlowType | int
     data: bytes = b""
     extra: bytes = b""
+    size: int = HEADER_SIZE
 
     def __repr__(self) -> str:
         """Return string representation for logger."""
@@ -83,6 +84,7 @@ class MultiplexerMessage(NamedTuple):
             f"id={self.id.hex()}, "
             f"flow_type={try_parse_flow_type(self.flow_type)!r}, "
             f"data={self.data!r}, "
-            f"extra={self.extra!r}"
+            f"extra={self.extra!r}, "
+            f"size={self.size!r}"
             ")"
         )

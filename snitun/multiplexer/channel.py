@@ -23,6 +23,7 @@ from .message import (
     CHANNEL_FLOW_NEW,
     CHANNEL_FLOW_PAUSE,
     CHANNEL_FLOW_RESUME,
+    HEADER_SIZE,
     MultiplexerChannelId,
     MultiplexerMessage,
 )
@@ -155,7 +156,7 @@ class MultiplexerChannel:
         # Create message
         message = tuple.__new__(
             MultiplexerMessage,
-            (self._id, CHANNEL_FLOW_DATA, data, b""),
+            (self._id, CHANNEL_FLOW_DATA, data, b"", HEADER_SIZE + len(data)),
         )
 
         try:

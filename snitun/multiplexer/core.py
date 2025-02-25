@@ -225,7 +225,7 @@ class Multiplexer:
 
     def _write_message(self, message: MultiplexerMessage) -> None:
         """Write message to peer."""
-        id_, flow_type, data, extra = message
+        id_, flow_type, data, extra, _ = message
         data_len = len(data)
         header = HEADER_STRUCT.pack(
             id_.bytes,
@@ -266,7 +266,13 @@ class Multiplexer:
 
         message = tuple.__new__(
             MultiplexerMessage,
-            (MultiplexerChannelId(channel_id), flow_type, data, extra),
+            (
+                MultiplexerChannelId(channel_id),
+                flow_type,
+                data,
+                extra,
+                HEADER_SIZE + data_size,
+            ),
         )
 
         # Process message to queue

@@ -9,7 +9,7 @@ import contextlib
 from dataclasses import dataclass, field
 import logging
 
-from .message import HEADER_SIZE, MultiplexerChannelId, MultiplexerMessage
+from .message import MultiplexerChannelId, MultiplexerMessage
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,11 +32,6 @@ class _ChannelQueue:
     pending_close: bool = False
     queue: deque[MultiplexerMessage | None] = field(default_factory=deque)
     putters: deque[asyncio.Future[None]] = field(default_factory=deque)
-
-
-def _effective_size(message: MultiplexerMessage | None) -> int:
-    """Return the effective size of the message."""
-    return 0 if message is None else HEADER_SIZE + len(message.data)
 
 
 class MultiplexerSingleChannelQueue(asyncio.Queue[MultiplexerMessage | None]):
@@ -69,7 +64,7 @@ class MultiplexerSingleChannelQueue(asyncio.Queue[MultiplexerMessage | None]):
 
     def _put(self, message: MultiplexerMessage | None) -> None:
         """Put a message in the queue."""
-        self._total_bytes += _effective_size(message)
+        self._total_bytes += 0 if message is None else message.size
         super()._put(message)
         if not self._under_water and self._total_bytes >= self._high_water_mark:
             self._under_water = True
@@ -78,7 +73,7 @@ class MultiplexerSingleChannelQueue(asyncio.Queue[MultiplexerMessage | None]):
     def _get(self) -> MultiplexerMessage | None:
         """Get a message from the queue."""
         message = super()._get()
-        self._total_bytes -= _effective_size(message)
+        self._total_bytes -= 0 if message is None else message.size
         if self._under_water and self._total_bytes <= self._low_water_mark:
             self._under_water = False
             self._under_water_callback(False)
@@ -160,7 +155,7 @@ class MultiplexerMultiChannelQueue:
         # Based on asyncio.Queue.put()
         if not (channel := self._channels.get(channel_id)):
             raise RuntimeError(f"Channel {channel_id} does not exist or already closed")
-        size = _effective_size(message)
+        size = 0 if message is None else message.size
         while channel.total_bytes + size > self._channel_size_limit:  # full
             putter = self._loop.create_future()
             channel.putters.append(putter)
@@ -188,7 +183,7 @@ class MultiplexerMultiChannelQueue:
         Raises:
             asyncio.QueueFull: If the queue is full.
         """
-        size = _effective_size(message)
+        size = 0 if message is None else message.size
         if not (channel := self._channels.get(channel_id)):
             raise RuntimeError(f"Channel {channel_id} does not exist or already closed")
         if channel.total_bytes + size > self._channel_size_limit:
@@ -246,7 +241,7 @@ class MultiplexerMultiChannelQueue:
         channel_id, _ = self._order.popitem(last=False)
         channel = self._channels[channel_id]
         message = channel.queue.popleft()
-        size = _effective_size(message)
+        size = 0 if message is None else message.size
         channel.total_bytes -= size
         if channel.queue:
             # Now put the channel_id back, but at the end of the queue
