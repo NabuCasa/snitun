@@ -59,4 +59,6 @@ Message Flags/Types:
 - `0x01`: New | The extra data includes the first byte as an ASCII value of 4 or 6, followed by the caller IP in bytes.
 - `0x02`: DATA
 - `0x04`: Close
-- `0x05`: Ping | The extra data is a `ping` or `pong` response to a ping.
+- `0x08`: Ping | The extra data is a `ping` or `pong` response to a ping.
+- `0x16`: Pause the remote reader
+- `0x32`: Resume the remote reader
