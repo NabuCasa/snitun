@@ -10,7 +10,13 @@ from ..exceptions import MultiplexerTransportDecrypt
 class CryptoTransport:
     """Encrypt/Decrypt Transport flow."""
 
-    __slots__ = ["_cipher", "_decryptor", "_encryptor"]
+    __slots__ = (
+        "_cipher",
+        "_decrypt_buffer",
+        "_decryptor",
+        "_encrypt_buffer",
+        "_encryptor",
+    )
 
     def __init__(self, key: bytes, iv: bytes) -> None:
         """Initialize crypto data."""
@@ -21,14 +27,18 @@ class CryptoTransport:
         )
         self._encryptor = self._cipher.encryptor()
         self._decryptor = self._cipher.decryptor()
+        self._encrypt_buffer = bytearray(48)
+        self._decrypt_buffer = bytearray(48)
 
     def encrypt(self, data: bytes) -> bytes:
         """Encrypt data from transport."""
-        return self._encryptor.update(data)
+        data_len = self._encryptor.update_into(data, self._encrypt_buffer)
+        return bytes(self._encrypt_buffer[:data_len])
 
     def decrypt(self, data: bytes) -> bytes:
         """Decrypt data from transport."""
         try:
-            return self._decryptor.update(data)
+            data_len = self._decryptor.update_into(data, self._decrypt_buffer)
         except InvalidTag:
             raise MultiplexerTransportDecrypt from None
+        return bytes(self._decrypt_buffer[:data_len])
