@@ -256,10 +256,6 @@ class Multiplexer:
         )
 
         # Process message to queue
-        await self._process_message(message)
-
-    async def _process_message(self, message: MultiplexerMessage) -> None:
-        """Process received message."""
         # DATA
         flow_type = message.flow_type
         if flow_type == CHANNEL_FLOW_DATA:
