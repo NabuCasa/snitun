@@ -191,7 +191,6 @@ class Multiplexer:
                 if to_peer := await self._queue.get():
                     self._write_message(to_peer)
                 await self._writer.drain()
-                self._ranged_timeout.reschedule()
         except asyncio.CancelledError:
             _LOGGER.debug("Write canceling")
             with suppress(OSError):
