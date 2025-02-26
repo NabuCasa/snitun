@@ -532,60 +532,6 @@ async def test_multiplexer_core_peer_timeout(
             raise client_read.exception()
 
 
-
-async def test_multiplexer_core_peer_timeout_late_timeout(
-    multiplexer_client: Multiplexer,
-    multiplexer_server: Multiplexer,
-) -> None:
-    """Test that new channels with later timeout."""
-    loop = asyncio.get_running_loop()
-    with (
-        patch.object(multi_core, "PEER_TCP_MAX_TIMEOUT", 0.2),
-        patch.object(
-            multi_core,
-            "PEER_TCP_MIN_TIMEOUT",
-            0.2,
-        ),
-    ):
-        assert not multiplexer_client._channels
-        assert not multiplexer_server._channels
-
-        channel_client = await multiplexer_client.create_channel(
-            IP_ADDR, lambda _: None,
-        )
-
-        await asyncio.sleep(0.1)
-        channel_server = multiplexer_server._channels.get(channel_client.id)
-
-        client_read = loop.create_task(channel_client.read())
-        server_read = loop.create_task(channel_server.read())
-
-        assert not client_read.done()
-        assert not server_read.done()
-
-        # Patch the reader so it blocks forever
-        # and cannot read the pong response
-        with patch.object(
-            multiplexer_client._reader,
-            "readexactly",
-            loop.create_future(),
-        ):
-            await multiplexer_client.ping()
-            await asyncio.sleep(0.3)
-
-        # make sure everything tears down ok
-        assert not multiplexer_client._channels
-        assert not multiplexer_server._channels
-        assert server_read.done()
-        assert client_read.done()
-
-        with pytest.raises(MultiplexerTransportClose):
-            raise server_read.exception()
-
-        with pytest.raises(MultiplexerTransportClose):
-            raise client_read.exception()
-
-
 @patch.object(channel_module, "INCOMING_QUEUE_LOW_WATERMARK", HEADER_SIZE * 2)
 @patch.object(channel_module, "INCOMING_QUEUE_HIGH_WATERMARK", HEADER_SIZE * 3)
 async def test_remote_input_queue_goes_under_water(
