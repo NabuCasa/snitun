@@ -30,15 +30,15 @@ class CryptoTransport:
         self._encrypt_buffer = bytearray(48)
         self._decrypt_buffer = bytearray(48)
 
-    def encrypt(self, data: bytes) -> bytes:
+    def encrypt(self, data: bytes) -> bytearray:
         """Encrypt data from transport."""
         data_len = self._encryptor.update_into(data, self._encrypt_buffer)
-        return bytes(self._encrypt_buffer[:data_len])
+        return self._encrypt_buffer[:data_len]
 
-    def decrypt(self, data: bytes) -> bytes:
+    def decrypt(self, data: bytes) -> bytearray:
         """Decrypt data from transport."""
         try:
             data_len = self._decryptor.update_into(data, self._decrypt_buffer)
         except InvalidTag:
             raise MultiplexerTransportDecrypt from None
-        return bytes(self._decrypt_buffer[:data_len])
+        return self._decrypt_buffer[:data_len]
