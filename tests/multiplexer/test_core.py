@@ -35,7 +35,9 @@ async def test_init_multiplexer_server(
     """Test to create a new Multiplexer from server socket."""
     client = test_server[0]
 
-    multiplexer = Multiplexer(CryptoTransport(*crypto_key_iv), client.reader, client.writer)
+    multiplexer = Multiplexer(
+        CryptoTransport(*crypto_key_iv), client.reader, client.writer
+    )
 
     assert multiplexer.is_connected
     assert multiplexer._throttling is None
@@ -48,7 +50,9 @@ async def test_init_multiplexer_client(
     crypto_key_iv: tuple[bytes, bytes],
 ) -> None:
     """Test to create a new Multiplexer from client socket."""
-    multiplexer = Multiplexer(CryptoTransport(*crypto_key_iv), test_client.reader, test_client.writer)
+    multiplexer = Multiplexer(
+        CryptoTransport(*crypto_key_iv), test_client.reader, test_client.writer
+    )
 
     assert multiplexer.is_connected
     assert multiplexer._throttling is None
