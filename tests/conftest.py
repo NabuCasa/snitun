@@ -159,7 +159,7 @@ def test_client_ssl_sync(
 async def multiplexer_server(
     test_server: list[Client],
     test_client: Client,
-    crypto_transport: CryptoTransport,
+    crypto_key_iv: tuple[bytes, bytes],
 ) -> AsyncGenerator[Multiplexer, None]:
     """Create a multiplexer client from server."""
     client = test_server[0]
@@ -171,7 +171,7 @@ async def multiplexer_server(
         """Mock new channel."""
 
     multiplexer = Multiplexer(
-        crypto_transport,
+        CryptoTransport(*crypto_key_iv),
         client.reader,
         client.writer,
         mock_new_channel,
@@ -186,7 +186,7 @@ async def multiplexer_server(
 @pytest.fixture
 async def multiplexer_client(
     test_client: Client,
-    crypto_transport: CryptoTransport,
+    crypto_key_iv: tuple[bytes, bytes],
 ) -> AsyncGenerator[Multiplexer, None]:
     """Create a multiplexer client from server."""
 
@@ -197,7 +197,7 @@ async def multiplexer_client(
         """Mock new channel."""
 
     multiplexer = Multiplexer(
-        crypto_transport,
+        CryptoTransport(*crypto_key_iv),
         test_client.reader,
         test_client.writer,
         mock_new_channel,
@@ -235,26 +235,23 @@ async def test_client_ssl(sni_proxy: SNIProxy) -> AsyncGenerator[Client, None]:
 
     writer.close()
 
-
 @pytest.fixture
-def crypto_transport() -> CryptoTransport:
-    """Create a CryptoTransport object."""
+def crypto_key_iv() -> tuple[bytes, bytes]:
+    """Create a key and iv."""
     key = os.urandom(32)
     iv = os.urandom(16)
-    crypto = CryptoTransport(key, iv)
-
-    return crypto
+    return key, iv
 
 
 @pytest.fixture
 async def peer(
-    crypto_transport: CryptoTransport,
+    crypto_key_iv: tuple[bytes, bytes],
     multiplexer_server: Multiplexer,
 ) -> Peer:
     """Init a peer with transport."""
     valid = datetime.now(tz=UTC) + timedelta(days=1)
     peer = Peer("localhost", valid, os.urandom(32), os.urandom(16))
-    peer._crypto = crypto_transport
+    peer._crypto = CryptoTransport(*crypto_key_iv)
     peer._multiplexer = multiplexer_server
 
     return peer
