@@ -236,7 +236,7 @@ class Multiplexer:
             raise MultiplexerTransportClose from None
         return data_len
 
-    async def _read_message(self) -> int | None:
+    async def _read_message(self) -> None:
         """Read message from peer."""
         header = await self._reader.readexactly(HEADER_SIZE)
 
@@ -250,15 +250,13 @@ class Multiplexer:
             )
         except (struct.error, MultiplexerTransportDecrypt):
             _LOGGER.warning("Wrong message header received")
-            return None
+            return
 
         # Read message data
         if data_size:
             data = await self._reader.readexactly(data_size)
         else:
             data = b""
-
-        _LOGGER.warning("Read message with size: %s", data_size)
 
         message = tuple.__new__(
             MultiplexerMessage,
@@ -272,7 +270,7 @@ class Multiplexer:
             # check if message exists
             if message.id not in self._channels:
                 _LOGGER.debug("Receive data from unknown channel: %s", message.id)
-                return None
+                return
 
             channel = self._channels[message.id]
             if channel.closing:
@@ -292,7 +290,7 @@ class Multiplexer:
             # Check if we would handle new connection
             if not self._new_connections:
                 _LOGGER.warning("Request new Channel is not allow")
-                return None
+                return
 
             ip_address = bytes_to_ip_address(message.extra[1:5])
             channel = MultiplexerChannel(
@@ -344,8 +342,6 @@ class Multiplexer:
                 message.flow_type,
                 message.id,
             )
-
-        return data_size
 
     def _create_channel_task(self, coro: Coroutine[Any, Any, None]) -> None:
         """Create a new task for channel."""
