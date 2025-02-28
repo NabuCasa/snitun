@@ -12,7 +12,7 @@ from ..exceptions import (
     MultiplexerTransportError,
     ParseSNIError,
 )
-from ..multiplexer.channel import MultiplexerChannel
+from ..multiplexer.channel import FlowControlChannel
 from ..multiplexer.core import Multiplexer
 from ..utils.asyncio import asyncio_timeout
 from .peer_manager import PeerManager
@@ -124,7 +124,7 @@ class SNIProxy:
         await handler.start(multiplexer, client_hello, reader, writer)
 
 
-class ProxyPeerHandler:
+class ProxyPeerHandler(FlowControlChannel):
     """Proxy Peer Handler."""
 
     def __init__(
@@ -133,30 +133,8 @@ class ProxyPeerHandler:
         ip_address: ipaddress.IPv4Address,
     ) -> None:
         """Initialize ProxyPeerHandler."""
-        self._loop = loop
-        self._pause_future: asyncio.Future[None] | None = None
+        super().__init__(loop)
         self._ip_address = ip_address
-        self._channel: MultiplexerChannel | None = None
-
-    def _pause_resume_reader_callback(self, pause: bool) -> None:
-        """Pause and resume reader."""
-        assert self._channel is not None, "Channel not initialized"
-        if pause:
-            _LOGGER.debug(
-                "Pause reader for %s (%s)",
-                self._ip_address,
-                self._channel.id,
-            )
-            self._pause_future = self._loop.create_future()
-        else:
-            _LOGGER.debug(
-                "Resuming reader for %s (%s)",
-                self._ip_address,
-                self._channel.id,
-            )
-            assert self._pause_future is not None, "Cannot resume non paused connection"
-            self._pause_future.set_result(None)
-            self._pause_future = None
 
     async def start(
         self,
