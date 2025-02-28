@@ -43,7 +43,7 @@ _LOGGER = logging.getLogger(__name__)
 
 PEER_TCP_MIN_TIMEOUT = 90
 PEER_TCP_MAX_TIMEOUT = 120
-MIN_SIZE_THROTTLE = 65536
+MIN_SIZE_THROTTLE = 4096
 
 
 class Multiplexer:
@@ -162,21 +162,8 @@ class Multiplexer:
         transport = self._writer.transport
         try:
             while not transport.is_closing():
-                msg_size = await self._read_message()
+                await self._read_message()
                 self._ranged_timeout.reschedule()
-                if msg_size is not None and self._throttling is not None:
-                    # Throttle the connection to ensure
-                    # we have enough time to get back
-                    # pause messages to not overrun the
-                    # remote input queue. If the message
-                    # is large > 64KB we use self._throttling
-                    # for the sleep value, otherwise for small
-                    # messages we use 0 as to still yield to the
-                    # event loop but not have to schedule the
-                    # task again since the overhead of the task
-                    # scheduling creates a significant CPU overhead.
-                    to_sleep = 0 if msg_size < MIN_SIZE_THROTTLE else self._throttling
-                    await asyncio.sleep(to_sleep)
         except asyncio.CancelledError:
             _LOGGER.debug("Receive canceling")
             raise
@@ -194,10 +181,24 @@ class Multiplexer:
         transport = self._writer.transport
         try:
             while not transport.is_closing():
+                data_len = 0
                 if to_peer := await self._queue.get():
-                    self._write_message(to_peer)
+                    data_len = self._write_message(to_peer)
                 await self._writer.drain()
                 self._ranged_timeout.reschedule()
+                if to_peer is not None and self._throttling is not None:
+                    # Throttle the connection to ensure
+                    # we have enough time to get back
+                    # pause messages to not overrun the
+                    # remote input queue. If the message
+                    # is large > 64KB we use self._throttling
+                    # for the sleep value, otherwise for small
+                    # messages we use 0 as to still yield to the
+                    # event loop but not have to schedule the
+                    # task again since the overhead of the task
+                    # scheduling creates a significant CPU overhead.
+                    to_sleep = 0 if data_len < MIN_SIZE_THROTTLE else self._throttling
+                    await asyncio.sleep(to_sleep)
         except asyncio.CancelledError:
             _LOGGER.debug("Write canceling")
             with suppress(OSError):
@@ -217,7 +218,7 @@ class Multiplexer:
             self._graceful_channel_shutdown()
             _LOGGER.debug("Multiplexer connection is closed")
 
-    def _write_message(self, message: MultiplexerMessage) -> None:
+    def _write_message(self, message: MultiplexerMessage) -> int:
         """Write message to peer."""
         id_, flow_type, data, extra = message
         data_len = len(data)
@@ -229,11 +230,11 @@ class Multiplexer:
         )
         try:
             encrypted_header = self._crypto.encrypt(header)
-            self._writer.write(
-                encrypted_header + data if data_len else encrypted_header,
-            )
+            payload = encrypted_header + data if data_len else encrypted_header
+            self._writer.write(payload)
         except RuntimeError:
             raise MultiplexerTransportClose from None
+        return data_len
 
     async def _read_message(self) -> int | None:
         """Read message from peer."""
@@ -256,6 +257,8 @@ class Multiplexer:
             data = await self._reader.readexactly(data_size)
         else:
             data = b""
+
+        _LOGGER.warning("Read message with size: %s", data_size)
 
         message = tuple.__new__(
             MultiplexerMessage,
