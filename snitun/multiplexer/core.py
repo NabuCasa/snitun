@@ -43,6 +43,7 @@ _LOGGER = logging.getLogger(__name__)
 
 PEER_TCP_MIN_TIMEOUT = 90
 PEER_TCP_MAX_TIMEOUT = 120
+MIN_SIZE_THROTTLE = 65536
 
 
 class Multiplexer:
@@ -161,8 +162,21 @@ class Multiplexer:
         transport = self._writer.transport
         try:
             while not transport.is_closing():
-                await self._read_message()
+                msg_size = await self._read_message()
                 self._ranged_timeout.reschedule()
+                if msg_size is not None and self._throttling is not None:
+                    # Throttle the connection to ensure
+                    # we have enough time to get back
+                    # pause messages to not overrun the
+                    # remote input queue. If the message
+                    # is large > 64KB we use self._throttling
+                    # for the sleep value, otherwise for small
+                    # messages we use 0 as to still yield to the
+                    # event loop but not have to schedule the
+                    # task again since the overhead of the task
+                    # scheduling creates a significant CPU overhead.
+                    to_sleep = 0 if msg_size < MIN_SIZE_THROTTLE else self._throttling
+                    await asyncio.sleep(to_sleep)
         except asyncio.CancelledError:
             _LOGGER.debug("Receive canceling")
             raise
@@ -184,19 +198,6 @@ class Multiplexer:
                     self._write_message(to_peer)
                 await self._writer.drain()
                 self._ranged_timeout.reschedule()
-                if to_peer is not None and self._throttling is not None:
-                    # Throttle the connection to ensure
-                    # we have enough time to get back
-                    # pause messages to not overrun the
-                    # remote input queue. If the message
-                    # is large > 64KB we use self._throttling
-                    # for the sleep value, otherwise for small
-                    # messages we use 0 as to still yield to the
-                    # event loop but not have to schedule the
-                    # task again since the overhead of the task
-                    # scheduling creates a significant CPU overhead.
-                    to_sleep = 0 if len(to_peer.data) < 65536 else self._throttling
-                    await asyncio.sleep(to_sleep)
         except asyncio.CancelledError:
             _LOGGER.debug("Write canceling")
             with suppress(OSError):
@@ -234,7 +235,7 @@ class Multiplexer:
         except RuntimeError:
             raise MultiplexerTransportClose from None
 
-    async def _read_message(self) -> None:
+    async def _read_message(self) -> int | None:
         """Read message from peer."""
         header = await self._reader.readexactly(HEADER_SIZE)
 
@@ -248,7 +249,7 @@ class Multiplexer:
             )
         except (struct.error, MultiplexerTransportDecrypt):
             _LOGGER.warning("Wrong message header received")
-            return
+            return None
 
         # Read message data
         if data_size:
@@ -268,7 +269,7 @@ class Multiplexer:
             # check if message exists
             if message.id not in self._channels:
                 _LOGGER.debug("Receive data from unknown channel: %s", message.id)
-                return
+                return None
 
             channel = self._channels[message.id]
             if channel.closing:
@@ -288,7 +289,7 @@ class Multiplexer:
             # Check if we would handle new connection
             if not self._new_connections:
                 _LOGGER.warning("Request new Channel is not allow")
-                return
+                return None
 
             ip_address = bytes_to_ip_address(message.extra[1:5])
             channel = MultiplexerChannel(
@@ -340,6 +341,8 @@ class Multiplexer:
                 message.flow_type,
                 message.id,
             )
+
+        return data_size
 
     def _create_channel_task(self, coro: Coroutine[Any, Any, None]) -> None:
         """Create a new task for channel."""
