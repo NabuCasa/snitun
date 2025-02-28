@@ -325,12 +325,14 @@ async def test_flow_control_allow_multiple_pause_resume(caplog: pytest.LogCaptur
     assert base_channel._pause_future is not None
     assert not base_channel._pause_future.done()
 
-    base_channel._pause_resume_reader_callback(True)
+    with pytest.raises(RuntimeError, match="Reader already paused for"):
+        base_channel._pause_resume_reader_callback(True)
     assert base_channel._pause_future is not None
     assert not base_channel._pause_future.done()
 
     base_channel._pause_resume_reader_callback(False)
     assert base_channel._pause_future is None
 
-    base_channel._pause_resume_reader_callback(False)
+    with pytest.raises(RuntimeError, match="Reader already resumed for"):
+        base_channel._pause_resume_reader_callback(False)
     assert base_channel._pause_future is None

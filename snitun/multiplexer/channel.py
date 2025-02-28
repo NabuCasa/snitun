@@ -51,16 +51,15 @@ class ChannelFlowControlBase:
                 _LOGGER.debug("Resuming reader for %s (%s)", ip_address, id_)
                 self._pause_future.set_result(None)
                 self._pause_future = None
-            else:
-                _LOGGER.debug("Reader already resumed for %s (%s)", ip_address, id_)
-            return
+                return
+            raise RuntimeError(f"Reader already resumed for {ip_address} ({id_})")
 
         if self._pause_future is None or self._pause_future.done():
             _LOGGER.debug("Pause reader for %s (%s)", ip_address, id_)
             self._pause_future = self._loop.create_future()
             return
 
-        _LOGGER.debug("Reader already paused for %s (%s)", ip_address, id_)
+        raise RuntimeError(f"Reader already paused for {ip_address} ({id_})")
 
 
 class MultiplexerChannel:
