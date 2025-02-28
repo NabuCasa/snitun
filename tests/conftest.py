@@ -238,6 +238,7 @@ async def test_client_ssl(sni_proxy: SNIProxy) -> AsyncGenerator[Client, None]:
 
     writer.close()
 
+
 @pytest.fixture
 def crypto_key_iv() -> tuple[bytes, bytes]:
     """Create a key and iv."""

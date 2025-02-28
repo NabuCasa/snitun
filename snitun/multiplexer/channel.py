@@ -51,16 +51,15 @@ class ChannelFlowControlBase:
                 _LOGGER.debug("Resuming reader for %s (%s)", ip_address, id_)
                 self._pause_future.set_result(None)
                 self._pause_future = None
-            else:
-                _LOGGER.debug("Reader already resumed for %s (%s)", ip_address, id_)
-            return
+                return
+            raise RuntimeError(f"Reader already resumed for {ip_address} ({id_})")
 
         if self._pause_future is None or self._pause_future.done():
             _LOGGER.debug("Pause reader for %s (%s)", ip_address, id_)
             self._pause_future = self._loop.create_future()
             return
 
-        _LOGGER.debug("Reader already paused for %s (%s)", ip_address, id_)
+        raise RuntimeError(f"Reader already paused for {ip_address} ({id_})")
 
 
 class MultiplexerChannel:
@@ -74,6 +73,7 @@ class MultiplexerChannel:
         "_local_output_under_water",
         "_output",
         "_pause_resume_reader_callback",
+        "_reader_paused",
         "_remote_input_under_water",
         "_throttling",
     )
@@ -106,6 +106,7 @@ class MultiplexerChannel:
         self._remote_input_under_water = False
         self._output.create_channel(self._id, self._on_local_output_under_water)
         self._pause_resume_reader_callback = pause_resume_reader_callback
+        self._reader_paused = False
 
     def set_pause_resume_reader_callback(
         self,
@@ -146,10 +147,12 @@ class MultiplexerChannel:
         """Pause or resume reader."""
         # Pause if either local output or remote input is under water
         # Resume if both local output and remote input are not under water
-        if self._pause_resume_reader_callback is not None:
-            self._pause_resume_reader_callback(
-                self._local_output_under_water or self._remote_input_under_water,
-            )
+        if self._pause_resume_reader_callback is None:
+            return
+        pause_reader = self._local_output_under_water or self._remote_input_under_water
+        if self._reader_paused != pause_reader:
+            self._reader_paused = pause_reader
+            self._pause_resume_reader_callback(pause_reader)
 
     @property
     def id(self) -> MultiplexerChannelId:
