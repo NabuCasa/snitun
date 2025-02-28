@@ -34,12 +34,12 @@ IP_ADDR = ipaddress.ip_address("8.8.8.8")
 async def test_init_multiplexer_server(
     test_server: list[Client],
     test_client: Client,
-    crypto_transport: CryptoTransport,
+    crypto_key_iv: tuple[bytes, bytes],
 ) -> None:
     """Test to create a new Multiplexer from server socket."""
     client = test_server[0]
 
-    multiplexer = Multiplexer(crypto_transport, client.reader, client.writer)
+    multiplexer = Multiplexer(CryptoTransport(*crypto_key_iv), client.reader, client.writer)
 
     assert multiplexer.is_connected
     assert multiplexer._throttling is None
@@ -49,10 +49,10 @@ async def test_init_multiplexer_server(
 
 async def test_init_multiplexer_client(
     test_client: Client,
-    crypto_transport: CryptoTransport,
+    crypto_key_iv: tuple[bytes, bytes],
 ) -> None:
     """Test to create a new Multiplexer from client socket."""
-    multiplexer = Multiplexer(crypto_transport, test_client.reader, test_client.writer)
+    multiplexer = Multiplexer(CryptoTransport(*crypto_key_iv), test_client.reader, test_client.writer)
 
     assert multiplexer.is_connected
     assert multiplexer._throttling is None
@@ -62,13 +62,13 @@ async def test_init_multiplexer_client(
 async def test_init_multiplexer_server_throttling(
     test_server: list[Client],
     test_client: Client,
-    crypto_transport: CryptoTransport,
+    crypto_key_iv: tuple[bytes, bytes],
 ) -> None:
     """Test to create a new Multiplexer from server socket."""
     client = test_server[0]
 
     multiplexer = Multiplexer(
-        crypto_transport,
+        CryptoTransport(*crypto_key_iv),
         client.reader,
         client.writer,
         throttling=500,
@@ -82,11 +82,11 @@ async def test_init_multiplexer_server_throttling(
 
 async def test_init_multiplexer_client_throttling(
     test_client: Client,
-    crypto_transport: CryptoTransport,
+    crypto_key_iv: tuple[bytes, bytes],
 ) -> None:
     """Test to create a new Multiplexer from client socket."""
     multiplexer = Multiplexer(
-        crypto_transport,
+        CryptoTransport(*crypto_key_iv),
         test_client.reader,
         test_client.writer,
         throttling=500,
