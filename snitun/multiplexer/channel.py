@@ -32,12 +32,12 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ChannelFlowControlBase:
-    """A channel that implements Flow Control."""
+    """A channel that implements flow control."""
 
     _channel: MultiplexerChannel
 
     def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
-        """Initialize Pause Resume Channel."""
+        """Initialize a channel that implements flow control."""
         self._loop = loop
         self._pause_future: asyncio.Future[None] | None = None
 
