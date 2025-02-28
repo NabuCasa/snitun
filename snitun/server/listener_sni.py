@@ -12,7 +12,7 @@ from ..exceptions import (
     MultiplexerTransportError,
     ParseSNIError,
 )
-from ..multiplexer.channel import FlowControlChannel
+from ..multiplexer.channel import ChannelFlowControlBase
 from ..multiplexer.core import Multiplexer
 from ..utils.asyncio import asyncio_timeout
 from .peer_manager import PeerManager
@@ -124,7 +124,7 @@ class SNIProxy:
         await handler.start(multiplexer, client_hello, reader, writer)
 
 
-class ProxyPeerHandler(FlowControlChannel):
+class ProxyPeerHandler(ChannelFlowControlBase):
     """Proxy Peer Handler."""
 
     def __init__(
