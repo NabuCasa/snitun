@@ -44,30 +44,23 @@ class FlowControlChannel:
     def _pause_resume_reader_callback(self, pause: bool) -> None:
         """Pause and resume reader."""
         channel = self._channel
-        if pause:
-            if self._pause_future is None or self._pause_future.done():
-                _LOGGER.debug(
-                    "Pause reader for %s (%s)",
-                    channel.ip_address,
-                    channel.id,
-                )
-                self._pause_future = self._loop.create_future()
+        ip_address = channel.ip_address
+        id_ = channel.id
+        if not pause:
+            if self._pause_future and not self._pause_future.done():
+                _LOGGER.debug("Resuming reader for %s (%s)", ip_address, id_)
+                self._pause_future.set_result(None)
+                self._pause_future = None
             else:
-                _LOGGER.debug(
-                    "Reader already paused for %s (%s)",
-                    channel.ip_address,
-                    channel.id,
-                )
-        elif self._pause_future and not self._pause_future.done():
-            _LOGGER.debug("Resuming reader for %s (%s)", channel.ip_address, channel.id)
-            self._pause_future.set_result(None)
-            self._pause_future = None
-        else:
-            _LOGGER.debug(
-                "Reader already resumed for %s (%s)",
-                channel.ip_address,
-                channel.id,
-            )
+                _LOGGER.debug("Reader already resumed for %s (%s)", ip_address, id_)
+            return
+
+        if self._pause_future is None or self._pause_future.done():
+            _LOGGER.debug("Pause reader for %s (%s)", ip_address, id_)
+            self._pause_future = self._loop.create_future()
+            return
+
+        _LOGGER.debug("Reader already paused for %s (%s)", ip_address, id_)
 
 
 class MultiplexerChannel:
