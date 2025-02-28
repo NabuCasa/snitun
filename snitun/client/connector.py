@@ -11,7 +11,7 @@ import logging
 from typing import Any
 
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
-from ..multiplexer.channel import FlowControlChannel, MultiplexerChannel
+from ..multiplexer.channel import ChannelFlowControlBase, MultiplexerChannel
 from ..multiplexer.core import Multiplexer
 
 _LOGGER = logging.getLogger(__name__)
@@ -73,7 +73,7 @@ class Connector:
         )
 
 
-class ConnectorHandler(FlowControlChannel):
+class ConnectorHandler(ChannelFlowControlBase):
     """Handle connection to endpoint."""
 
     def __init__(

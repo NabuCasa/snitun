@@ -31,7 +31,7 @@ from .queue import MultiplexerMultiChannelQueue, MultiplexerSingleChannelQueue
 _LOGGER = logging.getLogger(__name__)
 
 
-class FlowControlChannel:
+class ChannelFlowControlBase:
     """A channel that implements Flow Control."""
 
     _channel: MultiplexerChannel
