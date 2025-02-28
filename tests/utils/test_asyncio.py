@@ -8,7 +8,7 @@ from snitun.utils.asyncio import (
     asyncio_timeout,
     create_eager_task,
     make_task_waiter_future,
-    RangedTimeout
+    RangedTimeout,
 )
 
 
@@ -78,6 +78,7 @@ async def test_make_task_waiter_future_already_done_task() -> None:
 async def test_ranged_timeout() -> None:
     """Test ranged timeout."""
     timed_out: list[bool] = []
+
     def _timeout_callback() -> None:
         timed_out.append(True)
 

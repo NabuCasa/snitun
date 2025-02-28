@@ -15,7 +15,7 @@ from snitun.multiplexer import (
     core as multi_core,
 )
 from snitun.multiplexer.channel import MultiplexerChannel
-from snitun.multiplexer.core import Multiplexer,MIN_SIZE_THROTTLE
+from snitun.multiplexer.core import Multiplexer, MIN_SIZE_THROTTLE
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.multiplexer.message import (
     CHANNEL_FLOW_PAUSE,
@@ -503,7 +503,8 @@ async def test_multiplexer_core_peer_timeout(
         assert not multiplexer_server._channels
 
         channel_client = await multiplexer_client.create_channel(
-            IP_ADDR, lambda _: None,
+            IP_ADDR,
+            lambda _: None,
         )
 
         await asyncio.sleep(0.1)
