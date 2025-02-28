@@ -22,7 +22,7 @@ license = { text = "GPL v3" }
 name = "snitun"
 readme = "README.md"
 requires-python = ">=3.12"
-version = "0.41.3"
+version = "0.41.4"
 
 [project.optional-dependencies]
 lint = ["ruff==0.9.5"]
