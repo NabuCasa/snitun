@@ -8,7 +8,7 @@ import pytest
 
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer import channel as channel_module
-from snitun.multiplexer.channel import MultiplexerChannel, ChannelFlowControlBase
+from snitun.multiplexer.channel import ChannelFlowControlBase, MultiplexerChannel
 from snitun.multiplexer.const import (
     OUTGOING_QUEUE_HIGH_WATERMARK,
     OUTGOING_QUEUE_LOW_WATERMARK,
@@ -304,14 +304,16 @@ async def test_channel_input_queue_goes_under_water_output_full(
     )
 
 
-async def test_flow_control_allow_multiple_pause_resume(caplog: pytest.LogCaptureFixture) -> None:
+async def test_flow_control_allow_multiple_pause_resume(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """Test that we can pause and resume multiple times."""
 
     class ChannelConsumer(ChannelFlowControlBase):
         """Channel consumer for testing."""
 
         def __init__(self) -> None:
-            super().__init__( asyncio.get_running_loop())
+            super().__init__(asyncio.get_running_loop())
             output = MultiplexerMultiChannelQueue(
                 OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
                 OUTGOING_QUEUE_LOW_WATERMARK,
