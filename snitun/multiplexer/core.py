@@ -98,13 +98,7 @@ class Multiplexer:
         self._channel_tasks: set[asyncio.Task[None]] = set()
         self._channels: dict[MultiplexerChannelId, MultiplexerChannel] = {}
         self._new_connections = new_connections
-        self._throttling: float | None = None
-        if throttling:
-            # If throttling is less than 5ms, change it to
-            # 0.0 since asyncio.sleep(0.0) is much more efficient
-            # an will yield for one iteration of the event loop
-            # and we do not have that level of precision anyways
-            self._throttling = 0.0 if throttling < 500 else 1 / throttling
+        self._throttling = 1 / throttling if throttling else None
 
     @property
     def is_connected(self) -> bool:
@@ -169,8 +163,6 @@ class Multiplexer:
             while not transport.is_closing():
                 await self._read_message()
                 self._ranged_timeout.reschedule()
-                if self._throttling is not None:
-                    await asyncio.sleep(self._throttling)
         except asyncio.CancelledError:
             _LOGGER.debug("Receive canceling")
             raise
@@ -192,6 +184,19 @@ class Multiplexer:
                     self._write_message(to_peer)
                 await self._writer.drain()
                 self._ranged_timeout.reschedule()
+                if to_peer is not None and self._throttling is not None:
+                    # Throttle the connection to ensure
+                    # we have enough time to get back
+                    # pause messages to not overrun the
+                    # remote input queue. If the message
+                    # is large > 64KB we use self._throttling
+                    # for the sleep value, otherwise for small
+                    # messages we use 0 as to still yield to the
+                    # event loop but not have to schedule the
+                    # task again since the overhead of the task
+                    # scheduling creates a significant CPU overhead.
+                    to_sleep = 0 if len(to_peer.data) < 65536 else self._throttling
+                    await asyncio.sleep(to_sleep)
         except asyncio.CancelledError:
             _LOGGER.debug("Write canceling")
             with suppress(OSError):
