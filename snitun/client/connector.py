@@ -11,7 +11,7 @@ import logging
 from typing import Any
 
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
-from ..multiplexer.channel import MultiplexerChannel
+from ..multiplexer.channel import FlowControlChannel, MultiplexerChannel
 from ..multiplexer.core import Multiplexer
 
 _LOGGER = logging.getLogger(__name__)
@@ -73,7 +73,7 @@ class Connector:
         )
 
 
-class ConnectorHandler:
+class ConnectorHandler(FlowControlChannel):
     """Handle connection to endpoint."""
 
     def __init__(
@@ -82,28 +82,8 @@ class ConnectorHandler:
         channel: MultiplexerChannel,
     ) -> None:
         """Initialize ConnectorHandler."""
-        self._loop = loop
-        self._pause_future: asyncio.Future[None] | None = None
-        self._channel: MultiplexerChannel = channel
-
-    def _pause_resume_reader_callback(self, pause: bool) -> None:
-        """Pause and resume reader."""
-        if pause:
-            _LOGGER.debug(
-                "Pause reader for %s (%s)",
-                self._channel.ip_address,
-                self._channel.id,
-            )
-            self._pause_future = self._loop.create_future()
-        else:
-            _LOGGER.debug(
-                "Resuming reader for %s (%s)",
-                self._channel.ip_address,
-                self._channel.id,
-            )
-            assert self._pause_future is not None, "Cannot resume non paused connection"
-            self._pause_future.set_result(None)
-            self._pause_future = None
+        super().__init__(loop)
+        self._channel = channel
 
     async def start(
         self,

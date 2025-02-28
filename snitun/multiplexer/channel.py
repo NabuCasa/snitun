@@ -31,6 +31,48 @@ from .queue import MultiplexerMultiChannelQueue, MultiplexerSingleChannelQueue
 _LOGGER = logging.getLogger(__name__)
 
 
+class FlowControlChannel:
+    """A channel that implements Flow Control."""
+
+    _channel: MultiplexerChannel
+
+    def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
+        """Initialize Pause Resume Channel."""
+        self._loop = loop
+        self._pause_future: asyncio.Future[None] | None = None
+
+    def _pause_resume_reader_callback(self, pause: bool) -> None:
+        """Pause and resume reader."""
+        if pause:
+            if self._pause_future is None or self._pause_future.done():
+                _LOGGER.debug(
+                    "Pause reader for %s (%s)",
+                    self._channel.ip_address,
+                    self._channel.id,
+                )
+                self._pause_future = self._loop.create_future()
+            else:
+                _LOGGER.debug(
+                    "Reader already paused for %s (%s)",
+                    self._channel.ip_address,
+                    self._channel.id,
+                )
+        elif self._pause_future and not self._pause_future.done():
+            _LOGGER.debug(
+                "Resuming reader for %s (%s)",
+                self._channel.ip_address,
+                self._channel.id,
+            )
+            self._pause_future.set_result(None)
+            self._pause_future = None
+        else:
+            _LOGGER.debug(
+                "Reader already resumed for %s (%s)",
+                self._channel.ip_address,
+                self._channel.id,
+            )
+
+
 class MultiplexerChannel:
     """Represent a multiplexer channel."""
 
@@ -106,7 +148,7 @@ class MultiplexerChannel:
 
     def on_remote_input_under_water(self, under_water: bool) -> None:
         """Call when remote input is under water."""
-        _LOGGER.debug("Remote input is under water for %s", self._id)
+        _LOGGER.debug("Remote input is under water: %s for %s", under_water, self._id)
         self._remote_input_under_water = under_water
         self._pause_or_resume_reader()
 
