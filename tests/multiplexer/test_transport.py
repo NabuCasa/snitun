@@ -93,7 +93,6 @@ async def test_pausing_and_resuming_the_transport(
     assert transport.is_closing() is True
 
 
-
 async def test_pausing_and_resuming_the_protocol(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
@@ -132,7 +131,10 @@ async def test_pausing_and_resuming_the_protocol(
     transport.resume_protocol()
     assert transport.protocol_paused is False
 
-    with pytest.raises(SystemExit), patch.object(protocol, "pause_writing", side_effect=SystemExit):
+    with (
+        pytest.raises(SystemExit),
+        patch.object(protocol, "pause_writing", side_effect=SystemExit),
+    ):
         transport.pause_protocol()
     assert transport.protocol_paused is False
 
@@ -143,7 +145,10 @@ async def test_pausing_and_resuming_the_protocol(
     transport.pause_protocol()
     assert transport.protocol_paused is True
 
-    with pytest.raises(SystemExit), patch.object(protocol, "resume_writing", side_effect=SystemExit):
+    with (
+        pytest.raises(SystemExit),
+        patch.object(protocol, "resume_writing", side_effect=SystemExit),
+    ):
         transport.resume_protocol()
     assert transport.protocol_paused is True
 
@@ -160,6 +165,7 @@ async def test_pausing_and_resuming_the_protocol(
     # Cannot pause if already closing
     transport.pause_protocol()
     assert transport.protocol_paused is False
+
 
 async def test_exception_channel_read(
     multiplexer_client: Multiplexer,

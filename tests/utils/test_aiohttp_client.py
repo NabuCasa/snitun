@@ -28,16 +28,20 @@ async def test_client_stop_no_wait(aiohttp_server: AiohttpServer) -> None:
     assert not client.is_connected
 
 
-
-async def test_endpoint_connection_error_callback_deprecated(aiohttp_server: AiohttpServer) -> None:
+async def test_endpoint_connection_error_callback_deprecated(
+    aiohttp_server: AiohttpServer,
+) -> None:
     """Test passing endpoint_connection_error_callback throws a warning."""
     app = web.Application()
     server = await aiohttp_server(app)
     client = SniTunClientAioHttp(server.runner, None, "127.0.0.1")
-    with pytest.warns(DeprecationWarning, match=(
-
-        r"Passing endpoint_connection_error_callback to SniTunClientAioHttp.start\(\)"
-        r" is deprecated, is not longer used, and it will be removed in the future.")):
+    with pytest.warns(
+        DeprecationWarning,
+        match=(
+            r"Passing endpoint_connection_error_callback to SniTunClientAioHttp.start\(\)"
+            r" is deprecated, is not longer used, and it will be removed in the future."
+        ),
+    ):
         await client.start(False, endpoint_connection_error_callback=AsyncMock())
     await client.stop(wait=True)
     assert not client.is_connected
