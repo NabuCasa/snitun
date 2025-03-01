@@ -99,7 +99,7 @@ async def test_close_connector_remote(
     data = await channel.read()
     assert data == b"Hiro"
 
-    await multiplexer_server.delete_channel(channel)
+    multiplexer_server.delete_channel(channel)
     data = await test_connection.reader.read(1024)
     assert not data
 

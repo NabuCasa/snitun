@@ -202,18 +202,20 @@ class ProxyPeerHandler(ChannelFlowControlBase):
 
         except TimeoutError:
             _LOGGER.debug("Close TCP session after timeout for %s", channel.id)
-            with suppress(MultiplexerTransportError):
-                await multiplexer.delete_channel(channel)
+            multiplexer.delete_channel(channel)
 
-        except (
-            MultiplexerTransportError,
-            OSError,
-            RuntimeError,
-            ConnectionResetError,
-        ) as exc:
+        except OSError as exc:
+            _LOGGER.debug(
+                "Transport closed by Proxy for %s: %s",
+                channel.id,
+                exc,
+                exc_info=True,
+            )
+            multiplexer.delete_channel(channel)
+
+        except (MultiplexerTransportError, RuntimeError, ConnectionResetError) as exc:
             _LOGGER.debug("Transport closed by Proxy for %s: %s", channel.id, exc)
-            with suppress(MultiplexerTransportError):
-                await multiplexer.delete_channel(channel)
+            multiplexer.delete_channel(channel)
 
         except MultiplexerTransportClose:
             _LOGGER.debug("Peer close connection for %s", channel.id)
