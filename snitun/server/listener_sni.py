@@ -208,8 +208,8 @@ class ProxyPeerHandler(ChannelFlowControlBase):
             OSError,
             RuntimeError,
             ConnectionResetError,
-        ):
-            _LOGGER.debug("Peer loop: transport was closed")
+        ) as exc:
+            _LOGGER.debug("Peer loop: transport was closed for channel %s: %s", channel.id, exc)
         finally:
             if not writer.transport.is_closing():
                 with suppress(OSError):
