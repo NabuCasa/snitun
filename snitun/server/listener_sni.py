@@ -245,8 +245,12 @@ class ProxyPeerHandler(ChannelFlowControlBase):
             RuntimeError,
             ConnectionResetError,
             asyncio.IncompleteReadError,
-        ):
-            _LOGGER.debug("Proxy loop: transport was closed")
+        ) as exc:
+            _LOGGER.debug(
+                "Proxy loop: transport was closed for channel %s: %s",
+                channel.id,
+                exc,
+            )
         finally:
             with suppress(MultiplexerTransportError):
                 await asyncio.shield(
