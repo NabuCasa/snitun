@@ -25,6 +25,7 @@ jobs:
 
   benchmark:
     runs-on: ubuntu-latest
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4.2.2
       - name: Setup Python 3.13
@@ -40,10 +41,11 @@ jobs:
         uses: CodSpeedHQ/action@v3
         with:
           token: ${{ secrets.CODSPEED_TOKEN }}
-          run: pytest --no-cov -vvvvv --codspeed tests/benchmarks
+          run: pytest --timeout=180 --no-cov -vvvvv --codspeed tests/benchmarks
 
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 6
     needs: lint
     environment: CI
     strategy:

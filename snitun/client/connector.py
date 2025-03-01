@@ -11,7 +11,7 @@ import logging
 from ssl import SSLContext, SSLError
 
 from ..exceptions import MultiplexerTransportError
-from ..multiplexer.channel import MultiplexerChannel
+from ..multiplexer.channel import ChannelFlowControlBase, MultiplexerChannel
 from ..multiplexer.core import Multiplexer
 from ..multiplexer.transport import ChannelTransport
 
@@ -65,7 +65,7 @@ class Connector:
         )
 
 
-class ConnectorHandler:
+class ConnectorHandler(ChannelFlowControlBase):
     """Handle connection to endpoint."""
 
     def __init__(

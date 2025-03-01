@@ -31,6 +31,37 @@ from .queue import MultiplexerMultiChannelQueue, MultiplexerSingleChannelQueue
 _LOGGER = logging.getLogger(__name__)
 
 
+class ChannelFlowControlBase:
+    """A channel that implements flow control."""
+
+    _channel: MultiplexerChannel
+
+    def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
+        """Initialize a channel that implements flow control."""
+        self._loop = loop
+        self._pause_future: asyncio.Future[None] | None = None
+
+    def _pause_resume_reader_callback(self, pause: bool) -> None:
+        """Pause and resume reader."""
+        channel = self._channel
+        ip_address = channel.ip_address
+        id_ = channel.id
+        if not pause:
+            if self._pause_future and not self._pause_future.done():
+                _LOGGER.debug("Resuming reader for %s (%s)", ip_address, id_)
+                self._pause_future.set_result(None)
+                self._pause_future = None
+                return
+            raise RuntimeError(f"Reader already resumed for {ip_address} ({id_})")
+
+        if self._pause_future is None or self._pause_future.done():
+            _LOGGER.debug("Pause reader for %s (%s)", ip_address, id_)
+            self._pause_future = self._loop.create_future()
+            return
+
+        raise RuntimeError(f"Reader already paused for {ip_address} ({id_})")
+
+
 class MultiplexerChannel:
     """Represent a multiplexer channel."""
 
@@ -42,6 +73,7 @@ class MultiplexerChannel:
         "_local_output_under_water",
         "_output",
         "_pause_resume_reader_callback",
+        "_reader_paused",
         "_remote_input_under_water",
         "_throttling",
     )
@@ -74,6 +106,7 @@ class MultiplexerChannel:
         self._remote_input_under_water = False
         self._output.create_channel(self._id, self._on_local_output_under_water)
         self._pause_resume_reader_callback = pause_resume_reader_callback
+        self._reader_paused = False
 
     def set_pause_resume_reader_callback(
         self,
@@ -106,7 +139,7 @@ class MultiplexerChannel:
 
     def on_remote_input_under_water(self, under_water: bool) -> None:
         """Call when remote input is under water."""
-        _LOGGER.debug("Remote input is under water for %s", self._id)
+        _LOGGER.debug("Remote input is under water: %s for %s", under_water, self._id)
         self._remote_input_under_water = under_water
         self._pause_or_resume_reader()
 
@@ -114,10 +147,12 @@ class MultiplexerChannel:
         """Pause or resume reader."""
         # Pause if either local output or remote input is under water
         # Resume if both local output and remote input are not under water
-        if self._pause_resume_reader_callback is not None:
-            self._pause_resume_reader_callback(
-                self._local_output_under_water or self._remote_input_under_water,
-            )
+        if self._pause_resume_reader_callback is None:
+            return
+        pause_reader = self._local_output_under_water or self._remote_input_under_water
+        if self._reader_paused != pause_reader:
+            self._reader_paused = pause_reader
+            self._pause_resume_reader_callback(pause_reader)
 
     @property
     def id(self) -> MultiplexerChannelId:
