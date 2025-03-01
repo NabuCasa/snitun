@@ -20,7 +20,6 @@ from snitun.multiplexer.message import (
     MultiplexerChannelId,
     MultiplexerMessage,
 )
-from snitun.utils.asyncio import asyncio_timeout
 
 from ..conftest import Client
 
@@ -36,7 +35,9 @@ async def test_init_multiplexer_server(
     client = test_server[0]
 
     multiplexer = Multiplexer(
-        CryptoTransport(*crypto_key_iv), client.reader, client.writer
+        CryptoTransport(*crypto_key_iv),
+        client.reader,
+        client.writer,
     )
 
     assert multiplexer.is_connected
@@ -51,7 +52,9 @@ async def test_init_multiplexer_client(
 ) -> None:
     """Test to create a new Multiplexer from client socket."""
     multiplexer = Multiplexer(
-        CryptoTransport(*crypto_key_iv), test_client.reader, test_client.writer
+        CryptoTransport(*crypto_key_iv),
+        test_client.reader,
+        test_client.writer,
     )
 
     assert multiplexer.is_connected

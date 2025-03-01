@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import errno
 import ipaddress
 from typing import cast
 from unittest.mock import patch
-import errno
+
 import pytest
 
 from snitun.multiplexer.core import Multiplexer
@@ -133,7 +134,6 @@ async def test_sni_proxy_flow_close_by_server(
 
     assert not multiplexer_client._channels
     assert client_read.done()
-
 
 
 async def test_sni_proxy_flow_peer_not(
@@ -285,11 +285,10 @@ async def test_proxy_peer_handler_can_pause(
     await proxy.stop()
 
 
-
 async def test_proxy_peer_os_error_on_write(
     multiplexer_client: Multiplexer,
     peer_manager: PeerManager,
-    caplog: pytest.LogCaptureFixture
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test proxy peer handler handles oserror."""
     proxy_peer_handler: ProxyPeerHandler | None = None
@@ -347,7 +346,11 @@ async def test_proxy_peer_os_error_on_write(
     data = await server_channel.read()
     assert data == b"Very secret!"
 
-    with patch.object(proxy_peer_handler.writer,"write",side_effect=OSError(errno.EPIPE, "Broken Pipe")):
+    with patch.object(
+        proxy_peer_handler.writer,
+        "write",
+        side_effect=OSError(errno.EPIPE, "Broken Pipe"),
+    ):
         await server_channel.write(b"some data that will trigger oserror")
         await asyncio.sleep(0.1)
 
