@@ -205,8 +205,13 @@ class ProxyPeerHandler(ChannelFlowControlBase):
             with suppress(MultiplexerTransportError):
                 await multiplexer.delete_channel(channel)
 
-        except (MultiplexerTransportError, OSError, RuntimeError, ConnectionResetError):
-            _LOGGER.debug("Transport closed by Proxy for %s", channel.id)
+        except (
+            MultiplexerTransportError,
+            OSError,
+            RuntimeError,
+            ConnectionResetError,
+        ) as exc:
+            _LOGGER.debug("Transport closed by Proxy for %s: %s", channel.id, exc)
             with suppress(MultiplexerTransportError):
                 await multiplexer.delete_channel(channel)
 
