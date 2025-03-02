@@ -92,6 +92,37 @@ async def test_multi_channel_queue_full() -> None:
     assert queue.get_nowait() == channel_two_msg
 
 
+async def test_multi_channel_queue_force_message_on_full() -> None:
+    """Test MultiplexerMultiChannelQueue getting full and forcing a message in."""
+    msg_size = MOCK_MSG_SIZE + HEADER_SIZE
+    # Max two mock messages per channel
+    queue = MultiplexerMultiChannelQueue(msg_size * 2, msg_size, msg_size * 2)
+
+    channel_one_id = _make_mock_channel_id()
+    queue.create_channel(channel_one_id, lambda _: None)
+
+    channel_one_msg = _make_mock_message(channel_one_id)
+
+    queue.put_nowait(channel_one_id, channel_one_msg)
+    queue.put_nowait(channel_one_id, channel_one_msg)
+    with pytest.raises(asyncio.QueueFull):
+        queue.put_nowait(channel_one_id, channel_one_msg)
+
+    queue.put_nowait_force(channel_one_id, channel_one_msg)
+    queue.put_nowait_force(channel_one_id, None)
+
+    assert queue.size(channel_one_id) == msg_size * 3
+
+    assert queue.get_nowait() == channel_one_msg
+    assert queue.get_nowait() == channel_one_msg
+    assert queue.get_nowait() == channel_one_msg
+    assert queue.get_nowait() is None
+
+    queue.delete_channel(channel_one_id)
+    with pytest.raises(RuntimeError, match="does not exist or already closed"):
+        queue.put_nowait_force(channel_one_id, channel_one_msg)
+
+
 async def test_multi_channel_queue_round_robin_get() -> None:
     """Test MultiplexerMultiChannelQueue round robin get."""
     msg_size = MOCK_MSG_SIZE + HEADER_SIZE

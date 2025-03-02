@@ -195,6 +195,21 @@ class MultiplexerMultiChannelQueue:
             raise asyncio.QueueFull
         self._put(channel_id, channel, message, size)
 
+    def put_nowait_force(
+        self,
+        channel_id: MultiplexerChannelId,
+        message: MultiplexerMessage | None,
+    ) -> None:
+        """Put a message in the queue.
+
+        This method is used to force a message into the queue without
+        checking if the queue is full. This is used when a channel is
+        being closed.
+        """
+        if not (channel := self._channels.get(channel_id)):
+            raise RuntimeError(f"Channel {channel_id} does not exist or already closed")
+        self._put(channel_id, channel, message, _effective_size(message))
+
     def _put(
         self,
         channel_id: MultiplexerChannelId,

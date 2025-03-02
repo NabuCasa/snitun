@@ -286,9 +286,12 @@ class Multiplexer:
             if channel.closing:
                 pass
             elif channel.unhealthy:
-                _LOGGER.warning("Abort connection, channel is not healthy")
+                _LOGGER.warning(
+                    "Abort connection, channel %s is not healthy",
+                    channel.id,
+                )
                 channel.close()
-                self._create_channel_task(self.delete_channel(channel))
+                self.delete_channel(channel)
             else:
                 channel.message_transport(message)
 
@@ -380,7 +383,7 @@ class Multiplexer:
 
         return channel
 
-    async def delete_channel(self, channel: MultiplexerChannel) -> None:
+    def delete_channel(self, channel: MultiplexerChannel) -> None:
         """Delete channel from transport."""
         if channel.id not in self._channels:
             # Make sure the queue is cleaned up if the channel
@@ -389,12 +392,8 @@ class Multiplexer:
             return
 
         message = channel.init_close()
-
         try:
-            async with asyncio_timeout.timeout(5):
-                await self._queue.put(channel.id, message)
-        except TimeoutError:
-            raise MultiplexerTransportError from None
+            self._queue.put_nowait_force(channel.id, message)
         finally:
             self._delete_channel_and_queue(channel.id)
 
