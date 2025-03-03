@@ -13,7 +13,7 @@ IP_ADDR = ipaddress.ip_address("8.8.8.8")
 @pytest.mark.parametrize(
     ("size", "message_count"),
     [(2048, 1000), (1024 * 1024, 100)],
-    ids=["1000@2KiB", "250@1MiB"],
+    ids=["1000@2KiB", "100@1MiB"],
 )
 def test_multiplex_channel_message(
     benchmark: BenchmarkFixture,
