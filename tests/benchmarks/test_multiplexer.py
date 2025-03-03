@@ -10,12 +10,17 @@ from snitun.multiplexer.core import Multiplexer
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
 
-@pytest.mark.parametrize("size", [2048, 1024 * 1024], ids=["2KiB", "1MiB"])
+@pytest.mark.parametrize(
+    ("size", "message_count"),
+    [(2048, 1000), (1024 * 1024, 250)],
+    ids=["1000@2KiB", "250@1MiB"],
+)
 def test_multiplex_channel_message(
     benchmark: BenchmarkFixture,
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
     size: int,
+    message_count: int,
 ) -> None:
     """Test writing 1000 2048 byte messages to the channel and reading them back."""
     assert not multiplexer_client._channels
@@ -42,7 +47,7 @@ def test_multiplex_channel_message(
         channel_client: MultiplexerChannel,
         channel_server: MultiplexerChannel,
     ) -> None:
-        for _ in range(1000):
+        for _ in range(message_count):
             await channel_client.write(payload)
             await channel_server.read()
 
