@@ -171,8 +171,10 @@ async def test_sni_proxy_flow_timeout(
     """Test a normal flow of connection and exchange data."""
     from snitun.server import listener_sni
 
-    with patch.object(listener_sni,"PEER_TCP_SESSION_MIN_TIMEOUT", 0.1), patch.object(listener_sni,"PEER_TCP_SESSION_MAX_TIMEOUT", 0.2):
-
+    with (
+        patch.object(listener_sni, "PEER_TCP_SESSION_MIN_TIMEOUT", 0.1),
+        patch.object(listener_sni, "PEER_TCP_SESSION_MAX_TIMEOUT", 0.2),
+    ):
         test_client_ssl.writer.write(TLS_1_2)
         await test_client_ssl.writer.drain()
         await asyncio.sleep(0.1)
@@ -346,6 +348,10 @@ async def test_proxy_peer_os_error_on_write(
 
     data = await server_channel.read()
     assert data == b"Very secret!"
+
+    await server_channel.write(b"from server to ssl client")
+    data = await test_client_ssl.reader.read(1024)
+    assert data == b"from server to ssl client"
 
     with patch.object(
         proxy_peer_handler.writer,

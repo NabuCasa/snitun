@@ -14,10 +14,7 @@ from ..exceptions import (
 )
 from ..multiplexer.channel import ChannelFlowControlBase, MultiplexerChannel
 from ..multiplexer.core import Multiplexer
-from ..utils.asyncio import (
-    RangedTimeout,
-    asyncio_timeout,
-)
+from ..utils.asyncio import RangedTimeout, asyncio_timeout, create_eager_task
 from .peer_manager import PeerManager
 from .sni import parse_tls_sni, payload_reader
 
@@ -174,8 +171,8 @@ class ProxyPeerHandler(ChannelFlowControlBase):
             _LOGGER.error("New transport channel to peer fails")
             return
 
-        self._peer_task = self._loop.create_task(self._peer_loop(channel, writer))
-        self._proxy_task = self._loop.create_task(
+        self._peer_task = create_eager_task(self._peer_loop(channel, writer))
+        self._proxy_task = create_eager_task(
             self._proxy_loop(multiplexer, channel, reader, client_hello),
         )
         await asyncio.wait((self._proxy_task,))
@@ -192,11 +189,15 @@ class ProxyPeerHandler(ChannelFlowControlBase):
         transport = writer.transport
         try:
             while not transport.is_closing():
-                writer.write(await channel.read())
+                data = await channel.read()
+                writer.write(data)
                 await writer.drain()
                 self._ranged_timeout.reschedule()
         except asyncio.CancelledError:
-            _LOGGER.debug("Peer loop canceling")
+            _LOGGER.debug(
+                "Peer loop canceling while reading for channel %s",
+                channel.id,
+            )
             with suppress(OSError):
                 writer.write_eof()
                 await writer.drain()
@@ -211,7 +212,7 @@ class ProxyPeerHandler(ChannelFlowControlBase):
             _LOGGER.debug(
                 "Peer loop: transport was closed for channel %s: %s",
                 channel.id,
-                exc,
+                repr(exc) or type(exc),
             )
         finally:
             if not writer.transport.is_closing():
@@ -248,7 +249,7 @@ class ProxyPeerHandler(ChannelFlowControlBase):
             _LOGGER.debug(
                 "Proxy loop: transport was closed for channel %s: %s",
                 channel.id,
-                exc,
+                repr(exc) or type(exc),
             )
         finally:
             multiplexer.delete_channel(channel)
