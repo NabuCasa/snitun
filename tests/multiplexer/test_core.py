@@ -24,7 +24,6 @@ from snitun.multiplexer.message import (
     MultiplexerChannelId,
     MultiplexerMessage,
 )
-from snitun.utils.asyncio import asyncio_timeout
 
 from ..conftest import Client
 
@@ -40,7 +39,9 @@ async def test_init_multiplexer_server(
     client = test_server[0]
 
     multiplexer = Multiplexer(
-        CryptoTransport(*crypto_key_iv), client.reader, client.writer
+        CryptoTransport(*crypto_key_iv),
+        client.reader,
+        client.writer,
     )
 
     assert multiplexer.is_connected
@@ -55,7 +56,9 @@ async def test_init_multiplexer_client(
 ) -> None:
     """Test to create a new Multiplexer from client socket."""
     multiplexer = Multiplexer(
-        CryptoTransport(*crypto_key_iv), test_client.reader, test_client.writer
+        CryptoTransport(*crypto_key_iv),
+        test_client.reader,
+        test_client.writer,
     )
 
     assert multiplexer.is_connected
@@ -263,7 +266,7 @@ async def test_multiplexer_close_channel(
     assert multiplexer_client._channels[channel.id].ip_address == IP_ADDR
     assert multiplexer_server._channels[channel.id].ip_address == IP_ADDR
 
-    await multiplexer_client.delete_channel(channel)
+    multiplexer_client.delete_channel(channel)
     await asyncio.sleep(0.1)
 
     assert not multiplexer_client._channels
@@ -316,10 +319,10 @@ async def test_multiplexer_delete_channel_called_multiple_times(
     assert multiplexer_client._channels[channel.id].ip_address == IP_ADDR
     assert multiplexer_server._channels[channel.id].ip_address == IP_ADDR
 
-    await multiplexer_client.delete_channel(channel)
+    multiplexer_client.delete_channel(channel)
     assert not multiplexer_client._channels
 
-    await multiplexer_client.delete_channel(channel)
+    multiplexer_client.delete_channel(channel)
     assert not multiplexer_client._channels
     await asyncio.sleep(0.1)
 
@@ -335,9 +338,7 @@ async def test_multiplexer_close_channel_full(multiplexer_client: Multiplexer) -
 
     assert multiplexer_client._channels
 
-    with patch.object(asyncio_timeout, "timeout", side_effect=TimeoutError()):
-        with pytest.raises(MultiplexerTransportError):
-            channel = await multiplexer_client.delete_channel(channel)
+    multiplexer_client.delete_channel(channel)
     await asyncio.sleep(0.1)
 
     assert not multiplexer_client._channels

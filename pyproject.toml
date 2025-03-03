@@ -22,10 +22,10 @@ license = { text = "GPL v3" }
 name = "snitun"
 readme = "README.md"
 requires-python = ">=3.12"
-version = "0.41.4"
+version = "0.41.7"
 
 [project.optional-dependencies]
-lint = ["ruff==0.9.5"]
+lint = ["ruff==0.9.9"]
 test = [
   "covdefaults==2.3.0",
   "pytest-aiohttp==1.1.0",
