@@ -1,12 +1,15 @@
+name-template: "$RESOLVED_VERSION"
+tag-template: "$RESOLVED_VERSION"
+categories:
+  - title: "⬆️ Dependencies"
+    collapse-after: 1
+    labels:
+      - "dependencies"
+version-resolver:
+  default: minor
 change-template: "- #$NUMBER $TITLE @$AUTHOR"
 sort-direction: ascending
-
-categories:
-  - title: "Dependency Updates"
-    label: "dependencies"
-    collapse-after: 1
-
 template: |
-  ## What’s Changed
+  ## What's Changed
 
   $CHANGES
