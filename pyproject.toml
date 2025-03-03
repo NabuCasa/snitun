@@ -116,3 +116,6 @@ plugins = ["covdefaults"]
 
 [tool.coverage.report]
 fail_under = 75
+exclude_also = [
+    "if self._debug:",
+]
