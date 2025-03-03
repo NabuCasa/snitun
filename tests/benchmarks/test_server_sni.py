@@ -1,5 +1,6 @@
 import asyncio
 
+import pytest
 from pytest_codspeed import BenchmarkFixture
 
 from snitun.multiplexer.channel import MultiplexerChannel
@@ -7,9 +8,13 @@ from snitun.multiplexer.core import Multiplexer
 
 from ..conftest import Client
 from ..server.const_tls import TLS_1_2
-import pytest
 
-@pytest.mark.parametrize(("message_size", "count"), [(8192, 1000), (1024 * 1024, 50)], ids=["1000@8KiB", "25@1MiB"])
+
+@pytest.mark.parametrize(
+    ("message_size", "count"),
+    [(8192, 1000), (1024 * 1024, 50)],
+    ids=["1000@8KiB", "25@1MiB"],
+)
 def test_server_send_message(
     benchmark: BenchmarkFixture,
     multiplexer_client: Multiplexer,

@@ -1,5 +1,6 @@
 import asyncio
 import ipaddress
+
 import pytest
 from pytest_codspeed import BenchmarkFixture
 
@@ -7,6 +8,7 @@ from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
+
 
 @pytest.mark.parametrize("size", [2048, 1024 * 1024], ids=["2KiB", "1MiB"])
 def test_multiplex_channel_message(
