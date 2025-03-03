@@ -22,7 +22,7 @@ def test_server_send_message(
     message_size: int,
     count: int,
 ) -> None:
-    """Test writing messages to the channel and reading them back."""
+    """Test the TLS client writing messages to the channel and reading them back."""
     loop = asyncio.get_event_loop()
 
     async def setup() -> MultiplexerChannel:
