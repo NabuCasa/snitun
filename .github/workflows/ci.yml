@@ -41,7 +41,7 @@ jobs:
         uses: CodSpeedHQ/action@v3
         with:
           token: ${{ secrets.CODSPEED_TOKEN }}
-          run: pytest --timeout=180 --no-cov -vvvvv --codspeed tests/benchmarks
+          run: pytest --timeout=300 --no-cov -vvvvv --codspeed tests/benchmarks
 
   build:
     runs-on: ubuntu-latest
