@@ -62,3 +62,15 @@ Message Flags/Types:
 - `0x08`: Ping | The extra data is a `ping` or `pong` response to a ping.
 - `0x16`: Pause the remote reader
 - `0x32`: Resume the remote reader
+
+## Runtime environment variables
+
+The following environment variables are available to override internal defaults:
+
+MULTIPLEXER_INCOMING_QUEUE_MAX_BYTES_CHANNEL - This constant defines the maximum number of bytes allowed in the incoming queue for the multiplexer channel.
+MULTIPLEXER_INCOMING_QUEUE_LOW_WATERMARK - This constant defines the low watermark threshold, in bytes, for the incoming queue in the multiplexer.
+MULTIPLEXER_INCOMING_QUEUE_HIGH_WATERMARK - This constant defines the high watermark threshold, in bytes, for the incoming queue in the multiplexer.
+MULTIPLEXER_OUTGOING_QUEUE_MAX_BYTES_CHANNEL - This constant defines the maximum number of bytes allowed in the outgoing queue for the multiplexer channel.
+MULTIPLEXER_OUTGOING_QUEUE_LOW_WATERMARK - This constant defines the low watermark threshold, in bytes, for the outgoing queue in the multiplexer.
+MULTIPLEXER_OUTGOING_QUEUE_HIGH_WATERMARK - This constant defines the high watermark threshold, in bytes, for the outgoing queue in the multiplexer.
+MULTIPLEXER_PEER_TCP_TIMEOUT - This constant defines how long, in seconds, it takes to wait before considering a peer connection that has not responded timed out.
