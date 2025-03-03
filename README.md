@@ -63,7 +63,7 @@ Message Flags/Types:
 - `0x16`: Pause the remote reader
 - `0x32`: Resume the remote reader
 
-## Runtime environment variables
+## Configuration via environment variables
 
 The following environment variables, which, to be effective, must be set before importing this package, are available to override internal defaults:
 
