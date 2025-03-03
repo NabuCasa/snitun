@@ -40,6 +40,7 @@ class ChannelFlowControlBase:
         """Initialize a channel that implements flow control."""
         self._loop = loop
         self._pause_future: asyncio.Future[None] | None = None
+        self._debug = _LOGGER.isEnabledFor(logging.DEBUG)
 
     def _pause_resume_reader_callback(self, pause: bool) -> None:
         """Pause and resume reader."""
@@ -48,14 +49,16 @@ class ChannelFlowControlBase:
         id_ = channel.id
         if not pause:
             if self._pause_future and not self._pause_future.done():
-                _LOGGER.debug("Resuming reader for %s (%s)", ip_address, id_)
+                if self._debug:
+                    _LOGGER.debug("Resuming reader for %s (%s)", ip_address, id_)
                 self._pause_future.set_result(None)
                 self._pause_future = None
                 return
             raise RuntimeError(f"Reader already resumed for {ip_address} ({id_})")
 
         if self._pause_future is None or self._pause_future.done():
-            _LOGGER.debug("Pause reader for %s (%s)", ip_address, id_)
+            if self._debug:
+                _LOGGER.debug("Pause reader for %s (%s)", ip_address, id_)
             self._pause_future = self._loop.create_future()
             return
 
@@ -67,6 +70,7 @@ class MultiplexerChannel:
 
     __slots__ = (
         "_closing",
+        "_debug",
         "_id",
         "_input",
         "_ip_address",
@@ -107,6 +111,7 @@ class MultiplexerChannel:
         self._output.create_channel(self._id, self._on_local_output_under_water)
         self._pause_resume_reader_callback = pause_resume_reader_callback
         self._reader_paused = False
+        self._debug = _LOGGER.isEnabledFor(logging.DEBUG)
 
     def set_pause_resume_reader_callback(
         self,
@@ -120,10 +125,17 @@ class MultiplexerChannel:
         msg_type = CHANNEL_FLOW_PAUSE if under_water else CHANNEL_FLOW_RESUME
         # Tell the remote that our input queue is under water so it
         # can pause reading from whatever is connected to this channel
-        if under_water:
-            _LOGGER.debug("Informing remote that %s input is now under water", self._id)
-        else:
-            _LOGGER.debug("Informing remote that %s input is now above water", self._id)
+        if self._debug:
+            if under_water:
+                _LOGGER.debug(
+                    "Informing remote that %s input is now under water",
+                    self._id,
+                )
+            else:
+                _LOGGER.debug(
+                    "Informing remote that %s input is now above water",
+                    self._id,
+                )
         try:
             self._output.put_nowait(self._id, MultiplexerMessage(self._id, msg_type))
         except asyncio.QueueFull:
@@ -134,12 +146,23 @@ class MultiplexerChannel:
 
     def _on_local_output_under_water(self, under_water: bool) -> None:
         """On callback from the output queue when goes under water or recovers."""
+        if self._debug:
+            _LOGGER.debug(
+                "Local output is under water: %s for %s",
+                under_water,
+                self._id,
+            )
         self._local_output_under_water = under_water
         self._pause_or_resume_reader()
 
     def on_remote_input_under_water(self, under_water: bool) -> None:
         """Call when remote input is under water."""
-        _LOGGER.debug("Remote input is under water: %s for %s", under_water, self._id)
+        if self._debug:
+            _LOGGER.debug(
+                "Remote input is under water: %s for %s",
+                under_water,
+                self._id,
+            )
         self._remote_input_under_water = under_water
         self._pause_or_resume_reader()
 
@@ -203,7 +226,8 @@ class MultiplexerChannel:
                 async with asyncio_timeout.timeout(5):
                     await self._output.put(self._id, message)
             except TimeoutError:
-                _LOGGER.debug("Can't write to peer transport")
+                if self._debug:
+                    _LOGGER.debug("Can't write to peer transport")
                 raise MultiplexerTransportError from None
 
         if self._throttling is not None:
@@ -225,12 +249,14 @@ class MultiplexerChannel:
 
     def init_close(self) -> MultiplexerMessage:
         """Init close message for transport."""
-        _LOGGER.debug("Sending close channel %s", self._id)
+        if self._debug:
+            _LOGGER.debug("Sending close channel %s", self._id)
         return MultiplexerMessage(self._id, CHANNEL_FLOW_CLOSE)
 
     def init_new(self) -> MultiplexerMessage:
         """Init new session for transport."""
-        _LOGGER.debug("Sending new channel %s", self._id)
+        if self._debug:
+            _LOGGER.debug("Sending new channel %s", self._id)
         extra = b"4" + ip_address_to_bytes(self.ip_address)
         return MultiplexerMessage(self._id, CHANNEL_FLOW_NEW, b"", extra)
 
