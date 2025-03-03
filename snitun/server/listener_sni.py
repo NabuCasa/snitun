@@ -17,7 +17,6 @@ from ..multiplexer.core import Multiplexer
 from ..utils.asyncio import (
     RangedTimeout,
     asyncio_timeout,
-    create_eager_task,
 )
 from .peer_manager import PeerManager
 from .sni import parse_tls_sni, payload_reader
@@ -252,7 +251,4 @@ class ProxyPeerHandler(ChannelFlowControlBase):
                 exc,
             )
         finally:
-            with suppress(MultiplexerTransportError):
-                await asyncio.shield(
-                    create_eager_task(multiplexer.delete_channel(channel)),
-                )
+            multiplexer.delete_channel(channel)
