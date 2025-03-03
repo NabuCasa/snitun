@@ -12,8 +12,8 @@ from ..server.const_tls import TLS_1_2
 
 @pytest.mark.parametrize(
     ("message_size", "count"),
-    [(8192, 1000), (1024 * 1024, 50)],
-    ids=["1000@8KiB", "25@1MiB"],
+    [(8192, 1000), (1024 * 1024, 15)],
+    ids=["1000@8KiB", "15@1MiB"],
 )
 def test_server_send_message(
     benchmark: BenchmarkFixture,
