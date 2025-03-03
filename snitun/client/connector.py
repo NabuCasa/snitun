@@ -5,12 +5,10 @@ from __future__ import annotations
 import asyncio
 import asyncio.sslproto
 from collections.abc import Callable
-from contextlib import suppress
 import ipaddress
 import logging
 from ssl import SSLContext, SSLError
 
-from ..exceptions import MultiplexerTransportError
 from ..multiplexer.channel import ChannelFlowControlBase, MultiplexerChannel
 from ..multiplexer.core import Multiplexer
 from ..multiplexer.transport import ChannelTransport
@@ -54,7 +52,7 @@ class Connector:
         # Check policy
         if not self._whitelist_policy(channel.ip_address):
             _LOGGER.warning("Block request from %s per policy", channel.ip_address)
-            await multiplexer.delete_channel(channel)
+            multiplexer.delete_channel(channel)
             return
 
         transport = ChannelTransport(channel, multiplexer)
@@ -103,8 +101,7 @@ class ConnectorHandler(ChannelFlowControlBase):
             channel.id,
             ex,
         )
-        with suppress(MultiplexerTransportError):
-            await self._multiplexer.delete_channel(channel)
+        self._multiplexer.delete_channel(channel)
         await self._transport.stop_reader()
 
     async def start(
@@ -154,8 +151,7 @@ class ConnectorHandler(ChannelFlowControlBase):
                 channel.id,
                 ex,
             )
-            with suppress(MultiplexerTransportError):
-                await self._multiplexer.delete_channel(channel)
+            self._multiplexer.delete_channel(channel)
             protocol.connection_lost(ex)
         else:
             _LOGGER.debug(

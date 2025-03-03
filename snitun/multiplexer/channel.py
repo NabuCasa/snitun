@@ -176,6 +176,7 @@ class MultiplexerChannel:
 
     def close(self) -> None:
         """Close channel on next run."""
+        _LOGGER.debug("Schedule close channel %s", self._id)
         self._closing = True
         with suppress(asyncio.QueueFull):
             self._input.put_nowait(None)
@@ -235,12 +236,12 @@ class MultiplexerChannel:
 
     def init_close(self) -> MultiplexerMessage:
         """Init close message for transport."""
-        _LOGGER.debug("Close channel %s", self._id)
+        _LOGGER.debug("Sending close channel %s", self._id)
         return MultiplexerMessage(self._id, CHANNEL_FLOW_CLOSE)
 
     def init_new(self) -> MultiplexerMessage:
         """Init new session for transport."""
-        _LOGGER.debug("New channel %s", self._id)
+        _LOGGER.debug("Sending new channel %s", self._id)
         extra = b"4" + ip_address_to_bytes(self.ip_address)
         return MultiplexerMessage(self._id, CHANNEL_FLOW_NEW, b"", extra)
 

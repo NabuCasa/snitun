@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import errno
 import ipaddress
 from typing import cast
 from unittest.mock import patch
@@ -95,7 +96,7 @@ async def test_sni_proxy_flow_close_by_client(
     await asyncio.sleep(0.1)
     assert not ssl_client_read.done()
 
-    await multiplexer_client.delete_channel(channel)
+    multiplexer_client.delete_channel(channel)
     await asyncio.sleep(0.1)
 
     assert ssl_client_read.done()
@@ -281,4 +282,78 @@ async def test_proxy_peer_handler_can_pause(
 
     assert not multiplexer_client._channels
 
+    await proxy.stop()
+
+
+async def test_proxy_peer_os_error_on_write(
+    multiplexer_client: Multiplexer,
+    peer_manager: PeerManager,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test proxy peer handler handles oserror."""
+    proxy_peer_handler: ProxyPeerHandler | None = None
+
+    class InstrumentedProxyPeerHandler(ProxyPeerHandler):
+        """Instrumented Proxy Peer Handler.
+
+        This class is used to test the ProxyPeerHandler class
+        and save the reader and writer for testing.
+        """
+
+        writer: asyncio.StreamWriter
+        reader: asyncio.StreamReader
+
+        async def start(
+            self,
+            multiplexer: Multiplexer,
+            client_hello: bytes,
+            reader: asyncio.StreamReader,
+            writer: asyncio.StreamWriter,
+        ) -> None:
+            self.reader = reader
+            self.writer = writer
+            await super().start(multiplexer, client_hello, reader, writer)
+
+    def save_proxy_peer_handler(
+        loop: asyncio.AbstractEventLoop,
+        ip_address: ipaddress.IPv4Address,
+    ) -> ProxyPeerHandler:
+        nonlocal proxy_peer_handler
+        proxy_peer_handler = InstrumentedProxyPeerHandler(loop, ip_address)
+        return proxy_peer_handler
+
+    with patch("snitun.server.listener_sni.ProxyPeerHandler", save_proxy_peer_handler):
+        proxy = SNIProxy(peer_manager, "127.0.0.1", "8863")
+        await proxy.start()
+        reader, writer = await asyncio.open_connection(host="127.0.0.1", port="8863")
+        test_client_ssl = Client(reader, writer)
+        test_client_ssl.writer.write(TLS_1_2)
+        await test_client_ssl.writer.drain()
+        await asyncio.sleep(0.1)
+
+    assert isinstance(proxy_peer_handler, ProxyPeerHandler)
+
+    assert multiplexer_client._channels
+    server_channel = next(iter(multiplexer_client._channels.values()))
+    assert server_channel.ip_address == IP_ADDR
+
+    client_hello = await server_channel.read()
+    assert client_hello == TLS_1_2
+
+    test_client_ssl.writer.write(b"Very secret!")
+    await test_client_ssl.writer.drain()
+
+    data = await server_channel.read()
+    assert data == b"Very secret!"
+
+    with patch.object(
+        proxy_peer_handler.writer,
+        "write",
+        side_effect=OSError(errno.EPIPE, "Broken Pipe"),
+    ):
+        await server_channel.write(b"some data that will trigger oserror")
+        await asyncio.sleep(0.1)
+
+    assert not multiplexer_client._channels
+    assert "Broken Pipe" in caplog.text
     await proxy.stop()
