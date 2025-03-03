@@ -62,3 +62,14 @@ Message Flags/Types:
 - `0x08`: Ping | The extra data is a `ping` or `pong` response to a ping.
 - `0x16`: Pause the remote reader
 - `0x32`: Resume the remote reader
+
+## Configuration via environment variables
+
+The following environment variables, which, to be effective, must be set before importing this package, are available to override internal defaults:
+
+- `MULTIPLEXER_INCOMING_QUEUE_MAX_BYTES_CHANNEL` - The maximum number of bytes allowed in the incoming queue for each multiplexer channel.
+- `MULTIPLEXER_INCOMING_QUEUE_LOW_WATERMARK` - The low watermark threshold, in bytes, for the incoming queue for each multiplexer channel.
+- `MULTIPLEXER_INCOMING_QUEUE_HIGH_WATERMARK` - The high watermark threshold, in bytes, for the incoming queue for each multiplexer channel.
+- `MULTIPLEXER_OUTGOING_QUEUE_MAX_BYTES_CHANNEL` - The maximum number of bytes allowed in the outgoing queue for the multiplexer channel.
+- `MULTIPLEXER_OUTGOING_QUEUE_LOW_WATERMARK` - The low watermark threshold, in bytes, for the outgoing queue for each multiplexer channel.
+- `MULTIPLEXER_OUTGOING_QUEUE_HIGH_WATERMARK` - The high watermark threshold, in bytes, for the outgoing queue for each multiplexer channel.
