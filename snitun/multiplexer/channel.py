@@ -126,16 +126,11 @@ class MultiplexerChannel:
         # Tell the remote that our input queue is under water so it
         # can pause reading from whatever is connected to this channel
         if self._debug:
-            if under_water:
-                _LOGGER.debug(
-                    "Informing remote that %s input is now under water",
-                    self._id,
-                )
-            else:
-                _LOGGER.debug(
-                    "Informing remote that %s input is now above water",
-                    self._id,
-                )
+            _LOGGER.debug(
+                "Informing remote that %s input is now %s water",
+                self._id,
+                "under" if under_water else "above",
+            )
         try:
             self._output.put_nowait(self._id, MultiplexerMessage(self._id, msg_type))
         except asyncio.QueueFull:
