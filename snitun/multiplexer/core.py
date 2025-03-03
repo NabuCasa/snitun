@@ -16,7 +16,12 @@ from ..exceptions import (
     MultiplexerTransportDecrypt,
     MultiplexerTransportError,
 )
-from ..utils.asyncio import RangedTimeout, asyncio_timeout, make_task_waiter_future
+from ..utils.asyncio import (
+    RangedTimeout,
+    asyncio_timeout,
+    create_eager_task,
+    make_task_waiter_future,
+)
 from ..utils.ipaddress import bytes_to_ip_address
 from .channel import MultiplexerChannel
 from .const import (
@@ -89,8 +94,14 @@ class Multiplexer:
         )
         self._healthy = asyncio.Event()
         self._healthy.set()
-        self._read_task = self._loop.create_task(self._read_from_peer_loop())
-        self._write_task = self._loop.create_task(self._write_to_peer_loop())
+        self._read_task = create_eager_task(
+            self._read_from_peer_loop(),
+            loop=self._loop,
+        )
+        self._write_task = create_eager_task(
+            self._write_to_peer_loop(),
+            loop=self._loop,
+        )
         self._ranged_timeout = RangedTimeout(
             PEER_TCP_MIN_TIMEOUT,
             PEER_TCP_MAX_TIMEOUT,
