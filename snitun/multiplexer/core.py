@@ -43,7 +43,7 @@ _LOGGER = logging.getLogger(__name__)
 
 PEER_TCP_MIN_TIMEOUT = 90
 PEER_TCP_MAX_TIMEOUT = 120
-MIN_SIZE_THROTTLE = 4096
+MIN_SIZE_THROTTLE = 8192
 
 
 class Multiplexer:
