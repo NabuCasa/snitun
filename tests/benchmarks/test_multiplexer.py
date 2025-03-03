@@ -22,7 +22,7 @@ def test_multiplex_channel_message(
     size: int,
     message_count: int,
 ) -> None:
-    """Test writing 1000 2048 byte messages to the channel and reading them back."""
+    """Test writing messages to the channel and reading them back."""
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
     loop = asyncio.get_event_loop()
