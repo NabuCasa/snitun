@@ -65,7 +65,7 @@ Message Flags/Types:
 
 ## Runtime environment variables
 
-The following environment variables are available to override internal defaults:
+The following environment variables, which, to be effective, must be set before importing this package, are available to override internal defaults:
 
 - `MULTIPLEXER_INCOMING_QUEUE_MAX_BYTES_CHANNEL` - This constant defines the maximum number of bytes allowed in the incoming queue for each multiplexer channel.
 - `MULTIPLEXER_INCOMING_QUEUE_LOW_WATERMARK` - This constant defines the low watermark threshold, in bytes, for the incoming queue for each multiplexer channel.
