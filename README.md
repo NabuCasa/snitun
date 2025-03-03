@@ -67,9 +67,9 @@ Message Flags/Types:
 
 The following environment variables are available to override internal defaults:
 
-- MULTIPLEXER_INCOMING_QUEUE_MAX_BYTES_CHANNEL - This constant defines the maximum number of bytes allowed in the incoming queue for the multiplexer channel.
-- MULTIPLEXER_INCOMING_QUEUE_LOW_WATERMARK - This constant defines the low watermark threshold, in bytes, for the incoming queue in the multiplexer.
-- MULTIPLEXER_INCOMING_QUEUE_HIGH_WATERMARK - This constant defines the high watermark threshold, in bytes, for the incoming queue in the multiplexer.
+- MULTIPLEXER_INCOMING_QUEUE_MAX_BYTES_CHANNEL - This constant defines the maximum number of bytes allowed in the incoming queue for each multiplexer channel.
+- MULTIPLEXER_INCOMING_QUEUE_LOW_WATERMARK - This constant defines the low watermark threshold, in bytes, for the incoming queue for each multiplexer channel.
+- MULTIPLEXER_INCOMING_QUEUE_HIGH_WATERMARK - This constant defines the high watermark threshold, in bytes, for the incoming queue for each multiplexer channel.
 - MULTIPLEXER_OUTGOING_QUEUE_MAX_BYTES_CHANNEL - This constant defines the maximum number of bytes allowed in the outgoing queue for the multiplexer channel.
-- MULTIPLEXER_OUTGOING_QUEUE_LOW_WATERMARK - This constant defines the low watermark threshold, in bytes, for the outgoing queue in the multiplexer.
-- MULTIPLEXER_OUTGOING_QUEUE_HIGH_WATERMARK - This constant defines the high watermark threshold, in bytes, for the outgoing queue in the multiplexer.
+- MULTIPLEXER_OUTGOING_QUEUE_LOW_WATERMARK - This constant defines the low watermark threshold, in bytes, for the outgoing queue for each multiplexer channel.
+- MULTIPLEXER_OUTGOING_QUEUE_HIGH_WATERMARK - This constant defines the high watermark threshold, in bytes, for the outgoing queue for each multiplexer channel.
