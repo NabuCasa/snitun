@@ -215,9 +215,8 @@ class ProxyPeerHandler(ChannelFlowControlBase):
                 repr(exc) or type(exc),
             )
         finally:
-            if not writer.transport.is_closing():
-                with suppress(OSError):
-                    writer.close()
+            with suppress(OSError):
+                writer.close()
 
     async def _proxy_loop(
         self,
