@@ -244,7 +244,7 @@ class Multiplexer:
             if data_len and data_len >= MIN_PAYLOAD_FOR_WRITELINES:
                 self._writer.writelines((encrypted_header, data))
             elif data_len:
-                self._writer.write(encrypted_header + data)
+                self._writer.write(b"".join((encrypted_header, data)))
             else:
                 self._writer.write(encrypted_header)
         except RuntimeError:
