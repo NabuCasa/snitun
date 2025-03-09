@@ -46,9 +46,7 @@ _LOGGER = logging.getLogger(__name__)
 # to the stream. In Python 3.11+, writelines is a zero-copy operation.
 # For small payloads, the overhead of writelines is higher than the
 # overhead of write, so we only use writelines for larger payloads.
-# This value derived from benchmarking done for aiohttp in
-# https://github.com/aio-libs/aiohttp/pull/10137
-MIN_PAYLOAD_FOR_WRITELINES = 2048
+MIN_PAYLOAD_FOR_WRITELINES = 4096
 
 
 class Multiplexer:
