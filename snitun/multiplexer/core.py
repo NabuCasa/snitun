@@ -245,9 +245,10 @@ class Multiplexer:
             encrypted_header = self._crypto.encrypt(header)
             if data_len and data_len >= MIN_PAYLOAD_FOR_WRITELINES:
                 self._writer.writelines((encrypted_header, data))
+            elif data_len:
+                self._writer.write(encrypted_header + data)
             else:
-                payload = encrypted_header + data if data_len else encrypted_header
-                self._writer.write(payload)
+                self._writer.write(encrypted_header)
         except RuntimeError:
             raise MultiplexerTransportClose from None
 
