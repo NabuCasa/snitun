@@ -46,7 +46,7 @@ _LOGGER = logging.getLogger(__name__)
 # to the stream. In Python 3.11+, writelines is a zero-copy operation.
 # For small payloads, the overhead of writelines is higher than the
 # overhead of write, so we only use writelines for larger payloads.
-MIN_PAYLOAD_FOR_WRITELINES = 8192
+MAX_PAYLOAD_FOR_WRITE = 8192
 
 
 class Multiplexer:
@@ -241,7 +241,7 @@ class Multiplexer:
         )
         try:
             encrypted_header = self._crypto.encrypt(header)
-            if data_len and data_len > MIN_PAYLOAD_FOR_WRITELINES:
+            if data_len and data_len > MAX_PAYLOAD_FOR_WRITE:
                 self._writer.writelines((encrypted_header, data))
             elif data_len:
                 self._writer.write(b"".join((encrypted_header, data)))
