@@ -42,6 +42,14 @@ from .queue import MultiplexerMultiChannelQueue
 
 _LOGGER = logging.getLogger(__name__)
 
+# If the payload is larger than 2048, use writelines to write the payload
+# to the stream. In Python 3.11+, writelines is a zero-copy operation.
+# For small payloads, the overhead of writelines is higher than the
+# overhead of write, so we only use writelines for larger payloads.
+# This value derived from benchmarking done for aiohttp in
+# https://github.com/aio-libs/aiohttp/pull/10137
+MIN_PAYLOAD_FOR_WRITELINES = 2048
+
 
 class Multiplexer:
     """Multiplexer Socket wrapper."""
@@ -235,9 +243,11 @@ class Multiplexer:
         )
         try:
             encrypted_header = self._crypto.encrypt(header)
-            self._writer.write(
-                encrypted_header + data if data_len else encrypted_header,
-            )
+            if data_len and data_len >= MIN_PAYLOAD_FOR_WRITELINES:
+                self._writer.writelines((encrypted_header, data))
+            else:
+                payload = encrypted_header + data if data_len else encrypted_header
+                self._writer.write(payload)
         except RuntimeError:
             raise MultiplexerTransportClose from None
 
