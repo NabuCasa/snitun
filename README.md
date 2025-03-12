@@ -73,3 +73,9 @@ The following environment variables, which, to be effective, must be set before 
 - `MULTIPLEXER_OUTGOING_QUEUE_MAX_BYTES_CHANNEL` - The maximum number of bytes allowed in the outgoing queue for the multiplexer channel.
 - `MULTIPLEXER_OUTGOING_QUEUE_LOW_WATERMARK` - The low watermark threshold, in bytes, for the outgoing queue for each multiplexer channel.
 - `MULTIPLEXER_OUTGOING_QUEUE_HIGH_WATERMARK` - The high watermark threshold, in bytes, for the outgoing queue for each multiplexer channel.
+
+## Protocol versioning considerations
+
+- The client is responsible for setting the `protocol_version` key in the token.
+- The server side must always be updated first when incrementing the protocol version as the client assumes that the server is always running a protocol version that it supports.
+- When new message types are added to the Multiplexer, the protocol version must be incremented.
