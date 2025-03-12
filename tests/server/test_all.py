@@ -5,8 +5,8 @@ from datetime import UTC, datetime, timedelta
 import hashlib
 import ipaddress
 import os
-import snitun
 
+import snitun
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport

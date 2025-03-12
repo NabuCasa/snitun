@@ -3,6 +3,7 @@
 import json
 
 from cryptography.fernet import Fernet, MultiFernet
+
 from snitun import PROTOCOL_VERSION
 
 FERNET_TOKENS = [

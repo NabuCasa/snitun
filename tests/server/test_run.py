@@ -1,7 +1,7 @@
 """Test runner of SniTun Server."""
 
 from __future__ import annotations
-import snitun
+
 import asyncio
 from datetime import UTC, datetime, timedelta
 import hashlib
@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import snitun
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
@@ -112,7 +113,9 @@ async def test_snitun_single_runner() -> None:
 
     _, writer_ssl = await asyncio.open_connection(host="127.0.0.1", port="32000")
 
-    multiplexer = Multiplexer(crypto, reader_peer, writer_peer,snitun.PROTOCOL_VERSION, mock_new_channel)
+    multiplexer = Multiplexer(
+        crypto, reader_peer, writer_peer, snitun.PROTOCOL_VERSION, mock_new_channel,
+    )
 
     writer_ssl.write(TLS_1_2)
     await writer_ssl.drain()
@@ -249,7 +252,9 @@ async def test_snitun_single_runner_throttling() -> None:
 
     _, writer_ssl = await asyncio.open_connection(host="127.0.0.1", port="32000")
 
-    multiplexer = Multiplexer(crypto, reader_peer, writer_peer, snitun.PROTOCOL_VERSION,mock_new_channel)
+    multiplexer = Multiplexer(
+        crypto, reader_peer, writer_peer, snitun.PROTOCOL_VERSION, mock_new_channel,
+    )
 
     writer_ssl.write(TLS_1_2)
     await writer_ssl.drain()
@@ -336,7 +341,9 @@ def test_snitun_worker_runner(
     async def _create_multiplexer() -> Multiplexer:
         """Create and return the peer multiplexer."""
         reader_peer, writer_peer = await asyncio.open_connection(sock=sock)
-        return Multiplexer(crypto, reader_peer, writer_peer,snitun.PROTOCOL_VERSION, mock_new_channel)
+        return Multiplexer(
+            crypto, reader_peer, writer_peer, snitun.PROTOCOL_VERSION, mock_new_channel,
+        )
 
     multiplexer = loop.run_until_complete(_create_multiplexer())
 

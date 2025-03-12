@@ -7,11 +7,11 @@ import os
 
 import pytest
 
+import snitun
 from snitun.exceptions import SniTunChallengeError
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
 from snitun.server.peer import Peer
-import snitun
 
 from ..conftest import Client
 
@@ -46,7 +46,7 @@ async def test_init_peer_multiplexer(
     aes_iv = os.urandom(16)
     valid = datetime.now(tz=UTC) + timedelta(days=1)
 
-    peer = Peer("localhost", valid, aes_key, aes_iv,snitun.PROTOCOL_VERSION)
+    peer = Peer("localhost", valid, aes_key, aes_iv, snitun.PROTOCOL_VERSION)
     crypto = CryptoTransport(aes_key, aes_iv)
 
     with pytest.raises(RuntimeError):
@@ -92,7 +92,7 @@ async def test_init_peer_multiplexer_crypto(
     aes_iv = os.urandom(16)
     valid = datetime.now(tz=UTC) + timedelta(days=1)
 
-    peer = Peer("localhost", valid, aes_key, aes_iv,snitun.PROTOCOL_VERSION)
+    peer = Peer("localhost", valid, aes_key, aes_iv, snitun.PROTOCOL_VERSION)
     crypto = CryptoTransport(aes_key, aes_iv)
 
     with pytest.raises(RuntimeError):
@@ -148,7 +148,7 @@ async def test_init_peer_wrong_challenge(
     aes_iv = os.urandom(16)
     valid = datetime.now(tz=UTC) + timedelta(days=1)
 
-    peer = Peer("localhost", valid, aes_key, aes_iv,snitun.PROTOCOL_VERSION)
+    peer = Peer("localhost", valid, aes_key, aes_iv, snitun.PROTOCOL_VERSION)
     crypto = CryptoTransport(aes_key, aes_iv)
 
     with pytest.raises(RuntimeError):
@@ -177,7 +177,9 @@ async def test_init_peer_wrong_challenge(
 def test_init_peer_invalid() -> None:
     """Test simple init of peer with invalid date."""
     valid = datetime.now(tz=UTC) - timedelta(days=1)
-    peer = Peer("localhost", valid, os.urandom(32), os.urandom(16),snitun.PROTOCOL_VERSION)
+    peer = Peer(
+        "localhost", valid, os.urandom(32), os.urandom(16), snitun.PROTOCOL_VERSION,
+    )
 
     assert not peer.is_valid
     assert peer.hostname == "localhost"
@@ -196,7 +198,9 @@ async def test_init_peer_multiplexer_throttling(
     aes_iv = os.urandom(16)
     valid = datetime.now(tz=UTC) + timedelta(days=1)
 
-    peer = Peer("localhost", valid, aes_key, aes_iv, snitun.PROTOCOL_VERSION, throttling=500)
+    peer = Peer(
+        "localhost", valid, aes_key, aes_iv, snitun.PROTOCOL_VERSION, throttling=500,
+    )
     crypto = CryptoTransport(aes_key, aes_iv)
 
     with pytest.raises(RuntimeError):

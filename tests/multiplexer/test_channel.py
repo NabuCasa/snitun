@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
+import snitun
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer import channel as channel_module
 from snitun.multiplexer.channel import ChannelFlowControlBase, MultiplexerChannel
@@ -26,7 +27,7 @@ from snitun.multiplexer.message import (
 )
 from snitun.multiplexer.queue import MultiplexerMultiChannelQueue
 from snitun.utils.ipaddress import ip_address_to_bytes
-import snitun
+
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
 
 
@@ -199,7 +200,9 @@ async def test_write_throttling() -> None:
     """Message transport should never lock down."""
     loop = asyncio.get_running_loop()
     output = MultiplexerMultiChannelQueue(500, 1, 100)
-    channel = MultiplexerChannel(output, IP_ADDR, snitun.PROTOCOL_VERSION, throttling=0.1)
+    channel = MultiplexerChannel(
+        output, IP_ADDR, snitun.PROTOCOL_VERSION, throttling=0.1,
+    )
     assert isinstance(channel.id, MultiplexerChannelId)
     message = b"test"
     message_size = HEADER_SIZE + len(message)
