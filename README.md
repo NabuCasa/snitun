@@ -76,6 +76,6 @@ The following environment variables, which, to be effective, must be set before 
 
 ## Protocol versioning considerations
 
-- The client is responsible for setting the `protocol_version` key in the token.
+- The client is responsible for setting the `protocol_version` key in the token. If no `protocol_version` is provided, the server must assume protocol version 0.
 - The server side must always be updated first when incrementing the protocol version as the client assumes that the server is always running a protocol version that it supports.
 - When new message types are added to the Multiplexer, the protocol version must be incremented.
