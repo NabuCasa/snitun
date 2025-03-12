@@ -530,7 +530,7 @@ async def test_remote_input_queue_goes_under_water(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
 ) -> None:
-    """Test that new channels are created."""
+    """Test the remote input queue going under water."""
     assert not multiplexer_client._channels
     assert not multiplexer_server._channels
 
@@ -572,6 +572,63 @@ async def test_remote_input_queue_goes_under_water(
 
     await asyncio.sleep(0.1)
     assert client_channel_under_water == [True, False]
+    assert server_channel_under_water == []
+
+
+
+@patch.object(channel_module, "INCOMING_QUEUE_LOW_WATERMARK", HEADER_SIZE * 2)
+@patch.object(channel_module, "INCOMING_QUEUE_HIGH_WATERMARK", HEADER_SIZE * 3)
+async def test_remote_input_queue_goes_under_water_protocol_version_0(
+    multiplexer_client: Multiplexer,
+    multiplexer_server_peer_protocol_0: Multiplexer,
+) -> None:
+    """Test the remote input queue going under water with client protocol 0.
+
+    Protocol 0 has no flow control.
+    """
+    assert not multiplexer_client._channels
+    assert not multiplexer_server_peer_protocol_0._channels
+
+    client_channel_under_water: list[bool] = []
+    server_channel_under_water: list[bool] = []
+
+    def _on_client_channel_under_water(under_water: bool) -> None:
+        client_channel_under_water.append(under_water)
+
+    def _on_server_channel_under_water(under_water: bool) -> None:
+        server_channel_under_water.append(under_water)
+
+    channel_client = await multiplexer_client.create_channel(
+        IP_ADDR,
+        _on_client_channel_under_water,
+    )
+    await asyncio.sleep(0.1)
+
+    channel_server = multiplexer_server_peer_protocol_0._channels.get(channel_client.id)
+    channel_server.set_pause_resume_reader_callback(_on_server_channel_under_water)
+
+    assert channel_client
+    assert channel_server
+    sent_messages: list[bytes] = []
+    message_count = 255
+
+    for i in range(message_count):
+        payload = str(i).encode()
+        sent_messages.append(payload)
+        await channel_client.write(payload)
+
+    await asyncio.sleep(0.1)
+    # No flow control for protocol 0
+    assert client_channel_under_water == []
+    assert server_channel_under_water == []
+
+    for i in range(message_count):
+        data = await channel_server.read()
+        assert data == sent_messages[i]
+
+    await asyncio.sleep(0.1)
+    # No flow control for protocol 0
+    assert client_channel_under_water == []
     assert server_channel_under_water == []
 
 

@@ -187,6 +187,34 @@ async def multiplexer_server(
     multiplexer.shutdown()
     client.close.set()
 
+@pytest.fixture
+async def multiplexer_server_peer_protocol_0(
+    test_server: list[Client],
+    test_client: Client,
+    crypto_key_iv: tuple[bytes, bytes],
+) -> AsyncGenerator[Multiplexer, None]:
+    """Create a multiplexer client from server with the peer using protocol 0."""
+    client = test_server[0]
+
+    async def mock_new_channel(
+        multiplexer: Multiplexer,
+        channel: MultiplexerChannel,
+    ) -> None:
+        """Mock new channel."""
+
+    multiplexer = Multiplexer(
+        CryptoTransport(*crypto_key_iv),
+        client.reader,
+        client.writer,
+        0,
+        mock_new_channel,
+    )
+
+    yield multiplexer
+
+    multiplexer.shutdown()
+    client.close.set()
+
 
 @pytest.fixture
 async def multiplexer_client(
@@ -212,6 +240,7 @@ async def multiplexer_client(
     yield multiplexer
 
     multiplexer.shutdown()
+
 
 
 @pytest.fixture
