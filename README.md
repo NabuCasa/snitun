@@ -60,8 +60,8 @@ Message Flags/Types:
 - `0x02`: DATA
 - `0x04`: Close
 - `0x08`: Ping | The extra data is a `ping` or `pong` response to a ping.
-- `0x16`: Pause the remote reader
-- `0x32`: Resume the remote reader
+- `0x16`: Pause the remote reader (added in protocol version 1)
+- `0x32`: Resume the remote reader (added in protocol version 1)
 
 ## Configuration via environment variables
 
