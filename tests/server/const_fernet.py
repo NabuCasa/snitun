@@ -3,6 +3,7 @@
 import json
 
 from cryptography.fernet import Fernet, MultiFernet
+from snitun import PROTOCOL_VERSION
 
 FERNET_TOKENS = [
     "XIKL24X0Fu83UmPLmWkXOBvvqsLq41tz2LljwafDyZw=",
@@ -23,6 +24,7 @@ def create_peer_config(
     return fernet.encrypt(
         json.dumps(
             {
+                "protocol_version": PROTOCOL_VERSION,
                 "valid": valid,
                 "hostname": hostname,
                 "alias": alias or [],

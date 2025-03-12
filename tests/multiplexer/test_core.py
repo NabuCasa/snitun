@@ -5,6 +5,7 @@ from contextlib import suppress
 import ipaddress
 import os
 from unittest.mock import patch
+import snitun
 
 import pytest
 
@@ -20,7 +21,7 @@ from snitun.multiplexer.message import (
     MultiplexerChannelId,
     MultiplexerMessage,
 )
-
+import snitun
 from ..conftest import Client
 
 IP_ADDR = ipaddress.ip_address("8.8.8.8")
@@ -38,6 +39,7 @@ async def test_init_multiplexer_server(
         CryptoTransport(*crypto_key_iv),
         client.reader,
         client.writer,
+        snitun.PROTOCOL_VERSION
     )
 
     assert multiplexer.is_connected
@@ -55,6 +57,7 @@ async def test_init_multiplexer_client(
         CryptoTransport(*crypto_key_iv),
         test_client.reader,
         test_client.writer,
+        snitun.PROTOCOL_VERSION
     )
 
     assert multiplexer.is_connected
@@ -74,6 +77,7 @@ async def test_init_multiplexer_server_throttling(
         CryptoTransport(*crypto_key_iv),
         client.reader,
         client.writer,
+        snitun.PROTOCOL_VERSION,
         throttling=500,
     )
 
@@ -92,6 +96,7 @@ async def test_init_multiplexer_client_throttling(
         CryptoTransport(*crypto_key_iv),
         test_client.reader,
         test_client.writer,
+        snitun.PROTOCOL_VERSION,
         throttling=500,
     )
 
@@ -278,6 +283,7 @@ async def test_multiplexer_delete_unknown_channel(
     non_existant_channel = MultiplexerChannel(
         multiplexer_server._queue,
         ipaddress.IPv4Address("127.0.0.1"),
+        snitun.PROTOCOL_VERSION
     )
     await multiplexer_server._queue.put(
         non_existant_channel.id,

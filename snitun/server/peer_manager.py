@@ -13,6 +13,7 @@ from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
 from ..exceptions import SniTunInvalidPeer
 from ..utils.asyncio import asyncio_timeout
+from ..utils.server import TokenData
 from .peer import Peer
 
 _LOGGER = logging.getLogger(__name__)
@@ -50,7 +51,7 @@ class PeerManager:
         """Create a new peer from crypt config."""
         try:
             data = self._fernet.decrypt(fernet_data).decode("utf-8")
-            config = json.loads(data)
+            config: TokenData = json.loads(data)
         except (InvalidToken, json.JSONDecodeError, UnicodeDecodeError) as err:
             raise SniTunInvalidPeer("Invalid fernet token") from err
 
@@ -69,6 +70,7 @@ class PeerManager:
             valid,
             aes_key,
             aes_iv,
+            protocol_version=config.get("protocol_version", 0),
             throttling=self._throttling,
             alias=config.get("alias", []),
         )

@@ -21,7 +21,7 @@ from snitun.server.listener_sni import SNIProxy
 from snitun.server.peer import Peer
 from snitun.server.peer_manager import PeerManager
 from snitun.utils.asyncio import asyncio_timeout
-
+import snitun
 from .server.const_fernet import FERNET_TOKENS
 
 logging.basicConfig(level=logging.DEBUG)
@@ -177,6 +177,7 @@ async def multiplexer_server(
         CryptoTransport(*crypto_key_iv),
         client.reader,
         client.writer,
+        snitun.PROTOCOL_VERSION,
         mock_new_channel,
     )
 
@@ -203,6 +204,7 @@ async def multiplexer_client(
         CryptoTransport(*crypto_key_iv),
         test_client.reader,
         test_client.writer,
+        snitun.PROTOCOL_VERSION,
         mock_new_channel,
     )
 
@@ -254,7 +256,7 @@ async def peer(
 ) -> Peer:
     """Init a peer with transport."""
     valid = datetime.now(tz=UTC) + timedelta(days=1)
-    peer = Peer("localhost", valid, os.urandom(32), os.urandom(16))
+    peer = Peer("localhost", valid, os.urandom(32), os.urandom(16), snitun.PROTOCOL_VERSION)
     peer._crypto = CryptoTransport(*crypto_key_iv)
     peer._multiplexer = multiplexer_server
 

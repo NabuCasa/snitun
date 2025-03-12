@@ -13,6 +13,7 @@ from ..exceptions import (
 )
 from ..multiplexer.core import Multiplexer
 from ..multiplexer.crypto import CryptoTransport
+from ..utils import PROTOCOL_VERSION
 from ..utils.asyncio import asyncio_timeout, make_task_waiter_future
 from .connector import Connector
 
@@ -117,6 +118,10 @@ class ClientPeer:
             crypto,
             reader,
             writer,
+            # We always assume the server can handle the latest protocol
+            # version since the server is deployed before the client is
+            # updated in the wild.
+            PROTOCOL_VERSION,
             new_connections=connector.handler,
             throttling=throttling,
         )
