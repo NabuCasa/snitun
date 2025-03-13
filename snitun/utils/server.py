@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 import json
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 from cryptography.fernet import Fernet, MultiFernet
 
@@ -20,7 +20,7 @@ class TokenData(TypedDict):
     hostname: str
     aes_key: str
     aes_iv: str
-    protocol_version: int
+    protocol_version: NotRequired[int]
     alias: list[str] | None
 
 
