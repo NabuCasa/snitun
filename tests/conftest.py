@@ -187,6 +187,7 @@ async def multiplexer_server(
     multiplexer.shutdown()
     client.close.set()
 
+
 @pytest.fixture
 async def multiplexer_server_peer_protocol_0(
     test_server: list[Client],
@@ -242,7 +243,6 @@ async def multiplexer_client(
     multiplexer.shutdown()
 
 
-
 @pytest.fixture
 async def peer_manager(multiplexer_server: Multiplexer, peer: Peer) -> PeerManager:
     """Create a localhost peer for tests."""
@@ -287,7 +287,11 @@ async def peer(
     """Init a peer with transport."""
     valid = datetime.now(tz=UTC) + timedelta(days=1)
     peer = Peer(
-        "localhost", valid, os.urandom(32), os.urandom(16), snitun.PROTOCOL_VERSION,
+        "localhost",
+        valid,
+        os.urandom(32),
+        os.urandom(16),
+        snitun.PROTOCOL_VERSION,
     )
     peer._crypto = CryptoTransport(*crypto_key_iv)
     peer._multiplexer = multiplexer_server

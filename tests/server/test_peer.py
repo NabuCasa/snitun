@@ -178,7 +178,11 @@ def test_init_peer_invalid() -> None:
     """Test simple init of peer with invalid date."""
     valid = datetime.now(tz=UTC) - timedelta(days=1)
     peer = Peer(
-        "localhost", valid, os.urandom(32), os.urandom(16), snitun.PROTOCOL_VERSION,
+        "localhost",
+        valid,
+        os.urandom(32),
+        os.urandom(16),
+        snitun.PROTOCOL_VERSION,
     )
 
     assert not peer.is_valid
@@ -199,7 +203,12 @@ async def test_init_peer_multiplexer_throttling(
     valid = datetime.now(tz=UTC) + timedelta(days=1)
 
     peer = Peer(
-        "localhost", valid, aes_key, aes_iv, snitun.PROTOCOL_VERSION, throttling=500,
+        "localhost",
+        valid,
+        aes_key,
+        aes_iv,
+        snitun.PROTOCOL_VERSION,
+        throttling=500,
     )
     crypto = CryptoTransport(aes_key, aes_iv)
 

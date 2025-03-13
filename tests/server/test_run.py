@@ -114,7 +114,11 @@ async def test_snitun_single_runner() -> None:
     _, writer_ssl = await asyncio.open_connection(host="127.0.0.1", port="32000")
 
     multiplexer = Multiplexer(
-        crypto, reader_peer, writer_peer, snitun.PROTOCOL_VERSION, mock_new_channel,
+        crypto,
+        reader_peer,
+        writer_peer,
+        snitun.PROTOCOL_VERSION,
+        mock_new_channel,
     )
 
     writer_ssl.write(TLS_1_2)
@@ -253,7 +257,11 @@ async def test_snitun_single_runner_throttling() -> None:
     _, writer_ssl = await asyncio.open_connection(host="127.0.0.1", port="32000")
 
     multiplexer = Multiplexer(
-        crypto, reader_peer, writer_peer, snitun.PROTOCOL_VERSION, mock_new_channel,
+        crypto,
+        reader_peer,
+        writer_peer,
+        snitun.PROTOCOL_VERSION,
+        mock_new_channel,
     )
 
     writer_ssl.write(TLS_1_2)
@@ -342,7 +350,11 @@ def test_snitun_worker_runner(
         """Create and return the peer multiplexer."""
         reader_peer, writer_peer = await asyncio.open_connection(sock=sock)
         return Multiplexer(
-            crypto, reader_peer, writer_peer, snitun.PROTOCOL_VERSION, mock_new_channel,
+            crypto,
+            reader_peer,
+            writer_peer,
+            snitun.PROTOCOL_VERSION,
+            mock_new_channel,
         )
 
     multiplexer = loop.run_until_complete(_create_multiplexer())

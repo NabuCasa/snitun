@@ -575,7 +575,6 @@ async def test_remote_input_queue_goes_under_water(
     assert server_channel_under_water == []
 
 
-
 @patch.object(channel_module, "INCOMING_QUEUE_LOW_WATERMARK", HEADER_SIZE * 2)
 @patch.object(channel_module, "INCOMING_QUEUE_HIGH_WATERMARK", HEADER_SIZE * 3)
 async def test_remote_input_queue_goes_under_water_protocol_version_0(

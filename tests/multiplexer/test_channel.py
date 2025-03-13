@@ -201,7 +201,10 @@ async def test_write_throttling() -> None:
     loop = asyncio.get_running_loop()
     output = MultiplexerMultiChannelQueue(500, 1, 100)
     channel = MultiplexerChannel(
-        output, IP_ADDR, snitun.PROTOCOL_VERSION, throttling=0.1,
+        output,
+        IP_ADDR,
+        snitun.PROTOCOL_VERSION,
+        throttling=0.1,
     )
     assert isinstance(channel.id, MultiplexerChannelId)
     message = b"test"
