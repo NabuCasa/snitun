@@ -5,6 +5,8 @@ from functools import cached_property, lru_cache
 import struct
 from typing import NamedTuple
 
+MIN_PROTOCOL_VERSION_FOR_PAUSE_RESUME = 1
+
 
 class FlowType(IntEnum):
     """Flow type for multiplexer message.
@@ -12,12 +14,12 @@ class FlowType(IntEnum):
     Note that only one byte is available for the flow type.
     """
 
-    NEW = 0x01
-    DATA = 0x02
-    CLOSE = 0x04
-    PING = 0x08
-    PAUSE = 0x16
-    RESUME = 0x32
+    NEW = 0x01  # protocol_version 0
+    DATA = 0x02  # protocol_version 0
+    CLOSE = 0x04  # protocol_version 0
+    PING = 0x08  # protocol_version 0
+    PAUSE = 0x16  # protocol_version 1
+    RESUME = 0x32  # protocol_version 1
 
     @cached_property
     def value(self) -> int:
