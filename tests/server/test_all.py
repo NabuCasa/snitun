@@ -6,6 +6,7 @@ import hashlib
 import ipaddress
 import os
 
+import snitun
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
@@ -65,6 +66,7 @@ async def test_server_full(
         crypto,
         test_client_peer.reader,
         test_client_peer.writer,
+        snitun.PROTOCOL_VERSION,
         mock_new_channel,
     )
 

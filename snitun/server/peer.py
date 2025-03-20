@@ -25,6 +25,7 @@ class Peer:
         valid: datetime,
         aes_key: bytes,
         aes_iv: bytes,
+        protocol_version: int,
         throttling: int | None = None,
         alias: list[str] | None = None,
     ) -> None:
@@ -35,6 +36,7 @@ class Peer:
         self._alias = alias or []
         self._multiplexer: Multiplexer | None = None
         self._crypto = CryptoTransport(aes_key, aes_iv)
+        self._protocol_version = protocol_version
 
     @property
     def hostname(self) -> str:
@@ -107,6 +109,7 @@ class Peer:
             self._crypto,
             reader,
             writer,
+            self._protocol_version,
             throttling=self._throttling,
         )
 
