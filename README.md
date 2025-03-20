@@ -60,5 +60,22 @@ Message Flags/Types:
 - `0x02`: DATA
 - `0x04`: Close
 - `0x08`: Ping | The extra data is a `ping` or `pong` response to a ping.
-- `0x16`: Pause the remote reader
-- `0x32`: Resume the remote reader
+- `0x16`: Pause the remote reader (added in protocol version 1)
+- `0x32`: Resume the remote reader (added in protocol version 1)
+
+## Configuration via environment variables
+
+The following environment variables, which, to be effective, must be set before importing this package, are available to override internal defaults:
+
+- `MULTIPLEXER_INCOMING_QUEUE_MAX_BYTES_CHANNEL` - The maximum number of bytes allowed in the incoming queue for each multiplexer channel.
+- `MULTIPLEXER_INCOMING_QUEUE_LOW_WATERMARK` - The low watermark threshold, in bytes, for the incoming queue for each multiplexer channel.
+- `MULTIPLEXER_INCOMING_QUEUE_HIGH_WATERMARK` - The high watermark threshold, in bytes, for the incoming queue for each multiplexer channel.
+- `MULTIPLEXER_OUTGOING_QUEUE_MAX_BYTES_CHANNEL` - The maximum number of bytes allowed in the outgoing queue for the multiplexer channel.
+- `MULTIPLEXER_OUTGOING_QUEUE_LOW_WATERMARK` - The low watermark threshold, in bytes, for the outgoing queue for each multiplexer channel.
+- `MULTIPLEXER_OUTGOING_QUEUE_HIGH_WATERMARK` - The high watermark threshold, in bytes, for the outgoing queue for each multiplexer channel.
+
+## Protocol versioning considerations
+
+- The client is responsible for setting the `protocol_version` key in the token. If no `protocol_version` is provided, the server must assume protocol version 0.
+- The server side must always be updated first when incrementing the protocol version as the client assumes that the server is always running a protocol version that it supports.
+- When new message types are added to the Multiplexer, the protocol version must be incremented.

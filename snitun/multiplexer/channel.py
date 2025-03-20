@@ -23,6 +23,7 @@ from .message import (
     CHANNEL_FLOW_NEW,
     CHANNEL_FLOW_PAUSE,
     CHANNEL_FLOW_RESUME,
+    MIN_PROTOCOL_VERSION_FOR_PAUSE_RESUME,
     MultiplexerChannelId,
     MultiplexerMessage,
 )
@@ -77,6 +78,7 @@ class MultiplexerChannel:
         "_local_output_under_water",
         "_output",
         "_pause_resume_reader_callback",
+        "_peer_protocol_version",
         "_reader_paused",
         "_remote_input_under_water",
         "_throttling",
@@ -86,6 +88,7 @@ class MultiplexerChannel:
         self,
         output: MultiplexerMultiChannelQueue,
         ip_address: IPv4Address,
+        peer_protocol_version: int,
         pause_resume_reader_callback: Callable[[bool], None] | None = None,
         channel_id: MultiplexerChannelId | None = None,
         throttling: float | None = None,
@@ -100,6 +103,7 @@ class MultiplexerChannel:
         self._output = output
         self._id = channel_id or MultiplexerChannelId(os.urandom(16))
         self._ip_address = ip_address
+        self._peer_protocol_version = peer_protocol_version
         self._throttling = throttling
         self._closing = False
         # Backpressure - We track when our output queue is under water
@@ -122,6 +126,13 @@ class MultiplexerChannel:
 
     def _on_local_input_under_water(self, under_water: bool) -> None:
         """On callback from the input queue when goes under water or recovers."""
+        if self._peer_protocol_version < MIN_PROTOCOL_VERSION_FOR_PAUSE_RESUME:
+            if self._debug:
+                _LOGGER.debug(
+                    "Remote does not support pause/resume, ignoring %s input water",
+                    self._id,
+                )
+            return
         msg_type = CHANNEL_FLOW_PAUSE if under_water else CHANNEL_FLOW_RESUME
         # Tell the remote that our input queue is under water so it
         # can pause reading from whatever is connected to this channel
