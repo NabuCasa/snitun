@@ -32,7 +32,7 @@ test = [
   "pytest-codspeed==3.2.0",
   "pytest-cov==6.0.0",
   "pytest-timeout==2.3.1",
-  "pytest==8.3.4",
+  "pytest==8.3.5",
 ]
 
 [project.urls]
