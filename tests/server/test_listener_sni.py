@@ -71,10 +71,9 @@ async def test_sni_proxy_flow(
 async def test_sni_proxy_flow_close_by_client(
     multiplexer_client: Multiplexer,
     test_client_ssl: Client,
-    event_loop: asyncio.AbstractEventLoop,
 ) -> None:
     """Test a normal flow of connection data and close by client."""
-    loop = event_loop
+    loop = asyncio.get_running_loop()
     test_client_ssl.writer.write(TLS_1_2)
     await test_client_ssl.writer.drain()
     await asyncio.sleep(0.1)
