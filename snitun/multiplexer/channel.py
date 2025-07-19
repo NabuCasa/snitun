@@ -16,6 +16,7 @@ from .const import (
     INCOMING_QUEUE_HIGH_WATERMARK,
     INCOMING_QUEUE_LOW_WATERMARK,
     INCOMING_QUEUE_MAX_BYTES_CHANNEL,
+    INCOMING_QUEUE_MAX_BYTES_CHANNEL_V0,
 )
 from .message import (
     CHANNEL_FLOW_CLOSE,
@@ -94,8 +95,15 @@ class MultiplexerChannel:
         throttling: float | None = None,
     ) -> None:
         """Initialize Multiplexer Channel."""
+        if peer_protocol_version == 0:
+            # For protocol version 0, we use a larger queue since
+            # we can't tell the client to pause/resume reading.
+            # This is a temporary solution until we can remove protocol version 0.
+            incoming_queue_max_bytes_channel = INCOMING_QUEUE_MAX_BYTES_CHANNEL_V0
+        else:
+            incoming_queue_max_bytes_channel = INCOMING_QUEUE_MAX_BYTES_CHANNEL
         self._input = MultiplexerSingleChannelQueue(
-            INCOMING_QUEUE_MAX_BYTES_CHANNEL,
+            incoming_queue_max_bytes_channel,
             INCOMING_QUEUE_LOW_WATERMARK,
             INCOMING_QUEUE_HIGH_WATERMARK,
             self._on_local_input_under_water,
