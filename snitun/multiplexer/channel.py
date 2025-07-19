@@ -96,6 +96,9 @@ class MultiplexerChannel:
     ) -> None:
         """Initialize Multiplexer Channel."""
         if peer_protocol_version == 0:
+            # For protocol version 0, we use a larger queue since
+            # we can't tell the client to pause/resume reading.
+            # This is a temporary solution until we can remove protocol version 0.
             incoming_queue_max_bytes_channel = INCOMING_QUEUE_MAX_BYTES_CHANNEL_V0
         else:
             incoming_queue_max_bytes_channel = INCOMING_QUEUE_MAX_BYTES_CHANNEL
