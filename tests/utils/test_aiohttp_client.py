@@ -31,15 +31,12 @@ async def test_client_stop_no_wait() -> None:
 
 async def test_client_connect_with_protocol_version() -> None:
     """Test connecting with a custom protocol version."""
-    # Create mocks
     mock_client_peer = MagicMock()
     mock_client_peer.start = AsyncMock()
     mock_client_peer.is_connected = False
 
-    # Mock the connector
     mock_connector = MagicMock()
 
-    # Mock SockSite with proper async behavior
     mock_site = MagicMock()
     mock_site.start = AsyncMock()
 
@@ -50,10 +47,7 @@ async def test_client_connect_with_protocol_version() -> None:
     ):
         client = SniTunClientAioHttp(None, None, "127.0.0.1")
 
-        # Initialize client properly
         await client.start()
-
-        # Test with default protocol version
         await client.connect(
             fernet_key=b"test_token",
             aes_key=b"0" * 32,
