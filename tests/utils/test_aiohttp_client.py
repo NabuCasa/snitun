@@ -54,16 +54,12 @@ async def test_client_connect_with_protocol_version() -> None:
             aes_iv=b"0" * 16,
         )
 
-        # Verify start was called with default protocol_version
         mock_client_peer.start.assert_called_once()
         args = mock_client_peer.start.call_args
         assert "protocol_version" in args.kwargs
         assert args.kwargs["protocol_version"] == 1  # Default PROTOCOL_VERSION
 
-        # Reset the mock
         mock_client_peer.start.reset_mock()
-
-        # Test with custom protocol version
         await client.connect(
             fernet_key=b"test_token",
             aes_key=b"0" * 32,
@@ -71,7 +67,6 @@ async def test_client_connect_with_protocol_version() -> None:
             protocol_version=0,
         )
 
-        # Verify start was called with custom protocol_version
         mock_client_peer.start.assert_called_once()
         args = mock_client_peer.start.call_args
         assert "protocol_version" in args.kwargs
