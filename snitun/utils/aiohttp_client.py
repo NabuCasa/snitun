@@ -14,6 +14,7 @@ from aiohttp.web import AppRunner, SockSite
 
 from ..client.client_peer import ClientPeer
 from ..client.connector import Connector
+from . import PROTOCOL_VERSION
 from .asyncio import asyncio_timeout
 
 _LOGGER = logging.getLogger(__name__)
@@ -101,6 +102,7 @@ class SniTunClientAioHttp:
         aes_key: bytes,
         aes_iv: bytes,
         throttling: int | None = None,
+        protocol_version: int = PROTOCOL_VERSION,
     ) -> None:
         """Connect to SniTun server."""
         if self._client.is_connected:
@@ -112,6 +114,7 @@ class SniTunClientAioHttp:
             aes_key,
             aes_iv,
             throttling=throttling,
+            protocol_version=protocol_version,
         )
         _LOGGER.info("AioHTTP snitun client connected to: %s", self._server_name)
 

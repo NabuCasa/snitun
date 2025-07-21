@@ -53,6 +53,7 @@ class ClientPeer:
         aes_key: bytes,
         aes_iv: bytes,
         throttling: int | None = None,
+        protocol_version: int = PROTOCOL_VERSION,
     ) -> None:
         """Connect an start ClientPeer."""
         if self._multiplexer:
@@ -118,10 +119,12 @@ class ClientPeer:
             crypto,
             reader,
             writer,
-            # We always assume the server can handle the latest protocol
-            # version since the server is deployed before the client is
-            # updated in the wild.
-            PROTOCOL_VERSION,
+            # By default we always assume the server can handle the
+            # latest protocol version since the server is deployed
+            # before the client is updated in the wild, however
+            # we can override this if needed by passing a different
+            # protocol version.
+            protocol_version,
             new_connections=connector.handler,
             throttling=throttling,
         )
