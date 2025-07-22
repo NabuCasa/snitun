@@ -13,7 +13,7 @@ from ..exceptions import (
 )
 from ..multiplexer.core import Multiplexer
 from ..multiplexer.crypto import CryptoTransport
-from ..utils import PROTOCOL_VERSION
+from ..utils import DEFAULT_PROTOCOL_VERSION
 from ..utils.asyncio import asyncio_timeout, make_task_waiter_future
 from .connector import Connector
 
@@ -53,7 +53,7 @@ class ClientPeer:
         aes_key: bytes,
         aes_iv: bytes,
         throttling: int | None = None,
-        protocol_version: int = PROTOCOL_VERSION,
+        protocol_version: int = DEFAULT_PROTOCOL_VERSION,
     ) -> None:
         """Connect an start ClientPeer."""
         if self._multiplexer:

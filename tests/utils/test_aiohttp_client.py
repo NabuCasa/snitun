@@ -57,7 +57,7 @@ async def test_client_connect_with_protocol_version() -> None:
         mock_client_peer.start.assert_called_once()
         args = mock_client_peer.start.call_args
         assert "protocol_version" in args.kwargs
-        assert args.kwargs["protocol_version"] == 1  # Default PROTOCOL_VERSION
+        assert args.kwargs["protocol_version"] == 0  # DEFAULT_PROTOCOL_VERSION
 
         mock_client_peer.start.reset_mock()
         await client.connect(
