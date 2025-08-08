@@ -9,6 +9,7 @@ from socket import socket
 from threading import Thread
 from typing import TYPE_CHECKING
 
+from ..metrics import MetricsCollector, MetricsFactory, create_noop_metrics_collector
 from .listener_peer import PeerListener
 from .listener_sni import SNIProxy
 from .peer import Peer
@@ -27,18 +28,24 @@ class ServerWorker(Process):
         self,
         fernet_keys: list[str],
         throttling: int | None = None,
+        metrics_factory: MetricsFactory | None = None,
+        metrics_interval: int = 60,
     ) -> None:
         """Initialize worker & communication."""
         super().__init__()
 
         self._fernet_keys: list[str] = fernet_keys
         self._throttling: int | None = throttling
+        self._metrics_factory = metrics_factory or create_noop_metrics_collector
+        self._metrics_interval = metrics_interval
 
         # Used on the child
         self._peers: PeerManager | None = None
         self._list_sni: SNIProxy | None = None
         self._list_peer: PeerListener | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
+        self._metrics: MetricsCollector | None = None
+        self._metrics_task: asyncio.Task | None = None
 
         # Communication between Parent/Child
         self._manager: SyncManager = Manager()
@@ -62,8 +69,55 @@ class ServerWorker(Process):
             throttling=self._throttling,
             event_callback=self._event_stream,
         )
+
+        # Initialize metrics collector in child process
+        self._metrics = self._metrics_factory()
+
         self._list_sni = SNIProxy(self._peers)
-        self._list_peer = PeerListener(self._peers)
+        self._list_peer = PeerListener(self._peers, metrics=self._metrics)
+
+        # Start metrics reporting task
+        self._metrics_task = asyncio.create_task(self._report_metrics_loop())
+
+    async def _report_metrics_loop(self) -> None:
+        """Schedule periodic metrics reporting."""
+        try:
+            while True:
+                await asyncio.sleep(self._metrics_interval)
+                await self._collect_and_report_metrics()
+        except asyncio.CancelledError:
+            # Task was cancelled during shutdown
+            pass
+
+    async def _collect_and_report_metrics(self) -> None:
+        """Collect current state and report metrics."""
+        if not self._metrics or not self._peers:
+            return
+
+        # Count peers by protocol version
+        v0_count = 0
+        v1_count = 0
+        total_peers = 0
+
+        for peer in self._peers.iter_peers():
+            total_peers += 1
+            if peer.protocol_version == 0:
+                v0_count += 1
+            else:
+                v1_count += 1
+
+        # Report metrics
+        self._metrics.gauge("snitun.worker.peer_connections", total_peers)
+        self._metrics.gauge(
+            "snitun.worker.peer_connections",
+            v0_count,
+            {"protocol_version": "0"},
+        )
+        self._metrics.gauge(
+            "snitun.worker.peer_connections",
+            v1_count,
+            {"protocol_version": "1"},
+        )
 
     def _event_stream(self, peer: Peer, event: PeerManagerEvent) -> None:
         """Event stream peer connection data."""
@@ -120,6 +174,11 @@ class ServerWorker(Process):
 
         # Shutdown worker
         _LOGGER.info("Stoping worker: %s", self.name)
+
+        # Cancel metrics task if running
+        if self._metrics_task and not self._metrics_task.done():
+            self._metrics_task.cancel()
+
         assert self._peers is not None, "PeerManager not initialized"
         asyncio.run_coroutine_threadsafe(
             self._peers.close_connections(),

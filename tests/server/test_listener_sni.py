@@ -223,7 +223,7 @@ async def test_proxy_peer_handler_can_pause(
         await asyncio.sleep(0.1)
 
     assert isinstance(proxy_peer_handler, ProxyPeerHandler)
-    handler = cast(ProxyPeerHandler, proxy_peer_handler)
+    handler = cast("ProxyPeerHandler", proxy_peer_handler)
     client_channel = handler._channel
     assert client_channel._pause_resume_reader_callback is not None
     assert (

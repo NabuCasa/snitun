@@ -248,7 +248,7 @@ async def test_connector_handler_can_pause(
         await asyncio.sleep(0.1)
 
     assert isinstance(connector_handler, ConnectorHandler)
-    handler = cast(ConnectorHandler, connector_handler)
+    handler = cast("ConnectorHandler", connector_handler)
     client_channel = handler._channel
     assert client_channel._pause_resume_reader_callback is not None
     assert (
