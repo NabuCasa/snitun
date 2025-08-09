@@ -77,6 +77,11 @@ class Peer:
             return False
         return self.multiplexer.is_connected
 
+    @property
+    def protocol_version(self) -> int:
+        """Return the protocol version."""
+        return self._protocol_version
+
     async def init_multiplexer_challenge(
         self,
         reader: asyncio.StreamReader,

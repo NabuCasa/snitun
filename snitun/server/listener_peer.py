@@ -7,6 +7,7 @@ from contextlib import suppress
 import logging
 
 from ..exceptions import SniTunChallengeError, SniTunInvalidPeer
+from ..metrics.base import MetricsCollector
 from ..utils.asyncio import asyncio_timeout
 from .peer_manager import PeerManager
 
@@ -23,11 +24,13 @@ class PeerListener:
         peer_manager: PeerManager,
         host: str | None = None,
         port: int | None = None,
+        metrics: MetricsCollector | None = None,
     ) -> None:
         """Initialize SNI Proxy interface."""
         self._peer_manager = peer_manager
         self._host = host
         self._port = port or 8080
+        self._metrics = metrics
         self._server: asyncio.Server | None = None
 
     async def start(self) -> None:
@@ -69,10 +72,25 @@ class PeerListener:
             # Connection closed before data received
             if not fernet_data:
                 return
+
+            # Track authentication attempt
+            if self._metrics:
+                self._metrics.increment(
+                    "snitun.auth.attempts",
+                    tags={"result": "started"},
+                )
+
             peer = self._peer_manager.create_peer(fernet_data)
 
             # Start multiplexer
             await peer.init_multiplexer_challenge(reader, writer)
+
+            # Authentication successful
+            if self._metrics:
+                self._metrics.increment(
+                    "snitun.auth.attempts",
+                    tags={"result": "success"},
+                )
 
             self._peer_manager.add_peer(peer)
             while peer.is_connected:
@@ -85,9 +103,19 @@ class PeerListener:
 
         except SniTunInvalidPeer:
             _LOGGER.debug("Close because invalid fernet data")
+            if self._metrics:
+                self._metrics.increment(
+                    "snitun.auth.failures",
+                    tags={"reason": "invalid_token"},
+                )
 
         except SniTunChallengeError:
             _LOGGER.debug("Close because challenge was wrong")
+            if self._metrics:
+                self._metrics.increment(
+                    "snitun.auth.failures",
+                    tags={"reason": "challenge_failed"},
+                )
 
         finally:
             if peer:
