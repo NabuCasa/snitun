@@ -52,7 +52,6 @@ target-version = "py311"
 ignore = [
   "A005",     # https://docs.astral.sh/ruff/rules/stdlib-module-shadowing/
   "ASYNC110", # https://docs.astral.sh/ruff/rules/async-busy-wait/
-  "ANN101",   # https://docs.astral.sh/ruff/rules/missing-type-self/
   "EM101",    # https://docs.astral.sh/ruff/rules/raw-string-in-exception/
   "EM102",    # https://docs.astral.sh/ruff/rules/f-string-in-exception/
   "FBT",      # https://docs.astral.sh/ruff/rules/#flake8-boolean-trap-fbt
@@ -61,8 +60,9 @@ ignore = [
   "PERF203",  # https://docs.astral.sh/ruff/rules/try-except-in-loop/
   "S101",     # https://docs.astral.sh/ruff/rules/assert/
   "S104",     # https://docs.astral.sh/ruff/rules/hardcoded-bind-all-interfaces/
-  "TCH001",   # https://docs.astral.sh/ruff/rules/typing-only-first-party-import/
-  "TCH003",   # https://docs.astral.sh/ruff/rules/typing-only-standard-library-import/
+  "TC001",    # https://docs.astral.sh/ruff/rules/typing-only-first-party-import/
+  "TC003",    # https://docs.astral.sh/ruff/rules/typing-only-standard-library-import/
+  "TC006",    # https://docs.astral.sh/ruff/rules/runtime-cast-value/
   "TID252",   # https://docs.astral.sh/ruff/rules/relative-imports/
   "TRY003",   # https://docs.astral.sh/ruff/rules/raise-vanilla-args/
   "TRY301",   # https://docs.astral.sh/ruff/rules/raise-within-try/
