@@ -169,8 +169,7 @@ class ServerWorker(Process):
         running_loop.start()
 
         # Init backend
-        asyncio.run_coroutine_threadsafe(
-            self._async_init(), loop=self._loop).result()
+        asyncio.run_coroutine_threadsafe(self._async_init(), loop=self._loop).result()
 
         while True:
             new = self._new.get()
@@ -216,8 +215,7 @@ class ServerWorker(Process):
         if sni:
             assert self._list_sni is not None, "SNIProxy not initialized"
             self._loop.create_task(
-                self._list_sni.handle_connection(
-                    reader, writer, data=data, sni=sni),
+                self._list_sni.handle_connection(reader, writer, data=data, sni=sni),
             )
         else:
             assert self._list_peer is not None, "PeerListener not initialized"
