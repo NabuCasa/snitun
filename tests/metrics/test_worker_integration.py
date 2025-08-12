@@ -35,13 +35,27 @@ async def test_worker_metrics_reporting() -> None:
         with contextlib.suppress(asyncio.CancelledError):
             await worker._metrics_task
 
-        assert mock_metrics.gauge.call_count >= 3
-        mock_metrics.gauge.assert_has_calls(
-            [
-                call("snitun.worker.peer_connections", 0)
-                for _ in range(mock_metrics.gauge.call_count)
-            ],
-        )
+        assert mock_metrics.gauge.call_count >= 9  # 3 iterations * 3 calls each
+
+        # Each iteration should call gauge 3 times:
+        # 1. Total connections (0)
+        # 2. Protocol version 0 connections (0)
+        # 3. Protocol version 1 connections (0)
+        expected_calls = []
+        for _ in range(mock_metrics.gauge.call_count // 3):
+            expected_calls.extend(
+                [
+                    call("snitun.worker.peer_connections", 0),
+                    call(
+                        "snitun.worker.peer_connections", 0, {"protocol_version": "0"}
+                    ),
+                    call(
+                        "snitun.worker.peer_connections", 0, {"protocol_version": "1"}
+                    ),
+                ]
+            )
+
+        mock_metrics.gauge.assert_has_calls(expected_calls)
 
 
 @pytest.mark.asyncio
@@ -211,11 +225,14 @@ async def test_metrics_reporting_interval() -> None:
 
         await asyncio.sleep(interval * 2.8)
 
-        assert 2 <= mock_metrics.gauge.call_count <= 3
+        # Each report calls gauge 3 times (total + version 0 + version 1)
+        # After ~2.8 intervals, we expect 2-3 reports = 6-9 gauge calls
+        assert 6 <= mock_metrics.gauge.call_count <= 9
 
         await asyncio.sleep(interval * 1.2)
 
-        assert mock_metrics.gauge.call_count >= 3
+        # After ~4 intervals total, we expect at least 3 reports = 9+ gauge calls
+        assert mock_metrics.gauge.call_count >= 9
 
         worker._metrics_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
