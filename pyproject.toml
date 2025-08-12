@@ -104,6 +104,7 @@ zip-safe = false
 [tool.setuptools.packages.find]
 include = [
   "snitun",
+  "snitun.metrics",
   "snitun.server",
   "snitun.client",
   "snitun.multiplexer",

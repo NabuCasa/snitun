@@ -102,10 +102,20 @@ class ServerWorker(Process):
             self._metrics.gauge("snitun.worker.peer_connections", 0)
             return
 
-        protocol_version_counts: dict[int, int] = {}
+        protocol_version_counts: dict[int, int] = {
+            0: 0,
+            1: 0,
+        }
 
         for peer in self._peers.iter_peers():
-            protocol_version_counts.setdefault(peer.protocol_version, 0)
+            if peer.protocol_version not in protocol_version_counts:
+                protocol_version_counts[peer.protocol_version] = 0
+                # Log out unknown protocol versions
+                _LOGGER.warning(
+                    "Unknown protocol version %d for peer %s",
+                    peer.protocol_version,
+                    peer.hostname,
+                )
             protocol_version_counts[peer.protocol_version] += 1
 
         self._metrics.gauge(
@@ -159,7 +169,8 @@ class ServerWorker(Process):
         running_loop.start()
 
         # Init backend
-        asyncio.run_coroutine_threadsafe(self._async_init(), loop=self._loop).result()
+        asyncio.run_coroutine_threadsafe(
+            self._async_init(), loop=self._loop).result()
 
         while True:
             new = self._new.get()
@@ -205,7 +216,8 @@ class ServerWorker(Process):
         if sni:
             assert self._list_sni is not None, "SNIProxy not initialized"
             self._loop.create_task(
-                self._list_sni.handle_connection(reader, writer, data=data, sni=sni),
+                self._list_sni.handle_connection(
+                    reader, writer, data=data, sni=sni),
             )
         else:
             assert self._list_peer is not None, "PeerListener not initialized"
