@@ -188,8 +188,12 @@ class ServerWorker(Process):
         # Cancel metrics task if running
         if self._metrics_task and not self._metrics_task.done():
             self._metrics_task.cancel()
+            # Wait for metrics task to finish
             with contextlib.suppress(asyncio.CancelledError):
-                self._loop.run_until_complete(self._metrics_task)
+                asyncio.run_coroutine_threadsafe(
+                    self._metrics_task,
+                    loop=self._loop,
+                ).result()
 
         assert self._peers is not None, "PeerManager not initialized"
         asyncio.run_coroutine_threadsafe(
