@@ -17,6 +17,7 @@ from threading import Thread
 from typing import Any
 
 from ..exceptions import ParseSNIIncompleteError
+from ..metrics import MetricsCollector, MetricsFactory, create_noop_metrics_collector
 from ..utils.asyncio import asyncio_timeout
 from ..utils.server import MAX_BUFFER_SIZE, MAX_READ_SIZE
 from .listener_peer import PeerListener
@@ -198,6 +199,8 @@ class SniTunServerWorker(Thread):
         port: int | None = None,
         worker_size: int | None = None,
         throttling: int | None = None,
+        metrics_factory: MetricsFactory | None = None,
+        metrics_interval: int = 60,
     ) -> None:
         """Initialize SniTun Server."""
         super().__init__()
@@ -209,6 +212,9 @@ class SniTunServerWorker(Thread):
         self._worker_size: int = worker_size or (cpu_count() * 2)
         self._workers: list[ServerWorker] = []
         self._running: bool = False
+        self._metrics_factory = metrics_factory or create_noop_metrics_collector
+        self._metrics_interval = metrics_interval
+        self._metrics: MetricsCollector | None = None
 
         # TCP server
         self._server: socket.socket | None = None
@@ -221,10 +227,17 @@ class SniTunServerWorker(Thread):
 
     def start(self) -> None:
         """Run server."""
+        self._metrics = self._metrics_factory()
+
         # Init first all worker, we don't want the epoll on the childs
         _LOGGER.info("Run SniTun with %d worker", self._worker_size)
         for _ in range(self._worker_size):
-            worker = ServerWorker(self._fernet_keys, throttling=self._throttling)
+            worker = ServerWorker(
+                self._fernet_keys,
+                throttling=self._throttling,
+                metrics_factory=self._metrics_factory,
+                metrics_interval=self._metrics_interval,
+            )
             worker.start()
             self._workers.append(worker)
 
