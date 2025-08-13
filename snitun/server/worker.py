@@ -189,9 +189,16 @@ class ServerWorker(Process):
         if self._metrics_task and not self._metrics_task.done():
             self._metrics_task.cancel()
             # Wait for metrics task to finish
-            with contextlib.suppress(asyncio.CancelledError):
+            # Create a coroutine that waits for the task
+
+            async def wait_for_task() -> None:
+                with contextlib.suppress(asyncio.CancelledError):
+                    if self._metrics_task:
+                        await self._metrics_task
+
+            with contextlib.suppress(asyncio.CancelledError, asyncio.TimeoutError):
                 asyncio.run_coroutine_threadsafe(
-                    self._metrics_task,
+                    wait_for_task(),
                     loop=self._loop,
                 ).result()
 
