@@ -47,12 +47,16 @@ async def test_worker_metrics_reporting() -> None:
                 [
                     call("snitun.worker.peer_connections", 0),
                     call(
-                        "snitun.worker.peer_connections", 0, {"protocol_version": "0"}
+                        "snitun.worker.peer_connections",
+                        0,
+                        {"protocol_version": "0"},
                     ),
                     call(
-                        "snitun.worker.peer_connections", 0, {"protocol_version": "1"}
+                        "snitun.worker.peer_connections",
+                        0,
+                        {"protocol_version": "1"},
                     ),
-                ]
+                ],
             )
 
         mock_metrics.gauge.assert_has_calls(expected_calls)
@@ -196,7 +200,7 @@ async def test_metrics_collection_with_no_metrics_collector() -> None:
     worker._peers = mock_peers
     worker._metrics = None
 
-   await worker._collect_and_report_metrics()
+    await worker._collect_and_report_metrics()
 
 
 @pytest.mark.asyncio
