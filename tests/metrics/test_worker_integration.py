@@ -196,10 +196,7 @@ async def test_metrics_collection_with_no_metrics_collector() -> None:
     worker._peers = mock_peers
     worker._metrics = None
 
-    try:
-        await worker._collect_and_report_metrics()
-    except BaseException:  # noqa: BLE001
-        pytest.fail("Metrics collection with None collector raised an error")
+   await worker._collect_and_report_metrics()
 
 
 @pytest.mark.asyncio
