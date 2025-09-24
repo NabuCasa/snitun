@@ -369,21 +369,27 @@ async def test_concurrent_pause_resume_race_condition() -> None:
 
     # Simulate concurrent water level changes
     # This would previously cause "Reader already resumed" errors
-    channel._on_local_output_under_water(True)  # Pauses
+    # Pauses
+    channel._on_local_output_under_water(True)
     assert callback_count["pause"] == 1
 
-    channel.on_remote_input_under_water(True)  # Already paused, no callback
+    # Already paused, no callback
+    channel.on_remote_input_under_water(True)
     assert callback_count["pause"] == 1
 
-    channel._on_local_output_under_water(False)  # Still paused due to remote
+    # Still paused due to remote
+    channel._on_local_output_under_water(False)
     assert callback_count["resume"] == 0
 
-    channel.on_remote_input_under_water(False)  # Now resumes
+    # Now resumes
+    channel.on_remote_input_under_water(False)
     assert callback_count["resume"] == 1
 
     # Multiple resume signals should be idempotent
-    channel._on_local_output_under_water(False)  # Already resumed
+    # Already resumed
+    channel._on_local_output_under_water(False)
     assert callback_count["resume"] == 1
 
-    channel.on_remote_input_under_water(False)  # Already resumed
+    # Already resumed
+    channel.on_remote_input_under_water(False)
     assert callback_count["resume"] == 1
