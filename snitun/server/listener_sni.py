@@ -12,15 +12,16 @@ from ..exceptions import (
     MultiplexerTransportError,
     ParseSNIError,
 )
-from ..multiplexer.channel import ChannelFlowControlBase
+from ..multiplexer.channel import ChannelFlowControlBase, MultiplexerChannel
 from ..multiplexer.core import Multiplexer
-from ..utils.asyncio import asyncio_timeout
+from ..utils.asyncio import RangedTimeout, asyncio_timeout, create_eager_task
 from .peer_manager import PeerManager
 from .sni import parse_tls_sni, payload_reader
 
 _LOGGER = logging.getLogger(__name__)
 
-TCP_SESSION_TIMEOUT = 60
+PEER_TCP_SESSION_MIN_TIMEOUT = 90
+PEER_TCP_SESSION_MAX_TIMEOUT = 120
 
 
 class SNIProxy:
@@ -135,6 +136,21 @@ class ProxyPeerHandler(ChannelFlowControlBase):
         """Initialize ProxyPeerHandler."""
         super().__init__(loop)
         self._ip_address = ip_address
+        self._peer_task: asyncio.Task[None] | None = None
+        self._proxy_task: asyncio.Task[None] | None = None
+        self._ranged_timeout = RangedTimeout(
+            PEER_TCP_SESSION_MIN_TIMEOUT,
+            PEER_TCP_SESSION_MAX_TIMEOUT,
+            self._on_timeout,
+        )
+        self._multiplexer: Multiplexer | None = None
+
+    def _on_timeout(self) -> None:
+        """Handle timeout."""
+        assert self._channel is not None, "Channel not initialized"
+        assert self._proxy_task is not None, "Proxy task not initialized"
+        _LOGGER.debug("Close TCP session after timeout for %s", self._channel.id)
+        self._proxy_task.cancel()
 
     async def start(
         self,
@@ -145,9 +161,6 @@ class ProxyPeerHandler(ChannelFlowControlBase):
     ) -> None:
         """Start handler."""
         ip_address = self._ip_address
-        transport = writer.transport
-        from_proxy: asyncio.Future[None] | asyncio.Task[bytes] | None = None
-        from_peer = None
         # Open multiplexer channel
         try:
             channel = self._channel = await multiplexer.create_channel(
@@ -158,77 +171,84 @@ class ProxyPeerHandler(ChannelFlowControlBase):
             _LOGGER.error("New transport channel to peer fails")
             return
 
+        self._peer_task = create_eager_task(self._peer_loop(channel, writer))
+        self._proxy_task = create_eager_task(
+            self._proxy_loop(multiplexer, channel, reader, client_hello),
+        )
+        await asyncio.wait((self._proxy_task,))
+        self._peer_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await self._peer_task
+
+    async def _peer_loop(
+        self,
+        channel: MultiplexerChannel,
+        writer: asyncio.StreamWriter,
+    ) -> None:
+        """Read from peer loop."""
+        transport = writer.transport
+        try:
+            while not transport.is_closing():
+                data = await channel.read()
+                writer.write(data)
+                await writer.drain()
+                self._ranged_timeout.reschedule()
+        except asyncio.CancelledError:
+            _LOGGER.debug(
+                "Peer loop canceling while reading for channel %s",
+                channel.id,
+            )
+            with suppress(OSError):
+                writer.write_eof()
+                await writer.drain()
+            raise
+        except (
+            MultiplexerTransportClose,
+            MultiplexerTransportError,
+            OSError,
+            RuntimeError,
+            ConnectionResetError,
+        ) as exc:
+            _LOGGER.debug(
+                "Peer loop: transport was closed for channel %s: %s",
+                channel.id,
+                repr(exc) or type(exc),
+            )
+        finally:
+            with suppress(OSError):
+                writer.close()
+
+    async def _proxy_loop(
+        self,
+        multiplexer: Multiplexer,
+        channel: MultiplexerChannel,
+        reader: asyncio.StreamReader,
+        client_hello: bytes,
+    ) -> None:
+        """Write to peer loop."""
+        assert channel is not None, "Channel not initialized"
         try:
             await channel.write(client_hello)
-
-            # Process stream into multiplexer
-            while not transport.is_closing():
-                if not from_proxy:
-                    # If the multiplexer channel queue is under water, pause the reader
-                    # by waiting for the future to be set, once the queue is not under
-                    # water the future will be set and cleared to resume the reader
-                    from_proxy = self._pause_future or self._loop.create_task(
-                        reader.read(4096),  # type: ignore[arg-type]
-                    )
-                if not from_peer:
-                    from_peer = self._loop.create_task(channel.read())
-
-                # Wait until data need to be processed
-                async with asyncio_timeout.timeout(TCP_SESSION_TIMEOUT):
-                    await asyncio.wait(
-                        [from_proxy, from_peer],
-                        return_when=asyncio.FIRST_COMPLETED,
-                    )
-
-                # From proxy
-                if from_proxy.done():
-                    if from_proxy_exc := from_proxy.exception():
-                        raise from_proxy_exc
-
-                    if (from_proxy_result := from_proxy.result()) is not None:
-                        await channel.write(from_proxy_result)
-                    from_proxy = None
-
-                # From peer
-                if from_peer.done():
-                    if from_peer_exc := from_peer.exception():
-                        raise from_peer_exc
-
-                    writer.write(from_peer.result())
-                    from_peer = None
-
-                    # Flush buffer
-                    await writer.drain()
-
-        except TimeoutError:
-            _LOGGER.debug("Close TCP session after timeout for %s", channel.id)
-            multiplexer.delete_channel(channel)
-
-        except OSError as exc:
+            while not channel.closing:
+                # If the multiplexer channel queue is under water, pause the reader
+                # by waiting for the future to be set, once the queue is not under
+                # water the future will be set and cleared to resume the reader
+                if self._pause_future:
+                    await self._pause_future
+                await channel.write(await reader.read(8192))
+                self._ranged_timeout.reschedule()
+        except (
+            MultiplexerTransportClose,
+            MultiplexerTransportError,
+            OSError,
+            RuntimeError,
+            ConnectionResetError,
+            asyncio.IncompleteReadError,
+        ) as exc:
             _LOGGER.debug(
-                "Transport closed by Proxy for %s: %s",
+                "Proxy loop: transport was closed for channel %s: %s",
                 channel.id,
-                exc,
-                exc_info=True,
+                repr(exc) or type(exc),
             )
-            multiplexer.delete_channel(channel)
-
-        except (MultiplexerTransportError, RuntimeError, ConnectionResetError) as exc:
-            _LOGGER.debug("Transport closed by Proxy for %s: %s", channel.id, exc)
-            multiplexer.delete_channel(channel)
-
-        except MultiplexerTransportClose:
-            _LOGGER.debug("Peer close connection for %s", channel.id)
-
         finally:
-            # Cleanup peer reader
-            if from_peer:
-                if not from_peer.done():
-                    from_peer.cancel()
-                else:
-                    # Avoid exception was never retrieved
-                    from_peer.exception()
-
-            # Cleanup proxy reader
-            if from_proxy and not from_proxy.done():
-                from_proxy.cancel()
+            multiplexer.delete_channel(channel)
