@@ -6,7 +6,7 @@ class SniTunError(Exception):
 
 
 class SniTunChallengeError(SniTunError):
-    """Raise if a challenge error is occure."""
+    """Raise if a challenge error occurs."""
 
 
 class SniTunInvalidPeer(SniTunError):

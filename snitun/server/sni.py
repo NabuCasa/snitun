@@ -45,7 +45,7 @@ async def payload_reader(reader: asyncio.StreamReader) -> bytes | None:
 
 
 def parse_tls_sni(data: bytes) -> str:
-    """Parse TLS SNI extention."""
+    """Parse TLS SNI extension."""
     if (data_size := len(data)) < TLS_HEADER_LEN:
         _LOGGER.debug("Invalid TLS header")
         raise ParseSNIError

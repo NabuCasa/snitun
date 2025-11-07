@@ -140,7 +140,7 @@ class SniTunServerSingle:
         except OSError:
             return
 
-        # Connection closed / healty check
+        # Connection closed / health check
         if not data:
             writer.close()
             return
@@ -181,7 +181,7 @@ class Connection:
         self.epoll.unregister(self.fileno)
 
     def close_socket(self, shutdown: bool = True) -> None:
-        """Gracefull shutdown a socket or free the handle."""
+        """Gracefully shutdown a socket or free the handle."""
         self.soft_close()
         with suppress(OSError):
             if shutdown:
@@ -229,7 +229,7 @@ class SniTunServerWorker(Thread):
         """Run server."""
         self._metrics = self._metrics_factory()
 
-        # Init first all worker, we don't want the epoll on the childs
+        # Init first all worker, we don't want the epoll on the children
         _LOGGER.info("Run SniTun with %d worker", self._worker_size)
         for _ in range(self._worker_size):
             worker = ServerWorker(
