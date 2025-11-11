@@ -89,7 +89,7 @@ class ClientPeer:
                 await writer.drain()
         except TimeoutError:
             raise SniTunConnectionError(
-                "Timeout for writing connection token",
+                "Timeout while writing connection token",
             ) from None
 
         # Challenge/Response
