@@ -183,7 +183,7 @@ class ServerWorker(Process):
             )
 
         # Shutdown worker
-        _LOGGER.info("Stoping worker: %s", self.name)
+        _LOGGER.info("Stopping worker: %s", self.name)
 
         # Cancel metrics task if running
         if self._metrics_task and not self._metrics_task.done():

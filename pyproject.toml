@@ -25,14 +25,14 @@ requires-python = ">=3.12"
 version = "0.0.0"
 
 [project.optional-dependencies]
-lint = ["ruff==0.12.11"]
+lint = ["ruff==0.14.3"]
 test = [
   "covdefaults==2.3.0",
   "pytest-aiohttp==1.1.0",
-  "pytest-codspeed==4.0.0",
-  "pytest-cov==6.2.1",
+  "pytest-codspeed==4.2.0",
+  "pytest-cov==7.0.0",
   "pytest-timeout==2.4.0",
-  "pytest==8.4.1",
+  "pytest==8.4.2",
 ]
 
 [project.urls]

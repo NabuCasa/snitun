@@ -124,7 +124,7 @@ class PeerManager:
     async def close_connections(self, timeout: int = 10) -> None:  # noqa: ASYNC109
         """Close all peer connections.
 
-        Use this function only if you do not controll the server socket.
+        Use this function only if you do not control the server socket.
         """
         peers = list(self._peers.values())
         for peer in peers:
