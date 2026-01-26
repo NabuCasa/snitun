@@ -284,7 +284,11 @@ class SniTunServerWorker(Thread):
             for fileno, event in events:
                 # New Connection
                 if fileno == fd_server:
-                    con, _ = self._server.accept()
+                    try:
+                        con, _ = self._server.accept()
+                    except OSError as err:
+                        _LOGGER.warning("Accept failed: %s", err)
+                        continue
                     con.setblocking(False)
 
                     self._poller.register(
