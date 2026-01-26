@@ -70,7 +70,7 @@ def test_snitun_worker_runner_accept_exception(
         sock.connect(("127.0.0.1", 32003))
         sock.close()
 
-        time.sleep(0.2)
+        time.sleep(0.1)
 
     assert "Accept failed: BOOM!" in caplog.text
     server.stop()
