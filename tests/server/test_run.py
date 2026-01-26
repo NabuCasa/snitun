@@ -52,6 +52,30 @@ async def test_snitun_single_runner_updown() -> None:
     await server.stop()
 
 
+def test_snitun_worker_runner_accept_exception(
+    caplog: pytest.LogCaptureFixture,
+    event_loop: asyncio.AbstractEventLoop,
+) -> None:
+    """Test SniTunWorker Server handles accept() exception."""
+    server = SniTunServerWorker(
+        FERNET_TOKENS,
+        host="127.0.0.1",
+        port=32003,
+        worker_size=2,
+    )
+
+    server.start()
+    with patch("socket.socket.accept", side_effect=OSError("BOOM!")):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(("127.0.0.1", 32003))
+        sock.close()
+
+        time.sleep(0.2)
+
+    assert "Accept failed: BOOM!" in caplog.text
+    server.stop()
+
+
 def test_snitun_worker_runner_updown(event_loop: asyncio.AbstractEventLoop) -> None:
     """Test SniTun Worker Server runner object."""
     server = SniTunServerWorker(
