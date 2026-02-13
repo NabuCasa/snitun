@@ -13,7 +13,7 @@ from ..exceptions import (
 )
 from ..multiplexer.core import Multiplexer
 from ..multiplexer.crypto import CryptoTransport
-from ..utils import PROTOCOL_VERSION
+from ..utils import DEFAULT_PROTOCOL_VERSION
 from ..utils.asyncio import asyncio_timeout, make_task_waiter_future
 from .connector import Connector
 
@@ -53,6 +53,7 @@ class ClientPeer:
         aes_key: bytes,
         aes_iv: bytes,
         throttling: int | None = None,
+        protocol_version: int = DEFAULT_PROTOCOL_VERSION,
     ) -> None:
         """Connect an start ClientPeer."""
         if self._multiplexer:
@@ -88,7 +89,7 @@ class ClientPeer:
                 await writer.drain()
         except TimeoutError:
             raise SniTunConnectionError(
-                "Timeout for writting connection token",
+                "Timeout while writing connection token",
             ) from None
 
         # Challenge/Response
@@ -118,10 +119,12 @@ class ClientPeer:
             crypto,
             reader,
             writer,
-            # We always assume the server can handle the latest protocol
-            # version since the server is deployed before the client is
-            # updated in the wild.
-            PROTOCOL_VERSION,
+            # By default we always assume the server can handle the
+            # latest protocol version since the server is deployed
+            # before the client is updated in the wild, however
+            # we can override this if needed by passing a different
+            # protocol version.
+            protocol_version,
             new_connections=connector.handler,
             throttling=throttling,
         )
