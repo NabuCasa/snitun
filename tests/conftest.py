@@ -381,10 +381,16 @@ async def make_snitun_client_aiohttp(
 ) -> SniTunClientAioHttp:
     """Create a SniTunClientAioHttp."""
     app = web.Application()
+    async def hello_handler(_: web.Request) -> web.Response:
+        return web.Response(text="Hello world")
+
+    async def large_file_handler(_: web.Request) -> web.Response:
+        return web.Response(body=b"X" * 1024 * 1024 * 4)
+
     app.add_routes(
         [
-            web.get("/", lambda _: web.Response(text="Hello world")),
-            web.get("/large_file", lambda _: web.Response(body=b"X" * 1024 * 1024 * 4)),
+            web.get("/", hello_handler),
+            web.get("/large_file", large_file_handler),
         ],
     )
     server = await aiohttp_server(app)
