@@ -28,6 +28,21 @@ from .server.const_fernet import FERNET_TOKENS
 logging.basicConfig(level=logging.DEBUG)
 
 
+@pytest.fixture
+def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
+    """Create an instance of the default event loop for the test session.
+
+    Note: pytest-asyncio 1.x removed the event_loop fixture but we still need it
+    for testing sync functions. Otherwise we need to rewrite tons of tests.
+    It's restored here so we can do a gradual migration but keep the CI working.
+    All the async functions have been updated to use asyncio.get_running_loop().
+    """
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    yield loop
+    loop.close()
+
+
 @dataclass
 class Client:
     """Represent a TCP client object."""
