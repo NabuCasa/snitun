@@ -29,6 +29,12 @@ _LOGGER = logging.getLogger(__name__)
 # as 127.0.0.1
 CHANNEL_IP_IS_CLIENT_IP = False
 
+# Default maximum number of bytes to feed to the protocol at once.
+# At runtime this is read from the protocol's max_size attribute
+# (SSLProtocol sets this to 256 KiB). This fallback is only used
+# if the protocol does not expose max_size.
+_DEFAULT_READER_CHUNK_SIZE = 262144  # 256 KiB
+
 
 def _feed_data_to_buffered_proto(proto: asyncio.BufferedProtocol, data: bytes) -> None:
     """Feed data to a buffered protocol.
@@ -121,6 +127,10 @@ class ChannelTransport(Transport):
         self._channel.close()
         self._release_pause_future()
 
+    def abort(self) -> None:
+        """Abort the transport immediately."""
+        self.close()
+
     def write(self, data: bytes) -> None:
         """Write data to the channel."""
         if not self._channel.closing:
@@ -171,6 +181,7 @@ class ChannelTransport(Transport):
 
     async def _reader(self) -> None:
         """Read from the channel and pass data to the protocol."""
+        chunk_size = 0
         while True:
             if self._pause_future:
                 await self._pause_future
@@ -192,8 +203,33 @@ class ChannelTransport(Transport):
             if TYPE_CHECKING:
                 assert self._protocol is not None, "Protocol not set"
 
+            if not chunk_size:
+                # Use the protocol's buffer size as the chunk size.
+                # For SSLProtocol, max_size (256 KiB) is the cap on
+                # get_buffer() return size. Feeding data in chunks of
+                # this size allows SSLProtocol's flow control to pause
+                # us between chunks instead of overwhelming the BIO.
+                chunk_size = getattr(
+                    self._protocol,
+                    "max_size",
+                    _DEFAULT_READER_CHUNK_SIZE,
+                )
+
             try:
-                _feed_data_to_buffered_proto(self._protocol, from_peer)
+                # Feed data in chunks to allow the event loop to process
+                # SSLProtocol's flow control callbacks between chunks.
+                # Without chunking, large messages overwhelm SSLProtocol
+                # because _do_read() stops decrypting when the app
+                # pauses reading.
+                data = from_peer
+                while data:
+                    _feed_data_to_buffered_proto(
+                        self._protocol,
+                        data[:chunk_size],
+                    )
+                    data = data[chunk_size:]
+                    if data and self._pause_future:
+                        await self._pause_future
             except (SystemExit, KeyboardInterrupt):
                 raise
             except BaseException as exc:

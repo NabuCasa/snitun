@@ -14,7 +14,6 @@ from aiohttp.connector import BaseConnector
 from snitun.exceptions import MultiplexerTransportClose
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.transport import ChannelTransport
-from snitun.utils.asyncio import create_eager_task
 
 from ..conftest import IP_ADDR
 
@@ -37,10 +36,20 @@ class ResponseHandlerWithTransportReader(ResponseHandler):
         self._channel_transport = channel_transport
 
     def close(self) -> None:
-        """Close connection."""
+        """Close connection.
+
+        Abort the SSL transport to skip SSL shutdown. In production,
+        the TCP connection drops without SSL shutdown and the cloud
+        multiplexer sends a CLOSE message. Aborting simulates this.
+
+        After abort, super().close() handles ResponseHandler cleanup.
+        The SSL shutdown is skipped because abort sets the SSL protocol
+        state to _UNWRAPPED.
+        """
+        transport = self.transport
+        if transport is not None:
+            transport.abort()
         super().close()
-        create_eager_task(self._channel_transport.stop_reader(), loop=self._loop)
-        self._channel_transport.close()
 
 
 class ChannelConnector(BaseConnector):
