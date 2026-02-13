@@ -35,12 +35,11 @@ def test_init_peer() -> None:
 
 
 async def test_init_peer_multiplexer(
-    event_loop: asyncio.AbstractEventLoop,
     test_client: Client,
     test_server: list[Client],
 ) -> None:
     """Test setup multiplexer."""
-    loop = event_loop
+    loop = asyncio.get_running_loop()
     client = test_server[0]
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
@@ -81,12 +80,11 @@ async def test_init_peer_multiplexer(
 
 
 async def test_init_peer_multiplexer_crypto(
-    event_loop: asyncio.AbstractEventLoop,
     test_client: Client,
     test_server: list[Client],
 ) -> None:
     """Test setup multiplexer with crypto."""
-    loop = event_loop
+    loop = asyncio.get_running_loop()
     client = test_server[0]
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
@@ -137,12 +135,11 @@ async def test_init_peer_multiplexer_crypto(
 
 
 async def test_init_peer_wrong_challenge(
-    event_loop: asyncio.AbstractEventLoop,
     test_client: Client,
     test_server: list[Client],
 ) -> None:
     """Test setup multiplexer wrong challenge."""
-    loop = event_loop
+    loop = asyncio.get_running_loop()
     client = test_server[0]
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
@@ -191,12 +188,11 @@ def test_init_peer_invalid() -> None:
 
 
 async def test_init_peer_multiplexer_throttling(
-    event_loop: asyncio.AbstractEventLoop,
     test_client: Client,
     test_server: list[Client],
 ) -> None:
     """Test setup multiplexer."""
-    loop = event_loop
+    loop = asyncio.get_running_loop()
     client = test_server[0]
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)

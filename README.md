@@ -7,7 +7,7 @@ End-to-End encryption with SNI proxy on top of a TCP multiplexer
 ```
                    [ CLIENT ] --AUTH/CONFIG--> [ SESSION MASTER ] (Trusted connection)
                    [ CLIENT ] <--FERNET-TOKEN- [ SESSION MASTER ]
-                   [ CLIENT ] --------FERNET-TOKEN---------------------> [ SNITUN ] (Unsecure connection)
+                   [ CLIENT ] --------FERNET-TOKEN---------------------> [ SNITUN ] (Insecure connection)
                    [ CLIENT ] <-------CHALLENGE-RESPONSE-(AES/CBC)-----> [ SNITUN ]
 
 
@@ -68,6 +68,7 @@ Message Flags/Types:
 The following environment variables, which, to be effective, must be set before importing this package, are available to override internal defaults:
 
 - `MULTIPLEXER_INCOMING_QUEUE_MAX_BYTES_CHANNEL` - The maximum number of bytes allowed in the incoming queue for each multiplexer channel.
+- `MULTIPLEXER_INCOMING_QUEUE_MAX_BYTES_CHANNEL_V0` - The maximum number of bytes allowed in the incoming queue for protocol version 0 channels (default: 256MB, larger than standard channels since v0 lacks flow control).
 - `MULTIPLEXER_INCOMING_QUEUE_LOW_WATERMARK` - The low watermark threshold, in bytes, for the incoming queue for each multiplexer channel.
 - `MULTIPLEXER_INCOMING_QUEUE_HIGH_WATERMARK` - The high watermark threshold, in bytes, for the incoming queue for each multiplexer channel.
 - `MULTIPLEXER_OUTGOING_QUEUE_MAX_BYTES_CHANNEL` - The maximum number of bytes allowed in the outgoing queue for the multiplexer channel.
