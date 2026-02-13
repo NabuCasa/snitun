@@ -376,11 +376,10 @@ async def test_init_client_peer_stop_twice(
 async def test_init_client_peer_custom_protocol_version(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
-    test_endpoint: list[Client],
+    connector: Connector,
 ) -> None:
     """Test setup of ClientPeer with custom protocol version."""
     client = ClientPeer("127.0.0.1", "8893")
-    connector = Connector("127.0.0.1", "8822")
 
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
