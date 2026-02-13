@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 from asyncio import Transport
-import asyncio.sslproto
 import logging
 from typing import TYPE_CHECKING
 
