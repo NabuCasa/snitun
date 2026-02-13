@@ -42,6 +42,12 @@ from .queue import MultiplexerMultiChannelQueue
 
 _LOGGER = logging.getLogger(__name__)
 
+# If the payload is larger than 8192, use writelines to write the payload
+# to the stream. In Python 3.11+, writelines is a zero-copy operation.
+# For small payloads, the overhead of writelines is higher than the
+# overhead of write, so we only use writelines for larger payloads.
+MAX_PAYLOAD_FOR_WRITE = 8192
+
 
 class Multiplexer:
     """Multiplexer Socket wrapper."""
@@ -238,9 +244,12 @@ class Multiplexer:
         )
         try:
             encrypted_header = self._crypto.encrypt(header)
-            self._writer.write(
-                encrypted_header + data if data_len else encrypted_header,
-            )
+            if data_len and data_len > MAX_PAYLOAD_FOR_WRITE:
+                self._writer.writelines((encrypted_header, data))
+            elif data_len:
+                self._writer.write(b"".join((encrypted_header, data)))
+            else:
+                self._writer.write(encrypted_header)
         except RuntimeError:
             raise MultiplexerTransportClose from None
 
