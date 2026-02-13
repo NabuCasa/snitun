@@ -371,3 +371,36 @@ async def test_init_client_peer_stop_twice(
     await asyncio.sleep(0.1)
     assert not client.is_connected
     assert not peer_manager.peer_available("localhost")
+
+
+async def test_init_client_peer_custom_protocol_version(
+    peer_listener: PeerListener,
+    peer_manager: PeerManager,
+    test_endpoint: list[Client],
+) -> None:
+    """Test setup of ClientPeer with custom protocol version."""
+    client = ClientPeer("127.0.0.1", "8893")
+    connector = Connector("127.0.0.1", "8822")
+
+    assert not client.is_connected
+    assert not peer_manager.peer_available("localhost")
+
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    hostname = "localhost"
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
+
+    # Start with protocol version 0
+    await client.start(connector, fernet_token, aes_key, aes_iv, protocol_version=0)
+    await asyncio.sleep(0.1)
+    assert peer_manager.peer_available("localhost")
+    assert client.is_connected
+
+    # Verify the multiplexer was created with protocol version 0
+    assert client._multiplexer._peer_protocol_version == 0
+
+    await client.stop()
+    await asyncio.sleep(0.1)
+    assert not client.is_connected
+    assert not peer_manager.peer_available("localhost")

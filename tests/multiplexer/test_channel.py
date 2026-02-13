@@ -326,7 +326,7 @@ async def test_channel_input_queue_goes_under_water_output_full(
 async def test_flow_control_allow_multiple_pause_resume(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test that we can pause and resume multiple times."""
+    """Test that we can pause and resume multiple times idempotently."""
 
     class ChannelConsumer(ChannelFlowControlBase):
         """Channel consumer for testing."""
@@ -346,14 +346,63 @@ async def test_flow_control_allow_multiple_pause_resume(
     assert base_channel._pause_future is not None
     assert not base_channel._pause_future.done()
 
-    with pytest.raises(RuntimeError, match="Reader already paused for"):
-        base_channel._pause_resume_reader_callback(True)
+    # Calling pause again should be idempotent (no error)
+    base_channel._pause_resume_reader_callback(True)
     assert base_channel._pause_future is not None
     assert not base_channel._pause_future.done()
 
     base_channel._pause_resume_reader_callback(False)
     assert base_channel._pause_future is None
 
-    with pytest.raises(RuntimeError, match="Reader already resumed for"):
-        base_channel._pause_resume_reader_callback(False)
+    # Calling resume again should be idempotent (no error)
+    base_channel._pause_resume_reader_callback(False)
     assert base_channel._pause_future is None
+
+
+async def test_concurrent_pause_resume_race_condition() -> None:
+    """Test that concurrent pause/resume operations don't cause race conditions."""
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
+    channel = MultiplexerChannel(output, IP_ADDR, snitun.PROTOCOL_VERSION)
+
+    # Set up a callback counter to track invocations
+    callback_count = {"pause": 0, "resume": 0}
+
+    def counting_callback(pause: bool) -> None:
+        """Count callback invocations."""
+        if pause:
+            callback_count["pause"] += 1
+        else:
+            callback_count["resume"] += 1
+
+    channel.set_pause_resume_reader_callback(counting_callback)
+
+    # Simulate concurrent water level changes
+    # This would previously cause "Reader already resumed" errors
+    # Pauses
+    channel._on_local_output_under_water(True)
+    assert callback_count["pause"] == 1
+
+    # Already paused, no callback
+    channel.on_remote_input_under_water(True)
+    assert callback_count["pause"] == 1
+
+    # Still paused due to remote
+    channel._on_local_output_under_water(False)
+    assert callback_count["resume"] == 0
+
+    # Now resumes
+    channel.on_remote_input_under_water(False)
+    assert callback_count["resume"] == 1
+
+    # Multiple resume signals should be idempotent
+    # Already resumed
+    channel._on_local_output_under_water(False)
+    assert callback_count["resume"] == 1
+
+    # Already resumed
+    channel.on_remote_input_under_water(False)
+    assert callback_count["resume"] == 1

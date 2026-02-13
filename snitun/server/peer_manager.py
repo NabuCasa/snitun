@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, ValuesView
 from datetime import UTC, datetime
 from enum import Enum
 import json
@@ -46,6 +46,10 @@ class PeerManager:
     def connections(self) -> int:
         """Return count of connected devices."""
         return len(self._peers)
+
+    def iter_peers(self) -> ValuesView[Peer]:
+        """Iterate over all peers."""
+        return self._peers.values()
 
     def create_peer(self, fernet_data: bytes) -> Peer:
         """Create a new peer from crypt config."""
@@ -120,7 +124,7 @@ class PeerManager:
     async def close_connections(self, timeout: int = 10) -> None:  # noqa: ASYNC109
         """Close all peer connections.
 
-        Use this function only if you do not controll the server socket.
+        Use this function only if you do not control the server socket.
         """
         peers = list(self._peers.values())
         for peer in peers:

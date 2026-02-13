@@ -16,6 +16,7 @@ from .const import (
     INCOMING_QUEUE_HIGH_WATERMARK,
     INCOMING_QUEUE_LOW_WATERMARK,
     INCOMING_QUEUE_MAX_BYTES_CHANNEL,
+    INCOMING_QUEUE_MAX_BYTES_CHANNEL_V0,
 )
 from .message import (
     CHANNEL_FLOW_CLOSE,
@@ -55,7 +56,14 @@ class ChannelFlowControlBase:
                 self._pause_future.set_result(None)
                 self._pause_future = None
                 return
-            raise RuntimeError(f"Reader already resumed for {ip_address} ({id_})")
+            # Already resumed - this is idempotent, no error needed
+            if self._debug:
+                _LOGGER.debug(
+                    "Reader already resumed for %s (%s), ignoring",
+                    ip_address,
+                    id_,
+                )
+            return
 
         if self._pause_future is None or self._pause_future.done():
             if self._debug:
@@ -63,7 +71,13 @@ class ChannelFlowControlBase:
             self._pause_future = self._loop.create_future()
             return
 
-        raise RuntimeError(f"Reader already paused for {ip_address} ({id_})")
+        # Already paused - this is idempotent, no error needed
+        if self._debug:
+            _LOGGER.debug(
+                "Reader already paused for %s (%s), ignoring",
+                ip_address,
+                id_,
+            )
 
 
 class MultiplexerChannel:
@@ -94,8 +108,15 @@ class MultiplexerChannel:
         throttling: float | None = None,
     ) -> None:
         """Initialize Multiplexer Channel."""
+        if peer_protocol_version == 0:
+            # For protocol version 0, we use a larger queue since
+            # we can't tell the client to pause/resume reading.
+            # This is a temporary solution until we can remove protocol version 0.
+            incoming_queue_max_bytes_channel = INCOMING_QUEUE_MAX_BYTES_CHANNEL_V0
+        else:
+            incoming_queue_max_bytes_channel = INCOMING_QUEUE_MAX_BYTES_CHANNEL
         self._input = MultiplexerSingleChannelQueue(
-            INCOMING_QUEUE_MAX_BYTES_CHANNEL,
+            incoming_queue_max_bytes_channel,
             INCOMING_QUEUE_LOW_WATERMARK,
             INCOMING_QUEUE_HIGH_WATERMARK,
             self._on_local_input_under_water,
@@ -180,8 +201,10 @@ class MultiplexerChannel:
             return
         pause_reader = self._local_output_under_water or self._remote_input_under_water
         if self._reader_paused != pause_reader:
-            self._reader_paused = pause_reader
+            # Call the callback first, then update state if successful
+            # This ensures state consistency even if callback fails
             self._pause_resume_reader_callback(pause_reader)
+            self._reader_paused = pause_reader
 
     @property
     def id(self) -> MultiplexerChannelId:
