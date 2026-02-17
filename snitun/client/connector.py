@@ -8,7 +8,7 @@ import ipaddress
 import logging
 from ssl import SSLContext, SSLError
 
-from ..multiplexer.channel import ChannelFlowControlBase, MultiplexerChannel
+from ..multiplexer.channel import MultiplexerChannel
 from ..multiplexer.core import Multiplexer
 from ..multiplexer.transport import ChannelTransport
 
@@ -62,8 +62,18 @@ class Connector:
         )
 
 
-class ConnectorHandler(ChannelFlowControlBase):
-    """Handle connection to endpoint."""
+class ConnectorHandler:
+    """Handle connection to endpoint.
+
+    Bridges channel-level flow control to the SSL/app protocol layer.
+
+    Unlike ProxyPeerHandler (server side), this class does NOT inherit
+    from ChannelFlowControlBase because it has no read/write loop to
+    pause with a future. Instead, the ChannelTransport owns the reader
+    task, and this handler translates channel backpressure signals into
+    pause_protocol() / resume_protocol() calls on the transport, which
+    in turn call SSLProtocol.pause_writing() / resume_writing().
+    """
 
     def __init__(
         self,

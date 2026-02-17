@@ -92,7 +92,6 @@ async def test_init_client_peer_invalid_token(
 ) -> None:
     """Test setup of ClientPeer."""
     client = ClientPeer("127.0.0.1", "8893")
-    connector = Connector("127.0.0.1", "8822")
 
     assert not peer_manager.peer_available("localhost")
 
@@ -148,7 +147,6 @@ async def test_close_client_peer(
 ) -> None:
     """Test setup of ClientPeer, test flow - close it."""
     client = ClientPeer("127.0.0.1", "8893")
-    connector = Connector("127.0.0.1", "8822")
 
     assert not peer_manager.peer_available("localhost")
 

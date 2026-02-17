@@ -64,8 +64,41 @@ def _feed_data_to_buffered_proto(proto: asyncio.BufferedProtocol, data: bytes) -
 
 
 class ChannelTransport(Transport):
-    """An asyncio.Transport implementation for multiplexer channel."""
+    """An asyncio.Transport implementation for multiplexer channel.
 
+    Replaces the loopback TCP connection by wrapping a MultiplexerChannel
+    as an asyncio.Transport. This allows loop.start_tls() to layer
+    SSLProtocol directly on top of the channel without an intermediate
+    socket.
+
+    After start_tls(), the protocol stack looks like:
+
+        aiohttp RequestHandler  (app protocol)
+               |
+          SSLProtocol           (set as self._protocol by start_tls)
+               |
+        ChannelTransport        (this class)
+               |
+        MultiplexerChannel      (reads/writes multiplexed frames)
+
+    Flow control — two directions:
+
+    Writing (app -> channel):
+        When the channel's output queue or the remote peer's input queue
+        is under water, the MultiplexerChannel fires its
+        pause_resume_reader_callback. ConnectorHandler translates that
+        into pause_protocol() / resume_protocol() on this transport,
+        which calls SSLProtocol.pause_writing() / resume_writing().
+        This tells the app protocol to stop producing data.
+
+    Reading (channel -> app):
+        The _reader task reads from the channel and feeds data into
+        SSLProtocol via _feed_data_to_buffered_proto. SSLProtocol can
+        call pause_reading() / resume_reading() on this transport to
+        throttle the reader when its internal BIO buffer is full.
+    """
+
+    # Required by loop.start_tls() to accept a non-socket transport.
     _start_tls_compatible = True
 
     def __init__(self, channel: MultiplexerChannel, multiplexer: Multiplexer) -> None:
