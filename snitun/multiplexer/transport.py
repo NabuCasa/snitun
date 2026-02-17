@@ -7,7 +7,7 @@ from asyncio import Transport
 import logging
 from typing import TYPE_CHECKING
 
-from ..exceptions import MultiplexerTransportClose
+from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from ..multiplexer.channel import MultiplexerChannel
 from ..utils.asyncio import create_eager_task
 from .core import Multiplexer
@@ -165,8 +165,14 @@ class ChannelTransport(Transport):
 
     def write(self, data: bytes) -> None:
         """Write data to the channel."""
-        if not self._channel.closing:
+        if self._channel.closing:
+            return
+        try:
             self._channel.write_no_wait(data)
+        except MultiplexerTransportClose:
+            self._force_close(None)
+        except MultiplexerTransportError as exc:
+            self._force_close(exc)
 
     def resume_protocol(self) -> None:
         """Resume the protocol."""

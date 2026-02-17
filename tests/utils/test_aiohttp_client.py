@@ -39,7 +39,7 @@ async def test_endpoint_connection_error_callback_deprecated(
         DeprecationWarning,
         match=(
             r"Passing endpoint_connection_error_callback to SniTunClientAioHttp.start\(\)"
-            r" is deprecated, is not longer used, and it will be removed in the future."
+            r" is deprecated, is no longer used, and it will be removed in the future."
         ),
     ):
         await client.start(False, endpoint_connection_error_callback=AsyncMock())

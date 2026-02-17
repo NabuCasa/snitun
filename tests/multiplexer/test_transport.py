@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from snitun.exceptions import MultiplexerTransportClose
+from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.message import CHANNEL_FLOW_DATA, MultiplexerMessage
@@ -202,3 +202,37 @@ async def test_keyboard_interrupt_channel_read_eager(
         transport = ChannelTransport(channel, multiplexer_server)
         with pytest.raises(SystemExit):
             transport.start_reader()
+
+
+async def test_write_after_channel_close(
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
+    """Test write when channel raises MultiplexerTransportClose."""
+    with patch(
+        "snitun.multiplexer.core.MultiplexerChannel",
+        PatchableMultiplexerChannel,
+    ):
+        channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
+    transport = ChannelTransport(channel, multiplexer_server)
+    with patch.object(channel, "write_no_wait", side_effect=MultiplexerTransportClose):
+        transport.write(b"test")
+
+    assert transport.is_closing() is True
+
+
+async def test_write_queue_full(
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
+    """Test write when channel raises MultiplexerTransportError (queue full)."""
+    with patch(
+        "snitun.multiplexer.core.MultiplexerChannel",
+        PatchableMultiplexerChannel,
+    ):
+        channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
+    transport = ChannelTransport(channel, multiplexer_server)
+    with patch.object(channel, "write_no_wait", side_effect=MultiplexerTransportError):
+        transport.write(b"test")
+
+    assert transport.is_closing() is True

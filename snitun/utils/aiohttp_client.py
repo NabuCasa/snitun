@@ -64,7 +64,7 @@ class SniTunClientAioHttp:
             warnings.warn(
                 "Passing endpoint_connection_error_callback to "
                 "SniTunClientAioHttp.start() is deprecated, "
-                "is not longer used, and it will be removed "
+                "is no longer used, and it will be removed "
                 "in the future.",
                 DeprecationWarning,
                 stacklevel=2,
