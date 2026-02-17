@@ -1,4 +1,24 @@
-"""Test client connector."""
+"""Test helpers that simulate a browser connecting through the cloud.
+
+In production, a browser connects to the NabuCasa cloud which forwards
+the connection through the multiplexer to the Home Assistant instance.
+These helpers simulate the browser/cloud side of that connection for
+end-to-end testing:
+
+    Browser (ChannelConnector)
+        |
+    SSLProtocol (client-side TLS)
+        |
+    ChannelTransport
+        |
+    MultiplexerChannel  ---multiplexer--->  MultiplexerChannel
+                                                |
+                                            ChannelTransport
+                                                |
+                                            SSLProtocol (server-side TLS)
+                                                |
+                                            aiohttp RequestHandler
+"""
 
 import asyncio
 import asyncio.sslproto
@@ -25,7 +45,14 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ResponseHandlerWithTransportReader(ResponseHandler):
-    """Response handler with transport reader."""
+    """aiohttp ResponseHandler that aborts the SSL transport on close.
+
+    In production, when a browser disconnects the TCP socket simply drops
+    and the cloud multiplexer sends a CLOSE message — there is no clean
+    SSL shutdown. This subclass simulates that behavior by calling
+    transport.abort() before the normal close, which sets the SSLProtocol
+    state to _UNWRAPPED and skips the SSL shutdown handshake.
+    """
 
     def __init__(
         self,
@@ -53,7 +80,17 @@ class ResponseHandlerWithTransportReader(ResponseHandler):
 
 
 class ChannelConnector(BaseConnector):
-    """Channel connector."""
+    """aiohttp connector that routes requests through a multiplexer channel.
+
+    Simulates the browser/cloud side of a snitun connection. Instead of
+    opening a TCP socket, _create_connection() creates a MultiplexerChannel,
+    wraps it in a ChannelTransport, performs client-side TLS via start_tls(),
+    and returns an aiohttp ResponseHandler wired to the TLS transport.
+
+    This is the mirror image of what ConnectorHandler does on the Home
+    Assistant side (server-side TLS), allowing full end-to-end tests
+    through the multiplexer without any real network sockets.
+    """
 
     def __init__(
         self,
