@@ -147,6 +147,20 @@ class ConnectorHandler:
 
         # Now that we have the connection upgraded to TLS, we can
         # start the request handler and serve the connection.
+        #
+        # When the channel closes, ChannelTransport._force_close()
+        # schedules SSLProtocol.connection_lost() via call_soon, which
+        # cascades to the app protocol. We still call connection_lost
+        # on the app protocol directly here because during sendfile,
+        # SSLProtocol's cascade reaches _SendfileFallbackProtocol
+        # instead of the app protocol. aiohttp's connection_lost is
+        # reentrant so the double call in the normal case is safe.
+        #
+        # We intentionally do NOT call new_transport.close() — the
+        # SSLProtocol is already torn down by connection_lost from
+        # _force_close, and calling close() would start an SSL
+        # shutdown that can never complete (the channel is closed so
+        # the peer's close_notify never arrives).
         _LOGGER.info("Connected peer: %s (%s)", channel.ip_address, channel.id)
         try:
             protocol.connection_made(new_transport)
@@ -169,5 +183,3 @@ class ConnectorHandler:
                 channel.id,
             )
             protocol.connection_lost(None)
-        finally:
-            new_transport.close()

@@ -288,7 +288,22 @@ class ChannelTransport(Transport):
             self._reader_task = None
 
     def _force_close(self, exc: BaseException | None) -> None:
-        """Force close the transport."""
+        """Force close the transport.
+
+        Closes the channel and schedules connection_lost on the protocol
+        (SSLProtocol after start_tls). The connection_lost call is
+        required so SSLProtocol tears down promptly — without it,
+        start_tls hangs waiting for handshake data that never arrives.
+
+        Note: if aiohttp is serving a file via loop.sendfile() when the
+        channel closes, _sendfile_fallback has temporarily swapped the
+        app protocol on _SSLProtocolTransport. Our call_soon fires
+        SSLProtocol.connection_lost() which sets _ssl_protocol = None,
+        and the sendfile restore then hits AttributeError in
+        _SSLProtocolTransport.set_protocol(). This is a CPython bug in
+        _sendfile_fallback.restore() — it does not guard against the
+        transport being torn down mid-transfer.
+        """
         self.close()
         if self._protocol is not None and (exc is None or isinstance(exc, Exception)):
             self._loop.call_soon(self._protocol.connection_lost, exc)
