@@ -1,31 +1,49 @@
 """Pytest fixtures for SniTun."""
 
 import asyncio
+import asyncio.sslproto
+from asyncio.streams import StreamReader
 from collections.abc import AsyncGenerator, Generator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+import ipaddress
 import logging
 import os
 import select
 import socket
+import ssl
 from threading import Thread
+from typing import Any, cast
 from unittest.mock import patch
 
+from aiohttp import web
 import pytest
+from pytest_aiohttp import AiohttpServer
+import trustme
 
 import snitun
+from snitun.client.connector import Connector, ConnectorHandler
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
+from snitun.multiplexer.transport import ChannelTransport
 from snitun.server.listener_peer import PeerListener
 from snitun.server.listener_sni import SNIProxy
 from snitun.server.peer import Peer
 from snitun.server.peer_manager import PeerManager
+from snitun.utils.aiohttp_client import SniTunClientAioHttp
 from snitun.utils.asyncio import asyncio_timeout
 
 from .server.const_fernet import FERNET_TOKENS
 
+_LOGGER = logging.getLogger(__name__)
+
 logging.basicConfig(level=logging.DEBUG)
+
+
+IP_ADDR = ipaddress.ip_address("8.8.8.8")
+BAD_ADDR = ipaddress.ip_address("8.8.1.1")
 
 
 @pytest.fixture
@@ -74,27 +92,6 @@ async def test_server() -> AsyncGenerator[list[Client], None]:
         await client.close.wait()
 
     server = await asyncio.start_server(process_data, host="127.0.0.1", port="8866")
-
-    yield connections
-
-    server.close()
-
-
-@pytest.fixture
-async def test_endpoint() -> AsyncGenerator[list[Client], None]:
-    """Create a TCP test endpoint."""
-    connections = []
-
-    async def process_data(
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter,
-    ) -> None:
-        """Read data from client."""
-        client = Client(reader, writer)
-        connections.append(client)
-        await client.close.wait()
-
-    server = await asyncio.start_server(process_data, host="127.0.0.1", port="8822")
 
     yield connections
 
@@ -338,3 +335,274 @@ async def test_client_peer(peer_listener: PeerListener) -> AsyncGenerator[Client
     yield Client(reader, writer)
 
     writer.close()
+
+
+@pytest.fixture
+def tls_certificate_authority() -> trustme.CA:
+    return trustme.CA()
+
+
+@pytest.fixture
+def tls_certificate(tls_certificate_authority: trustme.CA) -> trustme.LeafCert:
+    return tls_certificate_authority.issue_cert(
+        "localhost",
+        "localhost.localdomain",
+        "127.0.0.1",
+        "::1",
+    )
+
+
+@pytest.fixture
+async def server_ssl_context(tls_certificate: trustme.LeafCert) -> ssl.SSLContext:
+    """Create a SSL context for the server."""
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    tls_certificate.configure_cert(context)
+    return context
+
+
+@pytest.fixture
+async def server_ssl_context_missing_cert() -> ssl.SSLContext:
+    """Create a SSL context for the server without a certificate."""
+    return ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+
+
+@pytest.fixture
+async def client_ssl_context(tls_certificate_authority: trustme.CA) -> ssl.SSLContext:
+    """Create a SSL context for the client."""
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    tls_certificate_authority.configure_trust(context)
+    return context
+
+
+@asynccontextmanager
+async def make_snitun_client_aiohttp(
+    aiohttp_server: AiohttpServer,
+    server_ssl_context: ssl.SSLContext,
+) -> SniTunClientAioHttp:
+    """Create a SniTunClientAioHttp."""
+    app = web.Application()
+    async def hello_handler(_: web.Request) -> web.Response:
+        return web.Response(text="Hello world")
+
+    async def large_file_handler(_: web.Request) -> web.Response:
+        return web.Response(body=b"X" * 1024 * 1024 * 4)
+
+    app.add_routes(
+        [
+            web.get("/", hello_handler),
+            web.get("/large_file", large_file_handler),
+        ],
+    )
+    server = await aiohttp_server(app)
+    client = SniTunClientAioHttp(server.runner, server_ssl_context, "127.0.0.1", "4242")
+    await client.start(whitelist=True)
+    client._connector.whitelist.add(IP_ADDR)
+    yield client
+    await client.stop()
+    await server.close()
+
+
+@pytest.fixture
+async def snitun_client_aiohttp(
+    aiohttp_server: AiohttpServer,
+    server_ssl_context: ssl.SSLContext,
+) -> AsyncGenerator[SniTunClientAioHttp, None]:
+    """Create a SniTunClientAioHttp."""
+    async with make_snitun_client_aiohttp(aiohttp_server, server_ssl_context) as client:
+        yield client
+
+
+@pytest.fixture
+async def snitun_client_aiohttp_missing_certificate(
+    aiohttp_server: AiohttpServer,
+    server_ssl_context_missing_cert: ssl.SSLContext,
+) -> AsyncGenerator[SniTunClientAioHttp, None]:
+    """Create a SniTunClientAioHttp with the certificate missing."""
+    async with make_snitun_client_aiohttp(
+        aiohttp_server,
+        server_ssl_context_missing_cert,
+    ) as client:
+        yield client
+
+
+@pytest.fixture
+async def connector(snitun_client_aiohttp: SniTunClientAioHttp) -> Connector:
+    """Create a connector."""
+    return snitun_client_aiohttp._connector
+
+
+@pytest.fixture
+async def connector_missing_certificate(
+    snitun_client_aiohttp_missing_certificate: SniTunClientAioHttp,
+) -> Connector:
+    """Create a connector."""
+    return snitun_client_aiohttp_missing_certificate._connector
+
+
+class BufferedStreamReaderProtocol(asyncio.StreamReaderProtocol):
+    """Buffered stream reader protocol."""
+
+    writer: asyncio.StreamWriter
+    reader: asyncio.StreamReader
+
+    def __init__(
+        self,
+        stream_reader: asyncio.StreamReader,
+        loop: asyncio.AbstractEventLoop,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
+        """Initialize buffered stream reader protocol."""
+        self.reader = stream_reader
+        self.loop = loop
+        super().__init__(stream_reader, loop=loop, **kwargs)
+
+    def connection_made(self, transport: asyncio.Transport) -> None:
+        """Handle connection made."""
+        _LOGGER.debug("BufferedStreamReaderProtocol.connection_made: %s", transport)
+        self.writer = asyncio.StreamWriter(transport, self, self.reader, self.loop)
+        self.transport = transport
+
+    def data_received(self, data: bytes) -> None:
+        """Handle data received."""
+        _LOGGER.debug("BufferedStreamReaderProtocol.data_received: %s", data)
+        super().data_received(data)
+
+    def connection_lost(self, exc: Exception | None) -> None:
+        """Handle Connection lost."""
+        _LOGGER.debug("BufferedStreamReaderProtocol.connection_lost: %s", exc)
+        super().connection_lost(exc)
+
+
+@dataclass
+class _ConnectorWithStreams:
+    """Connector with streams."""
+
+    connections: list[BufferedStreamReaderProtocol]
+    connector: Connector
+
+
+def make_snitun_connector(
+    ssl_context: ssl.SSLContext,
+    whitelist: bool = False,
+) -> _ConnectorWithStreams:
+    """Make connector."""
+    connections: list[BufferedStreamReaderProtocol] = []
+    loop = asyncio.get_running_loop()
+
+    def protocol_factory() -> BufferedStreamReaderProtocol:
+        reader = StreamReader(loop=loop)
+        protocol = BufferedStreamReaderProtocol(reader, loop=loop)
+        connections.append(protocol)
+        return protocol
+
+    return _ConnectorWithStreams(
+        connections,
+        Connector(
+            protocol_factory=protocol_factory,
+            ssl_context=ssl_context,
+            whitelist=whitelist,
+        ),
+    )
+
+
+@dataclass
+class TLSWrappedTransport:
+    """TLS wrapped transport."""
+
+    channel: MultiplexerChannel
+    protocol: BufferedStreamReaderProtocol
+    transport: ChannelTransport
+
+
+@dataclass
+class SNITunLoopback:
+    """Server Transport wrapper."""
+
+    client: TLSWrappedTransport
+    server: TLSWrappedTransport
+
+
+@pytest.fixture
+async def snitun_loopback(
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+    client_ssl_context: ssl.SSLContext,
+    server_ssl_context: ssl.SSLContext,
+) -> SNITunLoopback:
+    """Make a snitun end to end loopback.
+
+    This fixture will create two multiplexers, one for the client and one for the server.
+
+    The client multiplexer will be connected to the server multiplexer.
+
+    A protocol for the client and server will be created and connected to the multiplexers.
+
+    The client and server will be connected to each other.
+
+    The client and server will be wrapped in TLS.
+
+    For a real world case, its helpful to think of the connection a being
+    reversed from what you would typically expect since we are connecting
+    back through the Cloud service to an Home Assistant Instance.
+
+    - The client is what is connected to a Home Assistant instance
+    - The server is what is connected to the internet (browser)
+    """
+    connector_with_streams = make_snitun_connector(server_ssl_context, whitelist=False)
+    connector = connector_with_streams.connector
+    multiplexer_client._new_connections = connector.handler  # noqa: SLF001
+    connector_handler: ConnectorHandler | None = None
+
+    def save_connector_handler(
+        loop: asyncio.AbstractEventLoop,
+        multiplexer: Multiplexer,
+        channel: MultiplexerChannel,
+        transport: ChannelTransport,
+    ) -> ConnectorHandler:
+        nonlocal connector_handler
+        connector_handler = ConnectorHandler(loop, multiplexer, channel, transport)
+        return connector_handler
+
+    loop = asyncio.get_running_loop()
+
+    with patch("snitun.client.connector.ConnectorHandler", save_connector_handler):
+        server_channel = await multiplexer_server.create_channel(
+            IP_ADDR,
+            lambda _: None,
+        )
+        server_transport = ChannelTransport(server_channel, multiplexer_server)
+        server_transport.start_reader()
+        server_reader = asyncio.StreamReader(loop=loop)
+        server_protocol = BufferedStreamReaderProtocol(server_reader, loop=loop)
+        tls_wrapped_server_transport = await loop.start_tls(
+            server_transport,
+            server_protocol,
+            client_ssl_context,
+            server_side=False,
+        )
+        assert tls_wrapped_server_transport is not None, "Failed to start TLS"
+        server_protocol.connection_made(tls_wrapped_server_transport)
+
+    assert isinstance(connector_handler, ConnectorHandler)
+    handler = cast(ConnectorHandler, connector_handler)
+    client_channel = handler._channel  # noqa: SLF001
+    assert client_channel._pause_resume_reader_callback is not None  # noqa: SLF001
+    assert (
+        client_channel._pause_resume_reader_callback  # noqa: SLF001
+        == handler._pause_resume_reader_callback  # noqa: SLF001
+    )
+
+    assert connector_with_streams.connections
+    assert len(connector_with_streams.connections) == 1
+    client_protocol = connector_with_streams.connections[0]
+    client_transport = handler._transport  # noqa: SLF001
+    await asyncio.sleep(0.1)
+    assert client_protocol.writer
+    assert server_protocol.writer
+    assert isinstance(server_transport.get_protocol(), asyncio.sslproto.SSLProtocol)
+    assert isinstance(client_transport.get_protocol(), asyncio.sslproto.SSLProtocol)
+
+    return SNITunLoopback(
+        client=TLSWrappedTransport(client_channel, client_protocol, client_transport),
+        server=TLSWrappedTransport(server_channel, server_protocol, server_transport),
+    )

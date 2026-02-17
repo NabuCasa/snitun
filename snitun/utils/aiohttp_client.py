@@ -4,18 +4,17 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Coroutine
-from contextlib import suppress
 import logging
-import socket
 import ssl
-from typing import Any
-
-from aiohttp.web import AppRunner, SockSite
+from typing import TYPE_CHECKING, Any
+import warnings
 
 from ..client.client_peer import ClientPeer
 from ..client.connector import Connector
 from . import DEFAULT_PROTOCOL_VERSION
-from .asyncio import asyncio_timeout
+
+if TYPE_CHECKING:
+    from aiohttp.web import AppRunner
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,13 +32,10 @@ class SniTunClientAioHttp:
         """Initialize SniTunClient with aiohttp."""
         self._connector: Connector | None = None
         self._client = ClientPeer(snitun_server, snitun_port)
-        self._socket = socket.socket()
         self._server_name = f"{snitun_server}:{snitun_port}"
-
         # Init interface
-        self._socket.setblocking(False)
-        self._socket.bind(("127.0.0.1", 0))
-        self._site = SockSite(runner, self._socket, ssl_context=context)
+        self._protocol_factory = runner.server
+        self._ssl_context = context
 
     @property
     def is_connected(self) -> bool:
@@ -64,36 +60,31 @@ class SniTunClientAioHttp:
         | None = None,
     ) -> None:
         """Start internal server."""
-        await self._site.start()
+        if endpoint_connection_error_callback:
+            warnings.warn(
+                "Passing endpoint_connection_error_callback to "
+                "SniTunClientAioHttp.start() is deprecated, "
+                "is no longer used, and it will be removed "
+                "in the future.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        server = self._protocol_factory
+        assert server is not None, "Server is not initialized"
+        self._connector = Connector(server, self._ssl_context, whitelist)
+        _LOGGER.info("AioHTTP snitun client started")
 
-        host, port = self._socket.getsockname()[:2]
-        self._connector = Connector(
-            host,
-            port,
-            whitelist,
-            endpoint_connection_error_callback=endpoint_connection_error_callback,
-        )
-
-        _LOGGER.info("AioHTTP snitun client started on %s:%s", host, port)
-
-    async def stop(self, *, wait: bool = False) -> None:
+    async def stop(self, *, wait: bool = False) -> None:  # noqa: ARG002
         """
         Stop internal server.
 
         Args:
             wait: wait for the socket to close.
+
+            This argument is not used, as we can now stop without
+            waiting.
         """
         await self.disconnect()
-        with suppress(OSError):
-            self._socket.close()
-
-        with suppress(RuntimeError):
-            self._site._runner._unreg_site(self._site)  # noqa: SLF001
-
-        if wait:
-            # Wait for the socket to close
-            await _async_waitfor_socket_closed(self._socket)
-
         _LOGGER.info("AioHTTP snitun client closed")
 
     async def connect(
@@ -124,16 +115,3 @@ class SniTunClientAioHttp:
             return
         await self._client.stop()
         _LOGGER.info("AioHTTP snitun client disconnected from: %s", self._server_name)
-
-
-async def _async_waitfor_socket_closed(sock: socket.socket | None = None) -> None:
-    """Wait for the socket to be closed."""
-    if sock is None:
-        return
-    loop = asyncio.get_event_loop()
-    try:
-        async with asyncio_timeout.timeout(60):
-            while (await loop.run_in_executor(None, sock.fileno)) != -1:
-                await asyncio.sleep(1)
-    except TimeoutError:
-        _LOGGER.warning("Timeout while waiting for the socket to close.")
