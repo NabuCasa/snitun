@@ -5,9 +5,11 @@ from collections.abc import AsyncGenerator, Generator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 import logging
+import multiprocessing
 import os
 import select
 import socket
+import sys
 from threading import Thread
 from unittest.mock import patch
 
@@ -338,3 +340,6 @@ async def test_client_peer(peer_listener: PeerListener) -> AsyncGenerator[Client
     yield Client(reader, writer)
 
     writer.close()
+
+if sys.platform == "linux":
+    multiprocessing.set_start_method("fork", force=True)
