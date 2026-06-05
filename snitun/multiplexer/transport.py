@@ -14,20 +14,6 @@ from .core import Multiplexer
 
 _LOGGER = logging.getLogger(__name__)
 
-# When the Cloud servers are able to get the real client IP
-# this should be set to True so that the IP address can be
-# used to block requests and passed to the end resource.
-#
-# This is useful to block requests from specific IP addresses
-# and it means the client side will see the IP of the other
-# end of the multiplexed connection for failed logins and other
-# security features.
-#
-# If the Cloud servers are not able to get the real client IP
-# this should be set to False so that the IP continues to present
-# as 127.0.0.1
-CHANNEL_IP_IS_CLIENT_IP = False
-
 # Default maximum number of bytes to feed to the protocol at once.
 # At runtime this is read from the protocol's max_size attribute
 # (SSLProtocol sets this to 256 KiB). This fallback is only used
@@ -112,8 +98,10 @@ class ChannelTransport(Transport):
         self._protocol_ready: asyncio.Future[None] = self._loop.create_future()
         self._protocol_set: bool = False
         self._multiplexer = multiplexer
-        peername = str(channel.ip_address) if CHANNEL_IP_IS_CLIENT_IP else "127.0.0.1"
-        super().__init__(extra={"peername": (peername, 0)})
+        # Present the real client IP to the protocol as the transport
+        # peername so the end resource can use it for blocking, failed
+        # logins, and other security features.
+        super().__init__(extra={"peername": (str(channel.ip_address), 0)})
 
     @property
     def protocol_paused(self) -> bool:
