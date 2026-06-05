@@ -23,8 +23,7 @@
         "charliermarsh.ruff",
         "esbenp.prettier-vscode",
         "ms-python.python",
-        "ms-python.vscode-pylance",
-        "visualstudioexptteam.vscodeintellicode"
+        "ms-python.vscode-pylance"
       ],
       "settings": {
         "python.pythonPath": "/usr/local/bin/python",
@@ -33,18 +32,11 @@
         "editor.formatOnSave": true,
         "editor.formatOnType": true,
         "editor.defaultFormatter": "charliermarsh.ruff",
-        "editor.rulers": [88],
         "editor.codeActionsOnSave": {
           "source.fixAll": "always",
           "source.organizeImports": "always"
         },
         "files.trimTrailingWhitespace": true,
-        "terminal.integrated.profiles.linux": {
-          "zsh": {
-            "path": "/usr/bin/zsh"
-          }
-        },
-        "terminal.integrated.defaultProfile.linux": "zsh"
       }
     }
   }
