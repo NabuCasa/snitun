@@ -229,7 +229,10 @@ class ChannelTransport(Transport):
             except MultiplexerTransportClose:
                 self._force_close(None)
                 return  # normal close
-            except (SystemExit, KeyboardInterrupt):
+            except (asyncio.CancelledError, SystemExit, KeyboardInterrupt):
+                # Cancellation is normal control flow (e.g. stop_reader()),
+                # not a fatal error. Re-raise it without reporting to the
+                # loop exception handler or force-closing the channel.
                 raise
             except BaseException as exc:
                 self._fatal_error(exc, "Fatal error: channel.read() call failed.")
@@ -268,7 +271,8 @@ class ChannelTransport(Transport):
                     data = data[chunk_size:]
                     if data and self._pause_future:
                         await self._pause_future
-            except (SystemExit, KeyboardInterrupt):
+            except (asyncio.CancelledError, SystemExit, KeyboardInterrupt):
+                # Cancellation is normal control flow, not a fatal error.
                 raise
             except BaseException as exc:
                 self._fatal_error(
@@ -279,8 +283,15 @@ class ChannelTransport(Transport):
                 raise
 
     async def stop_reader(self) -> None:
-        """Stop the transport."""
+        """Stop the transport.
+
+        Closes the underlying channel and stops the reader task. Closing
+        is explicit here (rather than relying on the reader's cancellation
+        to tear down the channel) so that cancellation stays pure control
+        flow in _reader() and is never reported as a fatal error.
+        """
         assert self._reader_task is not None, "Reader task not started"
+        self.close()
         self._reader_task.cancel()
         try:
             await self._reader_task
