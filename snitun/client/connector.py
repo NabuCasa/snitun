@@ -42,12 +42,11 @@ class Connector(ABC):
 
     def __init__(self, whitelist: bool = False) -> None:
         """Initialize Connector."""
-        self._loop = asyncio.get_event_loop()
         self._whitelist: set[IPv4Address] = set()
         self._whitelist_enabled = whitelist
 
     @property
-    def whitelist(self) -> set:
+    def whitelist(self) -> set[IPv4Address]:
         """Allow to block requests per IP Return None or access to a set."""
         return self._whitelist
 
@@ -87,6 +86,14 @@ class TransportConnector(Connector):
     :class:`~snitun.multiplexer.transport.ChannelTransport` and upgrades it
     to TLS, connecting the protocol produced by ``protocol_factory``
     (e.g. an aiohttp ``RequestHandler``) directly to the channel.
+
+    Protocol contract: the protocol returned by ``protocol_factory`` MUST
+    tolerate ``connection_lost()`` being called more than once (i.e. it
+    must be reentrant / idempotent). On teardown the protocol can receive
+    ``connection_lost()`` both from the SSLProtocol cascade and directly
+    from :meth:`ConnectorHandler.start` (see the comment there for why the
+    direct call is required for the sendfile case). aiohttp's
+    ``RequestHandler`` satisfies this; a custom protocol must too.
     """
 
     def __init__(
@@ -95,7 +102,11 @@ class TransportConnector(Connector):
         ssl_context: SSLContext,
         whitelist: bool = False,
     ) -> None:
-        """Initialize TransportConnector."""
+        """Initialize TransportConnector.
+
+        protocol_factory must produce a protocol whose connection_lost()
+        is safe to call more than once; see the class docstring.
+        """
         super().__init__(whitelist)
         self._protocol_factory = protocol_factory
         self._ssl_context = ssl_context
@@ -108,9 +119,10 @@ class TransportConnector(Connector):
         """Bridge an accepted channel to a TLS protocol."""
         _LOGGER.debug("New connection from %s", channel.ip_address)
 
+        loop = asyncio.get_running_loop()
         transport = ChannelTransport(channel, multiplexer)
 
-        await ConnectorHandler(self._loop, multiplexer, channel, transport).start(
+        await ConnectorHandler(loop, multiplexer, channel, transport).start(
             self._protocol_factory,
             self._ssl_context,
         )
@@ -126,7 +138,7 @@ class EndpointConnector(Connector):
     def __init__(
         self,
         end_host: str,
-        end_port: int | None = None,
+        end_port: int | str | None = None,
         whitelist: bool = False,
         endpoint_connection_error_callback: Callable[[], Coroutine[Any, Any, None]]
         | None = None,
@@ -149,7 +161,8 @@ class EndpointConnector(Connector):
             self._end_host,
         )
 
-        await EndpointConnectorHandler(self._loop, channel).start(
+        loop = asyncio.get_running_loop()
+        await EndpointConnectorHandler(loop, channel).start(
             multiplexer,
             self._end_host,
             self._end_port,
@@ -300,7 +313,7 @@ class EndpointConnectorHandler(ChannelFlowControlBase):
         self,
         multiplexer: Multiplexer,
         end_host: str,
-        end_port: int,
+        end_port: int | str,
         endpoint_connection_error_callback: Callable[[], Coroutine[Any, Any, None]]
         | None = None,
     ) -> None:
