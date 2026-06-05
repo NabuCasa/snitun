@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable, ValuesView
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 import json
 import logging
 
@@ -19,7 +19,7 @@ from .peer import Peer
 _LOGGER = logging.getLogger(__name__)
 
 
-class PeerManagerEvent(str, Enum):
+class PeerManagerEvent(StrEnum):
     """Peer Manager event flags."""
 
     CONNECTED = "connected"
