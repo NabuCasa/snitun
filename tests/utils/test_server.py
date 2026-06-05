@@ -7,24 +7,22 @@ import os
 import pytest
 
 from snitun.client.client_peer import ClientPeer
-from snitun.client.connector import Connector
+from snitun.client.connector import EndpointConnector
 from snitun.exceptions import SniTunConnectionError
 from snitun.server.listener_peer import PeerListener
 from snitun.server.peer_manager import PeerManager
 from snitun.utils import server
 
-from ..conftest import Client
 from ..server.const_fernet import FERNET_TOKENS
 
 
 async def test_fernet_token(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
-    test_endpoint: list[Client],
 ) -> None:
     """Test fernet token created by server."""
     client = ClientPeer("127.0.0.1", "8893")
-    connector = Connector("127.0.0.1", "8822")
+    connector = EndpointConnector("127.0.0.1", "8822")
 
     assert not peer_manager.peer_available("localhost")
 
@@ -52,11 +50,10 @@ async def test_fernet_token(
 async def test_fernet_token_date(
     peer_listener: PeerListener,
     peer_manager: PeerManager,
-    test_endpoint: list[Client],
 ) -> None:
     """Test fernet token created by server as invalid."""
     client = ClientPeer("127.0.0.1", "8893")
-    connector = Connector("127.0.0.1", "8822")
+    connector = EndpointConnector("127.0.0.1", "8822")
 
     assert not peer_manager.peer_available("localhost")
 
