@@ -270,27 +270,30 @@ class ConnectorHandler:
         # shutdown that can never complete (the channel is closed so
         # the peer's close_notify never arrives).
         _LOGGER.info("Connected peer: %s (%s)", channel.ip_address, channel.id)
+        exc: Exception | None = None
         try:
             protocol.connection_made(new_transport)
             await self._transport.wait_for_close()
-        except Exception as ex:  # noqa: BLE001
-            # Make sure we catch any exception that might be raised
-            # so it gets feed back to connection_lost
+        except Exception as err:  # noqa: BLE001
+            # Serve boundary: deliver any terminal error to the protocol's
+            # connection_lost() instead of leaking it out of the task.
+            # CancelledError and other BaseExceptions intentionally propagate.
+            exc = err
             _LOGGER.error(
                 "Transport error for %s (%s): %s",
                 channel.ip_address,
                 channel.id,
-                ex,
+                err,
             )
             self._multiplexer.delete_channel(channel)
-            protocol.connection_lost(ex)
         else:
             _LOGGER.debug(
                 "Peer close connection for %s (%s)",
                 channel.ip_address,
                 channel.id,
             )
-            protocol.connection_lost(None)
+        # connection_lost is called exactly once, with the error (or None).
+        protocol.connection_lost(exc)
 
 
 class EndpointConnectorHandler(ChannelFlowControlBase):
