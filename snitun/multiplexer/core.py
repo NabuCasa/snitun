@@ -343,10 +343,7 @@ class Multiplexer:
 
             # Protocol >= 2 carries "family marker + packed address" in the
             # (decrypted) data; older peers keep the IPv4 address in extra.
-            if (
-                self._peer_protocol_version
-                >= MIN_PROTOCOL_VERSION_FOR_ENCRYPTED_NEW
-            ):
+            if self._peer_protocol_version >= MIN_PROTOCOL_VERSION_FOR_ENCRYPTED_NEW:
                 if message.data[:1] == b"6":
                     ip_address = bytes_to_ip_address(message.data[1:17])
                 else:
