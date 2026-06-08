@@ -36,7 +36,6 @@ from snitun.server.listener_sni import SNIProxy
 from snitun.server.peer import Peer
 from snitun.server.peer_manager import PeerManager
 from snitun.utils.aiohttp_client import SniTunClientAioHttp
-from snitun.utils.asyncio import asyncio_timeout
 
 from .server.const_fernet import FERNET_TOKENS
 
@@ -50,7 +49,7 @@ BAD_ADDR = ipaddress.ip_address("8.8.1.1")
 
 
 @pytest.fixture
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
+def event_loop() -> Generator[asyncio.AbstractEventLoop]:
     """Create an instance of the default event loop for the test session.
 
     Note: pytest-asyncio 1.x removed the event_loop fixture but we still need it
@@ -74,14 +73,14 @@ class Client:
 
 
 @pytest.fixture
-def raise_timeout() -> Generator[None, None, None]:
+def raise_timeout() -> Generator[None]:
     """Raise timeout on async-timeout."""
-    with patch.object(asyncio_timeout, "timeout", side_effect=TimeoutError()):
+    with patch.object(asyncio, "timeout", side_effect=TimeoutError()):
         yield
 
 
 @pytest.fixture
-async def test_server() -> AsyncGenerator[list[Client], None]:
+async def test_server() -> AsyncGenerator[list[Client]]:
     """Create a TCP test server."""
     connections = []
 
@@ -102,7 +101,7 @@ async def test_server() -> AsyncGenerator[list[Client], None]:
 
 
 @pytest.fixture
-async def test_endpoint() -> AsyncGenerator[list[Client], None]:
+async def test_endpoint() -> AsyncGenerator[list[Client]]:
     """Create a TCP test endpoint."""
     connections = []
 
@@ -123,7 +122,7 @@ async def test_endpoint() -> AsyncGenerator[list[Client], None]:
 
 
 @pytest.fixture
-async def test_client(test_server: list[Client]) -> AsyncGenerator[Client, None]:
+async def test_client(test_server: list[Client]) -> AsyncGenerator[Client]:
     """Create a TCP test client."""
     reader, writer = await asyncio.open_connection(host="127.0.0.1", port="8866")
 
@@ -135,7 +134,7 @@ async def test_client(test_server: list[Client]) -> AsyncGenerator[Client, None]
 @pytest.fixture
 def test_server_sync(
     event_loop: asyncio.AbstractEventLoop,
-) -> Generator[list[socket.socket], None, None]:
+) -> Generator[list[socket.socket]]:
     """Create a TCP test server."""
     connections: list[socket.socket] = []
     shutdown = False
@@ -172,7 +171,7 @@ def test_server_sync(
 @pytest.fixture
 def test_client_sync(
     test_server_sync: list[socket.socket],
-) -> Generator[socket.socket, None, None]:
+) -> Generator[socket.socket]:
     """Create a TCP test client."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(("127.0.0.1", 8366))
@@ -185,7 +184,7 @@ def test_client_sync(
 @pytest.fixture
 def test_client_ssl_sync(
     test_server_sync: list[socket.socket],
-) -> Generator[socket.socket, None, None]:
+) -> Generator[socket.socket]:
     """Create a TCP test client for SSL."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect(("127.0.0.1", 8366))
@@ -200,7 +199,7 @@ async def multiplexer_server(
     test_server: list[Client],
     test_client: Client,
     crypto_key_iv: tuple[bytes, bytes],
-) -> AsyncGenerator[Multiplexer, None]:
+) -> AsyncGenerator[Multiplexer]:
     """Create a multiplexer client from server."""
     client = test_server[0]
 
@@ -229,7 +228,7 @@ async def multiplexer_server_peer_protocol_0(
     test_server: list[Client],
     test_client: Client,
     crypto_key_iv: tuple[bytes, bytes],
-) -> AsyncGenerator[Multiplexer, None]:
+) -> AsyncGenerator[Multiplexer]:
     """Create a multiplexer client from server with the peer using protocol 0."""
     client = test_server[0]
 
@@ -257,7 +256,7 @@ async def multiplexer_server_peer_protocol_0(
 async def multiplexer_client(
     test_client: Client,
     crypto_key_iv: tuple[bytes, bytes],
-) -> AsyncGenerator[Multiplexer, None]:
+) -> AsyncGenerator[Multiplexer]:
     """Create a multiplexer client from server."""
 
     async def mock_new_channel(
@@ -288,7 +287,7 @@ async def peer_manager(multiplexer_server: Multiplexer, peer: Peer) -> PeerManag
 
 
 @pytest.fixture
-async def sni_proxy(peer_manager: PeerManager) -> AsyncGenerator[SNIProxy, None]:
+async def sni_proxy(peer_manager: PeerManager) -> AsyncGenerator[SNIProxy]:
     """Create a SNI Proxy."""
     proxy = SNIProxy(peer_manager, "127.0.0.1", "8863")
     await proxy.start()
@@ -298,7 +297,7 @@ async def sni_proxy(peer_manager: PeerManager) -> AsyncGenerator[SNIProxy, None]
 
 
 @pytest.fixture
-async def test_client_ssl(sni_proxy: SNIProxy) -> AsyncGenerator[Client, None]:
+async def test_client_ssl(sni_proxy: SNIProxy) -> AsyncGenerator[Client]:
     """Create a TCP test client."""
     reader, writer = await asyncio.open_connection(host="127.0.0.1", port="8863")
 
@@ -339,7 +338,7 @@ async def peer(
 async def peer_listener(
     peer_manager: PeerManager,
     peer: Peer,
-) -> AsyncGenerator[PeerListener, None]:
+) -> AsyncGenerator[PeerListener]:
     """Create a Peer listener."""
     listener = PeerListener(peer_manager, "127.0.0.1", "8893")
     await listener.start()
@@ -352,7 +351,7 @@ async def peer_listener(
 
 
 @pytest.fixture
-async def test_client_peer(peer_listener: PeerListener) -> AsyncGenerator[Client, None]:
+async def test_client_peer(peer_listener: PeerListener) -> AsyncGenerator[Client]:
     """Create a TCP test client."""
     reader, writer = await asyncio.open_connection(host="127.0.0.1", port="8893")
 
@@ -402,7 +401,7 @@ async def client_ssl_context(tls_certificate_authority: trustme.CA) -> ssl.SSLCo
 async def make_snitun_client_aiohttp(
     aiohttp_server: AiohttpServer,
     server_ssl_context: ssl.SSLContext,
-) -> AsyncGenerator[SniTunClientAioHttp, None]:
+) -> AsyncGenerator[SniTunClientAioHttp]:
     """Create a SniTunClientAioHttp."""
     app = web.Application()
 
@@ -431,7 +430,7 @@ async def make_snitun_client_aiohttp(
 async def snitun_client_aiohttp(
     aiohttp_server: AiohttpServer,
     server_ssl_context: ssl.SSLContext,
-) -> AsyncGenerator[SniTunClientAioHttp, None]:
+) -> AsyncGenerator[SniTunClientAioHttp]:
     """Create a SniTunClientAioHttp."""
     async with make_snitun_client_aiohttp(aiohttp_server, server_ssl_context) as client:
         yield client
@@ -441,7 +440,7 @@ async def snitun_client_aiohttp(
 async def snitun_client_aiohttp_missing_certificate(
     aiohttp_server: AiohttpServer,
     server_ssl_context_missing_cert: ssl.SSLContext,
-) -> AsyncGenerator[SniTunClientAioHttp, None]:
+) -> AsyncGenerator[SniTunClientAioHttp]:
     """Create a SniTunClientAioHttp with the certificate missing."""
     async with make_snitun_client_aiohttp(
         aiohttp_server,

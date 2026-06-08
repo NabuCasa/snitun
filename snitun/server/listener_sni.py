@@ -14,7 +14,7 @@ from ..exceptions import (
 )
 from ..multiplexer.channel import ChannelFlowControlBase, MultiplexerChannel
 from ..multiplexer.core import Multiplexer
-from ..utils.asyncio import RangedTimeout, asyncio_timeout, create_eager_task
+from ..utils.asyncio import RangedTimeout, create_eager_task
 from .peer_manager import PeerManager
 from .sni import parse_tls_sni, payload_reader
 
@@ -64,7 +64,7 @@ class SNIProxy:
         """Handle incoming requests."""
         if data is None:
             try:
-                async with asyncio_timeout.timeout(2):
+                async with asyncio.timeout(2):
                     client_hello = await payload_reader(reader)
             except TimeoutError:
                 _LOGGER.warning("Abort SNI handshake")

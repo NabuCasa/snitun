@@ -18,7 +18,6 @@ from ..exceptions import (
 )
 from ..utils.asyncio import (
     RangedTimeout,
-    asyncio_timeout,
     create_eager_task,
     make_task_waiter_future,
 )
@@ -166,7 +165,7 @@ class Multiplexer:
             )
 
             # Wait until pong is received
-            async with asyncio_timeout.timeout(PEER_TCP_MIN_TIMEOUT):
+            async with asyncio.timeout(PEER_TCP_MIN_TIMEOUT):
                 await self._healthy.wait()
 
         except TimeoutError:
@@ -396,7 +395,7 @@ class Multiplexer:
         message = channel.init_new()
 
         try:
-            async with asyncio_timeout.timeout(5):
+            async with asyncio.timeout(5):
                 await self._queue.put(channel.id, message)
         except TimeoutError:
             raise MultiplexerTransportError from None

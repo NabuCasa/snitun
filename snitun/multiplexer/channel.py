@@ -10,7 +10,6 @@ import logging
 import os
 
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
-from ..utils.asyncio import asyncio_timeout
 from ..utils.ipaddress import ip_address_to_bytes
 from .const import (
     INCOMING_QUEUE_HIGH_WATERMARK,
@@ -264,7 +263,7 @@ class MultiplexerChannel:
             self._output.put_nowait(self._id, message)
         except asyncio.QueueFull:
             try:
-                async with asyncio_timeout.timeout(5):
+                async with asyncio.timeout(5):
                     await self._output.put(self._id, message)
             except TimeoutError:
                 if self._debug:
