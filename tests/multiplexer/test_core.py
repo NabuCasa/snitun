@@ -12,11 +12,10 @@ import snitun
 from snitun.exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from snitun.multiplexer import (
     channel as channel_module,
-    core as core_module,
     core as multi_core,
 )
 from snitun.multiplexer.channel import MultiplexerChannel
-from snitun.multiplexer.core import Multiplexer, MIN_SIZE_THROTTLE
+from snitun.multiplexer.core import MIN_SIZE_THROTTLE, Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
 from snitun.multiplexer.message import (
     CHANNEL_FLOW_PAUSE,

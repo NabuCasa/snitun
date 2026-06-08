@@ -5,10 +5,10 @@ import asyncio
 import pytest
 
 from snitun.utils.asyncio import (
+    RangedTimeout,
     asyncio_timeout,
     create_eager_task,
     make_task_waiter_future,
-    RangedTimeout,
 )
 
 

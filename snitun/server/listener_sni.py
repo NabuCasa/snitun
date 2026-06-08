@@ -128,6 +128,10 @@ class SNIProxy:
 class ProxyPeerHandler(ChannelFlowControlBase):
     """Proxy Peer Handler."""
 
+    # Assigned in start() once the channel exists; the loop tasks that read it
+    # are only created afterwards, so it is always set by the time it is used.
+    _ranged_timeout: RangedTimeout
+
     def __init__(
         self,
         loop: asyncio.AbstractEventLoop,
@@ -138,16 +142,9 @@ class ProxyPeerHandler(ChannelFlowControlBase):
         self._ip_address = ip_address
         self._peer_task: asyncio.Task[None] | None = None
         self._proxy_task: asyncio.Task[None] | None = None
-        self._ranged_timeout = RangedTimeout(
-            PEER_TCP_SESSION_MIN_TIMEOUT,
-            PEER_TCP_SESSION_MAX_TIMEOUT,
-            self._on_timeout,
-        )
-        self._multiplexer: Multiplexer | None = None
 
     def _on_timeout(self) -> None:
-        """Handle timeout."""
-        assert self._channel is not None, "Channel not initialized"
+        """Cancel the session once it has been idle past the timeout."""
         assert self._proxy_task is not None, "Proxy task not initialized"
         _LOGGER.debug("Close TCP session after timeout for %s", self._channel.id)
         self._proxy_task.cancel()
@@ -171,14 +168,27 @@ class ProxyPeerHandler(ChannelFlowControlBase):
             _LOGGER.error("New transport channel to peer fails")
             return
 
+        # Arm the idle timeout only once the channel exists. It is created
+        # before the loop tasks so their reschedule() calls always find it,
+        # and it is cancelled in the finally below so the timer can never
+        # outlive this handler. _on_timeout only fires after the timeout, by
+        # which point _proxy_task (set synchronously below) is always present.
+        self._ranged_timeout = RangedTimeout(
+            PEER_TCP_SESSION_MIN_TIMEOUT,
+            PEER_TCP_SESSION_MAX_TIMEOUT,
+            self._on_timeout,
+        )
         self._peer_task = create_eager_task(self._peer_loop(channel, writer))
         self._proxy_task = create_eager_task(
             self._proxy_loop(multiplexer, channel, reader, client_hello),
         )
-        await asyncio.wait((self._proxy_task,))
-        self._peer_task.cancel()
-        with suppress(asyncio.CancelledError):
-            await self._peer_task
+        try:
+            await asyncio.wait((self._proxy_task,))
+        finally:
+            self._ranged_timeout.cancel()
+            self._peer_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self._peer_task
 
     async def _peer_loop(
         self,
@@ -212,7 +222,7 @@ class ProxyPeerHandler(ChannelFlowControlBase):
             _LOGGER.debug(
                 "Peer loop: transport was closed for channel %s: %s",
                 channel.id,
-                repr(exc) or type(exc),
+                repr(exc),
             )
         finally:
             with suppress(OSError):
@@ -226,7 +236,6 @@ class ProxyPeerHandler(ChannelFlowControlBase):
         client_hello: bytes,
     ) -> None:
         """Write to peer loop."""
-        assert channel is not None, "Channel not initialized"
         try:
             await channel.write(client_hello)
             while not channel.closing:
@@ -248,7 +257,7 @@ class ProxyPeerHandler(ChannelFlowControlBase):
             _LOGGER.debug(
                 "Proxy loop: transport was closed for channel %s: %s",
                 channel.id,
-                repr(exc) or type(exc),
+                repr(exc),
             )
         finally:
             multiplexer.delete_channel(channel)

@@ -232,6 +232,9 @@ class Multiplexer:
             _LOGGER.debug("Transport was closed")
         finally:
             self._read_task.cancel()
+            # Cancel the idle timeout so it cannot fire (and log a
+            # spurious error) after the connection has already closed.
+            self._ranged_timeout.cancel()
             # Cleanup transport
             if not self._writer.transport.is_closing():
                 with suppress(OSError):
