@@ -12,7 +12,6 @@ import logging
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
 from ..exceptions import SniTunInvalidPeer
-from ..utils.asyncio import asyncio_timeout
 from ..utils.server import TokenData
 from .peer import Peer
 
@@ -133,7 +132,7 @@ class PeerManager:
 
         if waiters := [peer.wait_disconnect() for peer in peers]:
             try:
-                async with asyncio_timeout.timeout(timeout):
+                async with asyncio.timeout(timeout):
                     await asyncio.gather(*waiters, return_exceptions=True)
             except TimeoutError:
                 _LOGGER.error("Timeout while waiting for peer disconnect")

@@ -2,25 +2,11 @@
 
 import asyncio
 
-import pytest
-
 from snitun.utils.asyncio import (
     RangedTimeout,
-    asyncio_timeout,
     create_eager_task,
     make_task_waiter_future,
 )
-
-
-async def test_asyncio_timeout() -> None:
-    """Init aiohttp client for test."""
-    with pytest.raises(asyncio.TimeoutError):
-        async with asyncio_timeout.timeout(0.1):
-            task = asyncio.create_task(asyncio.sleep(10))
-            await task
-
-    with pytest.raises(asyncio.CancelledError):
-        await task
 
 
 async def test_create_eager_task() -> None:

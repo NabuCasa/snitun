@@ -18,7 +18,6 @@ from typing import Any
 
 from ..exceptions import ParseSNIIncompleteError
 from ..metrics import MetricsCollector, MetricsFactory, create_noop_metrics_collector
-from ..utils.asyncio import asyncio_timeout
 from ..utils.server import MAX_BUFFER_SIZE, MAX_READ_SIZE
 from .listener_peer import PeerListener
 from .listener_sni import SNIProxy
@@ -131,7 +130,7 @@ class SniTunServerSingle:
     ) -> None:
         """Handle incoming connection."""
         try:
-            async with asyncio_timeout.timeout(10):
+            async with asyncio.timeout(10):
                 data = await reader.read(2048)
         except TimeoutError:
             _LOGGER.warning("Abort connection initializing")

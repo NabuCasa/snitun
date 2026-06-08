@@ -11,7 +11,6 @@ import os
 from ..exceptions import MultiplexerTransportDecrypt, SniTunChallengeError
 from ..multiplexer.core import Multiplexer
 from ..multiplexer.crypto import CryptoTransport
-from ..utils.asyncio import asyncio_timeout
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -92,7 +91,7 @@ class Peer:
             token = hashlib.sha256(os.urandom(40)).digest()
             writer.write(self._crypto.encrypt(token))
 
-            async with asyncio_timeout.timeout(60):
+            async with asyncio.timeout(60):
                 await writer.drain()
                 data = await reader.readexactly(32)
 
