@@ -279,6 +279,32 @@ async def multiplexer_client(
 
 
 @pytest.fixture
+async def multiplexer_client_peer_protocol_0(
+    test_client: Client,
+    crypto_key_iv: tuple[bytes, bytes],
+) -> AsyncGenerator[Multiplexer]:
+    """Create a multiplexer client that negotiated protocol version 0."""
+
+    async def mock_new_channel(
+        multiplexer: Multiplexer,
+        channel: MultiplexerChannel,
+    ) -> None:
+        """Mock new channel."""
+
+    multiplexer = Multiplexer(
+        CryptoTransport(*crypto_key_iv),
+        test_client.reader,
+        test_client.writer,
+        0,
+        mock_new_channel,
+    )
+
+    yield multiplexer
+
+    multiplexer.shutdown()
+
+
+@pytest.fixture
 async def peer_manager(multiplexer_server: Multiplexer, peer: Peer) -> PeerManager:
     """Create a localhost peer for tests."""
     manager = PeerManager(FERNET_TOKENS)

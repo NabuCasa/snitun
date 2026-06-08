@@ -45,6 +45,45 @@ async def test_initial_channel_msg() -> None:
 
     assert message.id == channel.id
     assert message.flow_type == CHANNEL_FLOW_NEW
+    # Protocol >= 2 carries the source IP in the (to-be-encrypted) data as
+    # "family marker + packed address" padded to an AES block; extra is unused.
+    assert message.extra == b""
+    assert message.data[:1] == b"4"
+    assert message.data[1:5] == ip_address_to_bytes(IP_ADDR)
+    assert len(message.data) == 16
+
+
+async def test_initial_channel_msg_ipv6() -> None:
+    """An IPv6 source is carried (padded) in the NEW message data."""
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
+    ipv6 = ipaddress.ip_address("2001:db8::dead:beef")
+    channel = MultiplexerChannel(output, ipv6, snitun.PROTOCOL_VERSION)
+
+    message = channel.init_new()
+
+    assert message.flow_type == CHANNEL_FLOW_NEW
+    assert message.extra == b""
+    assert message.data[:1] == b"6"
+    assert message.data[1:17] == ip_address_to_bytes(ipv6)
+    # family(1) + 16 byte address padded up to the next AES block.
+    assert len(message.data) == 32
+
+
+async def test_initial_channel_msg_legacy_protocol() -> None:
+    """Protocol < 2 keeps the legacy IPv4-in-extra layout."""
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
+    channel = MultiplexerChannel(output, IP_ADDR, 1)
+
+    message = channel.init_new()
+
     assert message.data == b""
     assert message.extra == b"4" + ip_address_to_bytes(IP_ADDR)
 

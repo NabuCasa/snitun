@@ -128,7 +128,9 @@ def test_sni_connection(
         assert worker.is_responsible_peer(entry)
 
     worker.handover_connection(test_server_sync[1], TLS_1_2, hostname)
-    assert len(test_client_sync.recv(1048)) == 32
+    # The peer receives the multiplexer NEW message: a 32 byte header plus, on
+    # protocol version >= 2, the 16 byte encrypted block carrying the source IP.
+    assert len(test_client_sync.recv(1048)) == 48
 
     assert worker.peer_size == 1
     worker.shutdown()

@@ -7,7 +7,7 @@ import asyncio
 from collections.abc import Callable, Coroutine
 from contextlib import suppress
 import ipaddress
-from ipaddress import IPv4Address
+from ipaddress import IPv4Address, IPv6Address
 import logging
 from ssl import SSLContext, SSLError
 from typing import Any
@@ -42,15 +42,18 @@ class Connector(ABC):
 
     def __init__(self, whitelist: bool = False) -> None:
         """Initialize Connector."""
-        self._whitelist: set[IPv4Address] = set()
+        self._whitelist: set[IPv4Address | IPv6Address] = set()
         self._whitelist_enabled = whitelist
 
     @property
-    def whitelist(self) -> set[IPv4Address]:
+    def whitelist(self) -> set[IPv4Address | IPv6Address]:
         """Allow to block requests per IP Return None or access to a set."""
         return self._whitelist
 
-    def _whitelist_policy(self, ip_address: ipaddress.IPv4Address) -> bool:
+    def _whitelist_policy(
+        self,
+        ip_address: ipaddress.IPv4Address | ipaddress.IPv6Address,
+    ) -> bool:
         """Return True if the ip address can access to endpoint."""
         return not self._whitelist_enabled or ip_address in self._whitelist
 

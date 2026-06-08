@@ -614,13 +614,15 @@ async def test_remote_input_queue_goes_under_water(
 @patch.object(channel_module, "INCOMING_QUEUE_LOW_WATERMARK", HEADER_SIZE * 2)
 @patch.object(channel_module, "INCOMING_QUEUE_HIGH_WATERMARK", HEADER_SIZE * 3)
 async def test_remote_input_queue_goes_under_water_protocol_version_0(
-    multiplexer_client: Multiplexer,
+    multiplexer_client_peer_protocol_0: Multiplexer,
     multiplexer_server_peer_protocol_0: Multiplexer,
 ) -> None:
     """Test the remote input queue going under water with client protocol 0.
 
-    Protocol 0 has no flow control.
+    Protocol 0 has no flow control. Both ends negotiate protocol 0, matching a
+    real connection (the version is symmetric on both sides).
     """
+    multiplexer_client = multiplexer_client_peer_protocol_0
     assert not multiplexer_client._channels
     assert not multiplexer_server_peer_protocol_0._channels
 

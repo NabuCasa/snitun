@@ -66,7 +66,7 @@ class SNIProxy:
         writer: asyncio.StreamWriter,
         data: bytes | None = None,
         sni: str | None = None,
-        peer_address: ipaddress.IPv4Address | None = None,
+        peer_address: ipaddress.IPv4Address | ipaddress.IPv6Address | None = None,
     ) -> None:
         """Handle incoming requests."""
         try:
@@ -75,10 +75,7 @@ class SNIProxy:
                 # PROXY protocol header before the TLS ClientHello.
                 if data is None and self._proxy_protocol:
                     header, leftover = await read_proxy_protocol_header(reader)
-                    if header is not None and isinstance(
-                        header.source,
-                        ipaddress.IPv4Address,
-                    ):
+                    if header is not None and header.source is not None:
                         peer_address = header.source
                     data = leftover
                 # Read the (rest of the) ClientHello. payload_reader completes a
@@ -141,7 +138,7 @@ class SNIProxy:
         client_hello: bytes,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-        peer_address: ipaddress.IPv4Address | None = None,
+        peer_address: ipaddress.IPv4Address | ipaddress.IPv6Address | None = None,
     ) -> None:
         """Proxy data between end points."""
         if peer_address is not None:
@@ -149,10 +146,10 @@ class SNIProxy:
             ip_address = peer_address
         else:
             try:
-                ip_address = ipaddress.IPv4Address(
+                ip_address = ipaddress.ip_address(
                     writer.get_extra_info("peername")[0],
                 )
-            except (TypeError, AttributeError):
+            except (TypeError, AttributeError, ValueError):
                 _LOGGER.error("Can't read source IP")
                 return
         handler = ProxyPeerHandler(ip_address)
@@ -168,7 +165,7 @@ class ProxyPeerHandler(ChannelFlowControlBase):
 
     def __init__(
         self,
-        ip_address: ipaddress.IPv4Address,
+        ip_address: ipaddress.IPv4Address | ipaddress.IPv6Address,
     ) -> None:
         """Initialize ProxyPeerHandler."""
         super().__init__()
