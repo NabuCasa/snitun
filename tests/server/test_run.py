@@ -779,3 +779,73 @@ async def test_snitun_single_runner_proxy_protocol_separate_writes() -> None:
     await multiplexer.wait()
     writer_ssl.close()
     await server.stop()
+
+
+async def test_snitun_single_runner_proxy_protocol_fragmented_hello() -> None:
+    """Single server completes a ClientHello fragmented after the PROXY header."""
+    peer_address: list[ipaddress.IPv4Address] = []
+
+    server = SniTunServerSingle(
+        FERNET_TOKENS,
+        host="127.0.0.1",
+        port=32000,
+        proxy_protocol=True,
+    )
+    await server.start()
+
+    reader_peer, writer_peer = await asyncio.open_connection(
+        host="127.0.0.1",
+        port="32000",
+    )
+
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    hostname = "localhost"
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
+    crypto = CryptoTransport(aes_key, aes_iv)
+
+    writer_peer.write(fernet_token)
+    await writer_peer.drain()
+    token = await reader_peer.readexactly(32)
+    token = hashlib.sha256(crypto.decrypt(token)).digest()
+    writer_peer.write(crypto.encrypt(token))
+    await writer_peer.drain()
+    await asyncio.sleep(0.1)
+
+    async def mock_new_channel(
+        multiplexer: Multiplexer,
+        channel: MultiplexerChannel,
+    ) -> None:
+        """Mock new channel."""
+        while True:
+            await channel.read()
+            peer_address.append(channel.ip_address)
+
+    _, writer_ssl = await asyncio.open_connection(host="127.0.0.1", port="32000")
+    multiplexer = Multiplexer(
+        crypto,
+        reader_peer,
+        writer_peer,
+        snitun.PROTOCOL_VERSION,
+        mock_new_channel,
+    )
+
+    # PROXY header, then the ClientHello split into fragments across writes.
+    writer_ssl.write(b"PROXY TCP4 1.2.3.4 5.6.7.8 1111 443\r\n")
+    await writer_ssl.drain()
+    await asyncio.sleep(0.1)
+    writer_ssl.write(TLS_1_2[:40])
+    await writer_ssl.drain()
+    await asyncio.sleep(0.1)
+    writer_ssl.write(TLS_1_2[40:])
+    await writer_ssl.drain()
+    await asyncio.sleep(0.1)
+
+    assert peer_address
+    assert peer_address[0] == ipaddress.IPv4Address("1.2.3.4")
+
+    multiplexer.shutdown()
+    await multiplexer.wait()
+    writer_ssl.close()
+    await server.stop()

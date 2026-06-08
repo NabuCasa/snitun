@@ -69,31 +69,32 @@ class SNIProxy:
         peer_address: ipaddress.IPv4Address | None = None,
     ) -> None:
         """Handle incoming requests."""
-        if data is None:
-            try:
-                async with asyncio.timeout(2):
-                    if self._proxy_protocol:
-                        header, leftover = await read_proxy_protocol_header(reader)
-                        if header is not None and isinstance(
-                            header.source,
-                            ipaddress.IPv4Address,
-                        ):
-                            peer_address = header.source
-                        client_hello = await payload_reader(reader, initial=leftover)
-                    else:
-                        client_hello = await payload_reader(reader)
-            except TimeoutError:
-                _LOGGER.warning("Abort SNI handshake")
-                writer.close()
-                return
-            except ParseProxyProtocolError:
-                _LOGGER.warning("Invalid PROXY protocol header")
-                writer.close()
-                return
-            except OSError:
-                return
-        else:
-            client_hello = data
+        try:
+            async with asyncio.timeout(2):
+                # On a direct listen (no pre-read data) we may need to strip a
+                # PROXY protocol header before the TLS ClientHello.
+                if data is None and self._proxy_protocol:
+                    header, leftover = await read_proxy_protocol_header(reader)
+                    if header is not None and isinstance(
+                        header.source,
+                        ipaddress.IPv4Address,
+                    ):
+                        peer_address = header.source
+                    data = leftover
+                # Read the (rest of the) ClientHello. payload_reader completes a
+                # record that only partially arrived in the pre-read ``data``,
+                # so a fragmented hello is handled the same on every server.
+                client_hello = await payload_reader(reader, initial=data or b"")
+        except TimeoutError:
+            _LOGGER.warning("Abort SNI handshake")
+            writer.close()
+            return
+        except ParseProxyProtocolError:
+            _LOGGER.warning("Invalid PROXY protocol header")
+            writer.close()
+            return
+        except OSError:
+            return
 
         # Connection closed before data received
         if not client_hello:
