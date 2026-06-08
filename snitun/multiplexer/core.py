@@ -38,6 +38,7 @@ from .message import (
     CHANNEL_FLOW_RESUME,
     HEADER_SIZE,
     HEADER_STRUCT,
+    MIN_PROTOCOL_VERSION_FOR_ENCRYPTED_NEW,
     MultiplexerChannelId,
     MultiplexerMessage,
 )
@@ -254,13 +255,24 @@ class Multiplexer:
             extra + os.urandom(11 - len(extra)),
         )
         try:
-            encrypted_header = self._crypto.encrypt(header)
-            if data_len and data_len > MAX_PAYLOAD_FOR_WRITE:
-                self._writer.writelines((encrypted_header, data))
-            elif data_len:
-                self._writer.write(b"".join((encrypted_header, data)))
+            if (
+                flow_type == CHANNEL_FLOW_NEW
+                and data_len
+                and self._peer_protocol_version
+                >= MIN_PROTOCOL_VERSION_FOR_ENCRYPTED_NEW
+            ):
+                # The NEW message data carries the source IP; encrypt it with
+                # the header so the address is never sent in clear. data is
+                # padded to an AES block, so header + data stays CBC-aligned.
+                self._writer.write(self._crypto.encrypt(header + data))
             else:
-                self._writer.write(encrypted_header)
+                encrypted_header = self._crypto.encrypt(header)
+                if data_len and data_len > MAX_PAYLOAD_FOR_WRITE:
+                    self._writer.writelines((encrypted_header, data))
+                elif data_len:
+                    self._writer.write(b"".join((encrypted_header, data)))
+                else:
+                    self._writer.write(encrypted_header)
         except RuntimeError:
             raise MultiplexerTransportClose from None
         return data_len
@@ -284,6 +296,14 @@ class Multiplexer:
         # Read message data
         if data_size:
             data = await self._reader.readexactly(data_size)
+            if (
+                flow_type == CHANNEL_FLOW_NEW
+                and self._peer_protocol_version
+                >= MIN_PROTOCOL_VERSION_FOR_ENCRYPTED_NEW
+            ):
+                # The NEW data was encrypted with the header (see
+                # _write_message); decrypt it to recover the source IP.
+                data = self._crypto.decrypt(data)
         else:
             data = b""
 
@@ -321,10 +341,16 @@ class Multiplexer:
                 _LOGGER.warning("Request new Channel is not allow")
                 return
 
-            # IPv6 sources are carried in the message data (flagged b"6" in
-            # extra); IPv4 stays in the extra field for wire compatibility.
-            if message.extra[:1] == b"6":
-                ip_address = bytes_to_ip_address(message.data)
+            # Protocol >= 2 carries "family marker + packed address" in the
+            # (decrypted) data; older peers keep the IPv4 address in extra.
+            if (
+                self._peer_protocol_version
+                >= MIN_PROTOCOL_VERSION_FOR_ENCRYPTED_NEW
+            ):
+                if message.data[:1] == b"6":
+                    ip_address = bytes_to_ip_address(message.data[1:17])
+                else:
+                    ip_address = bytes_to_ip_address(message.data[1:5])
             else:
                 ip_address = bytes_to_ip_address(message.extra[1:5])
             channel = MultiplexerChannel(

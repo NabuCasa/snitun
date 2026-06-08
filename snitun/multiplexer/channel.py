@@ -10,7 +10,7 @@ import logging
 import os
 
 from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
-from ..utils.ipaddress import ip_address_to_bytes
+from ..utils.ipaddress import EMPTY_IP_ADDRESS, ip_address_to_bytes
 from .const import (
     INCOMING_QUEUE_HIGH_WATERMARK,
     INCOMING_QUEUE_LOW_WATERMARK,
@@ -23,6 +23,7 @@ from .message import (
     CHANNEL_FLOW_NEW,
     CHANNEL_FLOW_PAUSE,
     CHANNEL_FLOW_RESUME,
+    MIN_PROTOCOL_VERSION_FOR_ENCRYPTED_NEW,
     MIN_PROTOCOL_VERSION_FOR_PAUSE_RESUME,
     MultiplexerChannelId,
     MultiplexerMessage,
@@ -30,6 +31,10 @@ from .message import (
 from .queue import MultiplexerMultiChannelQueue, MultiplexerSingleChannelQueue
 
 _LOGGER = logging.getLogger(__name__)
+
+# AES block size; the NEW message data carrying the source IP is padded to a
+# multiple of this so it stays aligned within the CBC stream when encrypted.
+_AES_BLOCK_SIZE = 16
 
 
 class ChannelFlowControlBase:
@@ -295,21 +300,29 @@ class MultiplexerChannel:
     def init_new(self) -> MultiplexerMessage:
         """Init new session for transport.
 
-        The source address is sent with the NEW message. IPv4 stays in the
-        11-byte ``extra`` field (``b"4"`` + 4 bytes) for wire compatibility;
-        IPv6 does not fit there, so it is carried in ``data`` (16 bytes) and
-        flagged with ``b"6"`` in ``extra``.
+        Protocol version >= 2 carries the source address (v4 or v6) in the
+        NEW message ``data`` as ``family marker + packed address`` padded to an
+        AES block boundary; the writer encrypts it so the address is never sent
+        in clear. Older peers keep the legacy layout: an IPv4 address in the
+        11-byte ``extra`` field (``b"4"`` + 4 bytes), which cannot carry IPv6.
         """
         if self._debug:
             _LOGGER.debug("Sending new channel %s", self._id)
-        if isinstance(self._ip_address, IPv6Address):
-            return MultiplexerMessage(
-                self._id,
-                CHANNEL_FLOW_NEW,
-                ip_address_to_bytes(self._ip_address),
-                b"6",
-            )
-        extra = b"4" + ip_address_to_bytes(self._ip_address)
+
+        if self._peer_protocol_version >= MIN_PROTOCOL_VERSION_FOR_ENCRYPTED_NEW:
+            family = b"6" if isinstance(self._ip_address, IPv6Address) else b"4"
+            block = family + ip_address_to_bytes(self._ip_address)
+            # Pad to a full AES block so the encrypted data stays aligned in
+            # the CBC stream shared with the header.
+            padding = -len(block) % _AES_BLOCK_SIZE
+            data = block + os.urandom(padding)
+            return MultiplexerMessage(self._id, CHANNEL_FLOW_NEW, data, b"")
+
+        # Legacy peers cannot represent IPv6; fall back to the empty address.
+        ip_address = self._ip_address
+        if isinstance(ip_address, IPv6Address):
+            ip_address = EMPTY_IP_ADDRESS
+        extra = b"4" + ip_address_to_bytes(ip_address)
         return MultiplexerMessage(self._id, CHANNEL_FLOW_NEW, b"", extra)
 
     def message_transport(self, message: MultiplexerMessage) -> None:

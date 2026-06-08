@@ -10,7 +10,7 @@ from cryptography.fernet import Fernet, MultiFernet
 
 MAX_READ_SIZE = 4_096
 MAX_BUFFER_SIZE = 1_024_000
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
 DEFAULT_PROTOCOL_VERSION = 0
 
 

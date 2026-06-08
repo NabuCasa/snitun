@@ -6,6 +6,10 @@ import struct
 from typing import NamedTuple
 
 MIN_PROTOCOL_VERSION_FOR_PAUSE_RESUME = 1
+# Protocol version 2 always sends the channel source IP in the (encrypted)
+# NEW message data instead of the header extra field, which lets it carry
+# IPv6 and keeps the address encrypted on the wire.
+MIN_PROTOCOL_VERSION_FOR_ENCRYPTED_NEW = 2
 
 
 class FlowType(IntEnum):
