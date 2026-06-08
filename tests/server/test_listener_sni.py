@@ -37,6 +37,7 @@ def _proxy_v2_tcp4(source: str) -> bytes:
         + block
     )
 
+
 IP_ADDR = ipaddress.ip_address("127.0.0.1")
 
 
@@ -540,3 +541,113 @@ async def test_proxy_peer_aborts_without_source_ip(
 
     # No channel is opened when the source IP cannot be read.
     multiplexer.create_channel.assert_not_called()
+
+
+async def test_proxy_protocol_v1_then_sni_separate_writes(
+    multiplexer_client: Multiplexer,
+    peer_manager: PeerManager,
+) -> None:
+    """PROXY header first, then the TLS ClientHello: SNI routing still works."""
+    proxy = SNIProxy(peer_manager, "127.0.0.1", "8863", proxy_protocol=True)
+    await proxy.start()
+    _, writer = await asyncio.open_connection(host="127.0.0.1", port="8863")
+
+    # Send the PROXY header on its own first.
+    writer.write(b"PROXY TCP4 1.2.3.4 5.6.7.8 1111 443\r\n")
+    await writer.drain()
+    await asyncio.sleep(0.1)
+    # Nothing routed yet: the ClientHello (and its SNI) has not arrived.
+    assert not multiplexer_client._channels
+
+    # Now the TLS ClientHello (SNI "localhost") follows.
+    writer.write(TLS_1_2)
+    await writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert multiplexer_client._channels
+    channel = next(iter(multiplexer_client._channels.values()))
+    # Routed by SNI to the localhost peer, with the PROXY source IP forwarded.
+    assert channel.ip_address == ipaddress.IPv4Address("1.2.3.4")
+    assert await channel.read() == TLS_1_2
+
+    writer.close()
+    await asyncio.sleep(0.1)
+    await proxy.stop()
+
+
+async def test_proxy_protocol_v2_then_sni_separate_writes(
+    multiplexer_client: Multiplexer,
+    peer_manager: PeerManager,
+) -> None:
+    """Same as above for a v2 binary header."""
+    proxy = SNIProxy(peer_manager, "127.0.0.1", "8863", proxy_protocol=True)
+    await proxy.start()
+    _, writer = await asyncio.open_connection(host="127.0.0.1", port="8863")
+
+    writer.write(_proxy_v2_tcp4("9.8.7.6"))
+    await writer.drain()
+    await asyncio.sleep(0.1)
+    assert not multiplexer_client._channels
+
+    writer.write(TLS_1_2)
+    await writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert multiplexer_client._channels
+    channel = next(iter(multiplexer_client._channels.values()))
+    assert channel.ip_address == ipaddress.IPv4Address("9.8.7.6")
+    assert await channel.read() == TLS_1_2
+
+    writer.close()
+    await asyncio.sleep(0.1)
+    await proxy.stop()
+
+
+async def test_proxy_protocol_then_chunked_sni(
+    multiplexer_client: Multiplexer,
+    peer_manager: PeerManager,
+) -> None:
+    """The ClientHello may arrive in several chunks after the PROXY header."""
+    proxy = SNIProxy(peer_manager, "127.0.0.1", "8863", proxy_protocol=True)
+    await proxy.start()
+    _, writer = await asyncio.open_connection(host="127.0.0.1", port="8863")
+
+    # Header glued to the first TLS fragment, remainder dribbled in.
+    writer.write(b"PROXY TCP4 1.2.3.4 5.6.7.8 1111 443\r\n" + TLS_1_2[:6])
+    await writer.drain()
+    await asyncio.sleep(0.05)
+    writer.write(TLS_1_2[6:30])
+    await writer.drain()
+    await asyncio.sleep(0.05)
+    writer.write(TLS_1_2[30:])
+    await writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert multiplexer_client._channels
+    channel = next(iter(multiplexer_client._channels.values()))
+    assert channel.ip_address == ipaddress.IPv4Address("1.2.3.4")
+    assert await channel.read() == TLS_1_2
+
+    writer.close()
+    await asyncio.sleep(0.1)
+    await proxy.stop()
+
+
+async def test_proxy_protocol_then_invalid_tls_rejected(
+    multiplexer_client: Multiplexer,
+    peer_manager: PeerManager,
+) -> None:
+    """A valid PROXY header followed by non-TLS data is rejected (no channel)."""
+    proxy = SNIProxy(peer_manager, "127.0.0.1", "8863", proxy_protocol=True)
+    await proxy.start()
+    _, writer = await asyncio.open_connection(host="127.0.0.1", port="8863")
+
+    writer.write(b"PROXY TCP4 1.2.3.4 5.6.7.8 1111 443\r\nnot-a-tls-hello")
+    await writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert not multiplexer_client._channels
+
+    writer.close()
+    await asyncio.sleep(0.1)
+    await proxy.stop()
