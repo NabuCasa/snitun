@@ -35,7 +35,6 @@ class SNIProxy:
     ) -> None:
         """Initialize SNI Proxy interface."""
         self._peer_manager = peer_manager
-        self._loop = asyncio.get_event_loop()
         self._host = host
         self._port = port or 443
         self._server: asyncio.Server | None = None
@@ -121,7 +120,7 @@ class SNIProxy:
         except (TypeError, AttributeError):
             _LOGGER.error("Can't read source IP")
             return
-        handler = ProxyPeerHandler(self._loop, ip_address)
+        handler = ProxyPeerHandler(ip_address)
         await handler.start(multiplexer, client_hello, reader, writer)
 
 
@@ -134,11 +133,10 @@ class ProxyPeerHandler(ChannelFlowControlBase):
 
     def __init__(
         self,
-        loop: asyncio.AbstractEventLoop,
         ip_address: ipaddress.IPv4Address,
     ) -> None:
         """Initialize ProxyPeerHandler."""
-        super().__init__(loop)
+        super().__init__()
         self._ip_address = ip_address
         self._peer_task: asyncio.Task[None] | None = None
         self._proxy_task: asyncio.Task[None] | None = None

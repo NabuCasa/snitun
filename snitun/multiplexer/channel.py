@@ -37,9 +37,8 @@ class ChannelFlowControlBase:
 
     _channel: MultiplexerChannel
 
-    def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
+    def __init__(self) -> None:
         """Initialize a channel that implements flow control."""
-        self._loop = loop
         self._pause_future: asyncio.Future[None] | None = None
         self._debug = _LOGGER.isEnabledFor(logging.DEBUG)
 
@@ -67,7 +66,7 @@ class ChannelFlowControlBase:
         if self._pause_future is None or self._pause_future.done():
             if self._debug:
                 _LOGGER.debug("Pause reader for %s (%s)", ip_address, id_)
-            self._pause_future = self._loop.create_future()
+            self._pause_future = asyncio.get_running_loop().create_future()
             return
 
         # Already paused - this is idempotent, no error needed

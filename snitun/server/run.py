@@ -96,13 +96,13 @@ class SniTunServerSingle:
         throttling: int | None = None,
     ) -> None:
         """Initialize SniTun Server."""
-        self._loop: asyncio.AbstractEventLoop = asyncio.get_event_loop()
         self._server: asyncio.AbstractServer | None = None
         self._peers: PeerManager = PeerManager(fernet_keys, throttling=throttling)
         self._list_sni: SNIProxy = SNIProxy(self._peers)
         self._list_peer: PeerListener = PeerListener(self._peers)
         self._host: str = host or "0.0.0.0"
         self._port: int = port or 443
+        self._connection_tasks: set[asyncio.Task[None]] = set()
 
     @property
     def peers(self) -> PeerManager:
@@ -146,17 +146,22 @@ class SniTunServerSingle:
 
         # Select the correct handler for process data
         if data[0] == 0x16:
-            self._loop.create_task(
+            task = asyncio.create_task(
                 self._list_sni.handle_connection(reader, writer, data=data),
             )
         elif data.startswith(b"gA"):
-            self._loop.create_task(
+            task = asyncio.create_task(
                 self._list_peer.handle_connection(reader, writer, data=data),
             )
         else:
             _LOGGER.warning("No valid ClientHello found: %s", data)
             writer.close()
             return
+
+        # Keep a reference so the fire-and-forget task is not garbage
+        # collected before it completes.
+        self._connection_tasks.add(task)
+        task.add_done_callback(self._connection_tasks.discard)
 
 
 @dataclass(slots=True)

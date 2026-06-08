@@ -209,11 +209,10 @@ async def test_proxy_peer_handler_cancels_timeout_on_close(
     proxy_peer_handler: ProxyPeerHandler | None = None
 
     def save_proxy_peer_handler(
-        loop: asyncio.AbstractEventLoop,
         ip_address: ipaddress.IPv4Address,
     ) -> ProxyPeerHandler:
         nonlocal proxy_peer_handler
-        proxy_peer_handler = ProxyPeerHandler(loop, ip_address)
+        proxy_peer_handler = ProxyPeerHandler(ip_address)
         return proxy_peer_handler
 
     with patch("snitun.server.listener_sni.ProxyPeerHandler", save_proxy_peer_handler):
@@ -242,11 +241,10 @@ async def test_proxy_peer_handler_cancels_timeout_on_close(
 
 async def test_proxy_peer_handler_channel_create_fails() -> None:
     """A failed channel creation returns cleanly and arms no idle timeout."""
-    loop = asyncio.get_running_loop()
     multiplexer = MagicMock()
     multiplexer.create_channel = AsyncMock(side_effect=MultiplexerTransportError)
 
-    handler = ProxyPeerHandler(loop, IP_ADDR)
+    handler = ProxyPeerHandler(IP_ADDR)
     await handler.start(multiplexer, TLS_1_2, MagicMock(), MagicMock())
 
     # The timeout is only armed after the channel exists, so the early return
@@ -263,11 +261,10 @@ async def test_proxy_peer_handler_can_pause(
     loop = asyncio.get_running_loop()
 
     def save_proxy_peer_handler(
-        loop: asyncio.AbstractEventLoop,
         ip_address: ipaddress.IPv4Address,
     ) -> ProxyPeerHandler:
         nonlocal proxy_peer_handler
-        proxy_peer_handler = ProxyPeerHandler(loop, ip_address)
+        proxy_peer_handler = ProxyPeerHandler(ip_address)
         return proxy_peer_handler
 
     with patch("snitun.server.listener_sni.ProxyPeerHandler", save_proxy_peer_handler):
@@ -371,11 +368,10 @@ async def test_proxy_peer_os_error_on_write(
             await super().start(multiplexer, client_hello, reader, writer)
 
     def save_proxy_peer_handler(
-        loop: asyncio.AbstractEventLoop,
         ip_address: ipaddress.IPv4Address,
     ) -> ProxyPeerHandler:
         nonlocal proxy_peer_handler
-        proxy_peer_handler = InstrumentedProxyPeerHandler(loop, ip_address)
+        proxy_peer_handler = InstrumentedProxyPeerHandler(ip_address)
         return proxy_peer_handler
 
     with patch("snitun.server.listener_sni.ProxyPeerHandler", save_proxy_peer_handler):

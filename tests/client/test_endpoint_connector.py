@@ -233,11 +233,10 @@ async def test_connector_handler_can_pause(
     connector_handler: EndpointConnectorHandler | None = None
 
     def save_connector_handler(
-        loop: asyncio.AbstractEventLoop,
         channel: MultiplexerChannel,
     ) -> EndpointConnectorHandler:
         nonlocal connector_handler
-        connector_handler = EndpointConnectorHandler(loop, channel)
+        connector_handler = EndpointConnectorHandler(channel)
         return connector_handler
 
     with patch(

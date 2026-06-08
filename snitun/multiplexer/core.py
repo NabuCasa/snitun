@@ -95,7 +95,7 @@ class Multiplexer:
         self._reader = reader
         self._writer = writer
         self._peer_protocol_version = peer_protocol_version
-        self._loop = asyncio.get_event_loop()
+        self._loop = asyncio.get_running_loop()
         self._queue = MultiplexerMultiChannelQueue(
             OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
             OUTGOING_QUEUE_LOW_WATERMARK,
