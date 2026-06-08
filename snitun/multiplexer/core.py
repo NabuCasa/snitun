@@ -104,23 +104,24 @@ class Multiplexer:
         )
         self._healthy = asyncio.Event()
         self._healthy.set()
-        self._read_task = create_eager_task(
-            self._read_from_peer_loop(),
-            loop=self._loop,
-        )
-        self._write_task = create_eager_task(
-            self._write_to_peer_loop(),
-            loop=self._loop,
-        )
+        self._channel_tasks: set[asyncio.Task[None]] = set()
+        self._channels: dict[MultiplexerChannelId, MultiplexerChannel] = {}
+        self._new_connections = new_connections
+        self._throttling = 1 / throttling if throttling else None
         self._ranged_timeout = RangedTimeout(
             PEER_TCP_MIN_TIMEOUT,
             PEER_TCP_MAX_TIMEOUT,
             self._on_timeout,
         )
-        self._channel_tasks: set[asyncio.Task[None]] = set()
-        self._channels: dict[MultiplexerChannelId, MultiplexerChannel] = {}
-        self._new_connections = new_connections
-        self._throttling = 1 / throttling if throttling else None
+        # Create the reader/writer loops last, after every attribute their
+        # bodies and teardown (finally) paths touch is assigned. They are not
+        # eager-started on purpose: an eager task whose body runs to completion
+        # synchronously - e.g. the transport is already closing at construction
+        # - would execute its finally (which cancels the sibling task) before
+        # that sibling, and the rest of this instance, were assigned, raising
+        # AttributeError out of __init__.
+        self._read_task = self._loop.create_task(self._read_from_peer_loop())
+        self._write_task = self._loop.create_task(self._write_to_peer_loop())
 
     @property
     def is_connected(self) -> bool:
@@ -212,12 +213,13 @@ class Multiplexer:
                     # we have enough time to get back
                     # pause messages to not overrun the
                     # remote input queue. If the message
-                    # is large > 64KB we use self._throttling
-                    # for the sleep value, otherwise for small
-                    # messages we use 0 as to still yield to the
-                    # event loop but not have to schedule the
-                    # task again since the overhead of the task
-                    # scheduling creates a significant CPU overhead.
+                    # is large (>= MIN_SIZE_THROTTLE) we use
+                    # self._throttling for the sleep value,
+                    # otherwise for small messages we use 0 as to
+                    # still yield to the event loop but not have to
+                    # schedule the task again since the overhead of
+                    # the task scheduling creates a significant CPU
+                    # overhead.
                     to_sleep = 0 if data_len < MIN_SIZE_THROTTLE else self._throttling
                     await asyncio.sleep(to_sleep)
         except asyncio.CancelledError:
