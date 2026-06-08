@@ -9,10 +9,12 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 import ipaddress
 import logging
+import multiprocessing
 import os
 import select
 import socket
 import ssl
+import sys
 from threading import Thread
 from typing import Any, cast
 from unittest.mock import patch
@@ -630,3 +632,11 @@ async def snitun_loopback(
         client=TLSWrappedTransport(client_channel, client_protocol, client_transport),
         server=TLSWrappedTransport(server_channel, server_protocol, server_transport),
     )
+
+
+# Python 3.14 makes "forkserver" the default multiprocessing start method on
+# Linux, which pickles the Process object. ServerWorker holds a SyncManager
+# (and thus a weakref) that cannot be pickled, so force the legacy "fork"
+# method for the test suite to keep the worker tests working.
+if sys.platform == "linux":
+    multiprocessing.set_start_method("fork", force=True)
