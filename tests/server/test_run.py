@@ -548,14 +548,14 @@ async def test_single_strip_proxy_protocol_no_header() -> None:
     assert source is None
 
 
-async def test_single_strip_proxy_protocol_v6_falls_back() -> None:
-    """An IPv6 source can't be carried by the v4 protocol; fall back to peer."""
+async def test_single_strip_proxy_protocol_v6() -> None:
+    """An IPv6 source from a v1 header is parsed and returned."""
     server = SniTunServerSingle(FERNET_TOKENS, proxy_protocol=True)
     reader = asyncio.StreamReader()
     header = b"PROXY TCP6 2001:db8::1 2001:db8::2 1111 443\r\n"
     payload, source = await server._strip_proxy_protocol(reader, header + TLS_1_2)
     assert payload == TLS_1_2
-    assert source is None
+    assert source == ipaddress.IPv6Address("2001:db8::1")
 
 
 def test_worker_strip_proxy_protocol_v1() -> None:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from ipaddress import IPv4Address
+from ipaddress import IPv4Address, IPv6Address
 import logging
 from multiprocessing import Manager
 from multiprocessing.context import ForkServerProcess
@@ -177,7 +177,7 @@ class ServerWorker(ForkServerProcess):
         con: socket,
         data: bytes,
         sni: str | None = None,
-        peer_address: IPv4Address | None = None,
+        peer_address: IPv4Address | IPv6Address | None = None,
     ) -> None:
         """Move new connection to worker."""
         self._new.put_nowait((con, data, sni, peer_address))
@@ -241,7 +241,7 @@ class ServerWorker(ForkServerProcess):
         con: socket,
         data: bytes,
         sni: str | None,
-        peer_address: IPv4Address | None = None,
+        peer_address: IPv4Address | IPv6Address | None = None,
     ) -> None:
         """Handle incoming connection."""
         try:

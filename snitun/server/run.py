@@ -143,7 +143,7 @@ class SniTunServerSingle:
         self,
         reader: asyncio.StreamReader,
         data: bytes,
-    ) -> tuple[bytes, ipaddress.IPv4Address | None]:
+    ) -> tuple[bytes, ipaddress.IPv4Address | ipaddress.IPv6Address | None]:
         """Strip an optional PROXY protocol header, returning (payload, source).
 
         Reads more from ``reader`` if the header has not fully arrived. Raises
@@ -169,9 +169,7 @@ class SniTunServerSingle:
         if not data:
             # The header consumed everything read so far; fetch the payload.
             data = await reader.read(2048)
-        if isinstance(header.source, ipaddress.IPv4Address):
-            return data, header.source
-        return data, None
+        return data, header.source
 
     async def _handler(
         self,
@@ -179,7 +177,7 @@ class SniTunServerSingle:
         writer: asyncio.StreamWriter,
     ) -> None:
         """Handle incoming connection."""
-        peer_address: ipaddress.IPv4Address | None = None
+        peer_address: ipaddress.IPv4Address | ipaddress.IPv6Address | None = None
         try:
             async with asyncio.timeout(10):
                 data = await reader.read(2048)
@@ -240,7 +238,9 @@ class Connection:
     close: bool = False
     # PROXY protocol state (only used when the server enables it).
     proxy_done: bool = False
-    peer_address: ipaddress.IPv4Address | None = field(default=None)
+    peer_address: ipaddress.IPv4Address | ipaddress.IPv6Address | None = field(
+        default=None,
+    )
 
     @property
     def fileno(self) -> int:
@@ -501,8 +501,7 @@ class SniTunServerWorker(Thread):
         client.proxy_done = True
         if header is not None:
             client.buffer = client.buffer[header.size :]
-            if isinstance(header.source, ipaddress.IPv4Address):
-                client.peer_address = header.source
+            client.peer_address = header.source
 
         # Wait for the payload that follows the header.
         return bool(client.buffer)

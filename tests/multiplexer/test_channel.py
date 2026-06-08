@@ -49,6 +49,24 @@ async def test_initial_channel_msg() -> None:
     assert message.extra == b"4" + ip_address_to_bytes(IP_ADDR)
 
 
+async def test_initial_channel_msg_ipv6() -> None:
+    """An IPv6 source is carried in the NEW message data, flagged in extra."""
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
+    ipv6 = ipaddress.ip_address("2001:db8::dead:beef")
+    channel = MultiplexerChannel(output, ipv6, snitun.PROTOCOL_VERSION)
+
+    message = channel.init_new()
+
+    assert message.flow_type == CHANNEL_FLOW_NEW
+    assert message.extra == b"6"
+    assert message.data == ip_address_to_bytes(ipv6)
+    assert len(message.data) == 16
+
+
 async def test_close_channel_msg() -> None:
     """Test close MultiplexerChannel."""
     output = MultiplexerMultiChannelQueue(

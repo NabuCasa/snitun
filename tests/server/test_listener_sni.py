@@ -651,3 +651,61 @@ async def test_proxy_protocol_then_invalid_tls_rejected(
     writer.close()
     await asyncio.sleep(0.1)
     await proxy.stop()
+
+
+def _proxy_v2_tcp6(source: str) -> bytes:
+    """Build a v2 PROXY header advertising ``source`` as the client IPv6."""
+    block = (
+        ipaddress.IPv6Address(source).packed
+        + ipaddress.IPv6Address("::1").packed
+        + struct.pack("!HH", 1111, 443)
+    )
+    return (
+        _PROXY_V2_SIGNATURE + bytes([0x21, 0x21]) + struct.pack("!H", len(block)) + block
+    )
+
+
+async def test_proxy_protocol_v1_forwards_ipv6_source(
+    multiplexer_client: Multiplexer,
+    peer_manager: PeerManager,
+) -> None:
+    """A v1 TCP6 header's IPv6 source is carried end-to-end to the channel."""
+    proxy = SNIProxy(peer_manager, "127.0.0.1", "8863", proxy_protocol=True)
+    await proxy.start()
+    _, writer = await asyncio.open_connection(host="127.0.0.1", port="8863")
+
+    writer.write(b"PROXY TCP6 2001:db8::dead 2001:db8::1 1111 443\r\n" + TLS_1_2)
+    await writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert multiplexer_client._channels
+    channel = next(iter(multiplexer_client._channels.values()))
+    assert channel.ip_address == ipaddress.IPv6Address("2001:db8::dead")
+    assert await channel.read() == TLS_1_2
+
+    writer.close()
+    await asyncio.sleep(0.1)
+    await proxy.stop()
+
+
+async def test_proxy_protocol_v2_forwards_ipv6_source(
+    multiplexer_client: Multiplexer,
+    peer_manager: PeerManager,
+) -> None:
+    """A v2 INET6 header's IPv6 source is carried end-to-end to the channel."""
+    proxy = SNIProxy(peer_manager, "127.0.0.1", "8863", proxy_protocol=True)
+    await proxy.start()
+    _, writer = await asyncio.open_connection(host="127.0.0.1", port="8863")
+
+    writer.write(_proxy_v2_tcp6("2001:db8::beef") + TLS_1_2)
+    await writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert multiplexer_client._channels
+    channel = next(iter(multiplexer_client._channels.values()))
+    assert channel.ip_address == ipaddress.IPv6Address("2001:db8::beef")
+    assert await channel.read() == TLS_1_2
+
+    writer.close()
+    await asyncio.sleep(0.1)
+    await proxy.stop()

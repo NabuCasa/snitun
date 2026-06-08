@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from contextlib import suppress
-from ipaddress import IPv4Address
+from ipaddress import IPv4Address, IPv6Address
 import logging
 import os
 
@@ -99,7 +99,7 @@ class MultiplexerChannel:
     def __init__(
         self,
         output: MultiplexerMultiChannelQueue,
-        ip_address: IPv4Address,
+        ip_address: IPv4Address | IPv6Address,
         peer_protocol_version: int,
         pause_resume_reader_callback: Callable[[bool], None] | None = None,
         channel_id: MultiplexerChannelId | None = None,
@@ -210,8 +210,8 @@ class MultiplexerChannel:
         return self._id
 
     @property
-    def ip_address(self) -> IPv4Address:
-        """Return caller IP4Address."""
+    def ip_address(self) -> IPv4Address | IPv6Address:
+        """Return caller IP address."""
         return self._ip_address
 
     @property
@@ -293,10 +293,23 @@ class MultiplexerChannel:
         return MultiplexerMessage(self._id, CHANNEL_FLOW_CLOSE)
 
     def init_new(self) -> MultiplexerMessage:
-        """Init new session for transport."""
+        """Init new session for transport.
+
+        The source address is sent with the NEW message. IPv4 stays in the
+        11-byte ``extra`` field (``b"4"`` + 4 bytes) for wire compatibility;
+        IPv6 does not fit there, so it is carried in ``data`` (16 bytes) and
+        flagged with ``b"6"`` in ``extra``.
+        """
         if self._debug:
             _LOGGER.debug("Sending new channel %s", self._id)
-        extra = b"4" + ip_address_to_bytes(self.ip_address)
+        if isinstance(self._ip_address, IPv6Address):
+            return MultiplexerMessage(
+                self._id,
+                CHANNEL_FLOW_NEW,
+                ip_address_to_bytes(self._ip_address),
+                b"6",
+            )
+        extra = b"4" + ip_address_to_bytes(self._ip_address)
         return MultiplexerMessage(self._id, CHANNEL_FLOW_NEW, b"", extra)
 
     def message_transport(self, message: MultiplexerMessage) -> None:

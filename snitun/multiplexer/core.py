@@ -321,7 +321,12 @@ class Multiplexer:
                 _LOGGER.warning("Request new Channel is not allow")
                 return
 
-            ip_address = bytes_to_ip_address(message.extra[1:5])
+            # IPv6 sources are carried in the message data (flagged b"6" in
+            # extra); IPv4 stays in the extra field for wire compatibility.
+            if message.extra[:1] == b"6":
+                ip_address = bytes_to_ip_address(message.data)
+            else:
+                ip_address = bytes_to_ip_address(message.extra[1:5])
             channel = MultiplexerChannel(
                 self._queue,
                 ip_address,
@@ -381,7 +386,7 @@ class Multiplexer:
 
     async def create_channel(
         self,
-        ip_address: ipaddress.IPv4Address,
+        ip_address: ipaddress.IPv4Address | ipaddress.IPv6Address,
         pause_resume_reader_callback: Callable[[bool], None],
     ) -> MultiplexerChannel:
         """Create a new channel for transport."""
