@@ -17,7 +17,12 @@ import snitun
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
-from snitun.server.run import SniTunServer, SniTunServerSingle, SniTunServerWorker
+from snitun.server.run import (
+    Connection,
+    SniTunServer,
+    SniTunServerSingle,
+    SniTunServerWorker,
+)
 
 from .const_fernet import FERNET_TOKENS, create_peer_config
 from .const_tls import TLS_1_2
@@ -498,3 +503,158 @@ def test_snitun_worker_crash(
     assert kill.called
 
     server.stop()
+
+
+_PROXY_V1 = b"PROXY TCP4 1.2.3.4 5.6.7.8 1111 443\r\n"
+
+
+async def test_single_strip_proxy_protocol_v1() -> None:
+    """SniTunServerSingle strips a v1 header and returns the source IP."""
+    server = SniTunServerSingle(FERNET_TOKENS, proxy_protocol=True)
+    reader = asyncio.StreamReader()
+    payload, source = await server._strip_proxy_protocol(reader, _PROXY_V1 + TLS_1_2)
+    assert payload == TLS_1_2
+    assert source == ipaddress.IPv4Address("1.2.3.4")
+
+
+async def test_single_strip_proxy_protocol_split_reads() -> None:
+    """A header split across reads is reassembled."""
+    server = SniTunServerSingle(FERNET_TOKENS, proxy_protocol=True)
+    reader = asyncio.StreamReader()
+    reader.feed_data(b" 5.6.7.8 1111 443\r\n" + TLS_1_2)
+    payload, source = await server._strip_proxy_protocol(reader, b"PROXY TCP4 1.2.3.4")
+    assert payload == TLS_1_2
+    assert source == ipaddress.IPv4Address("1.2.3.4")
+
+
+async def test_single_strip_proxy_protocol_payload_after_header() -> None:
+    """When the header consumes the read, the payload is fetched separately."""
+    server = SniTunServerSingle(FERNET_TOKENS, proxy_protocol=True)
+    reader = asyncio.StreamReader()
+    reader.feed_data(TLS_1_2)
+    payload, source = await server._strip_proxy_protocol(reader, _PROXY_V1)
+    assert payload == TLS_1_2
+    assert source == ipaddress.IPv4Address("1.2.3.4")
+
+
+async def test_single_strip_proxy_protocol_no_header() -> None:
+    """Without a header the payload is returned unchanged and no source IP."""
+    server = SniTunServerSingle(FERNET_TOKENS, proxy_protocol=True)
+    reader = asyncio.StreamReader()
+    payload, source = await server._strip_proxy_protocol(reader, TLS_1_2)
+    assert payload == TLS_1_2
+    assert source is None
+
+
+async def test_single_strip_proxy_protocol_v6_falls_back() -> None:
+    """An IPv6 source can't be carried by the v4 protocol; fall back to peer."""
+    server = SniTunServerSingle(FERNET_TOKENS, proxy_protocol=True)
+    reader = asyncio.StreamReader()
+    header = b"PROXY TCP6 2001:db8::1 2001:db8::2 1111 443\r\n"
+    payload, source = await server._strip_proxy_protocol(reader, header + TLS_1_2)
+    assert payload == TLS_1_2
+    assert source is None
+
+
+def test_worker_strip_proxy_protocol_v1() -> None:
+    """SniTunServerWorker strips a v1 header and records the source IP."""
+    server = SniTunServerWorker(FERNET_TOKENS, proxy_protocol=True)
+    client = Connection(MagicMock(), MagicMock(), buffer=_PROXY_V1 + TLS_1_2)
+
+    assert server._strip_proxy_protocol(client) is True
+    assert client.proxy_done
+    assert client.buffer == TLS_1_2
+    assert client.peer_address == ipaddress.IPv4Address("1.2.3.4")
+
+
+def test_worker_strip_proxy_protocol_disabled() -> None:
+    """A disabled worker never strips or trusts a PROXY header."""
+    server = SniTunServerWorker(FERNET_TOKENS)
+    client = Connection(MagicMock(), MagicMock(), buffer=_PROXY_V1 + TLS_1_2)
+
+    assert server._strip_proxy_protocol(client) is True
+    assert client.buffer.startswith(b"PROXY")
+    assert client.peer_address is None
+
+
+def test_worker_strip_proxy_protocol_incomplete() -> None:
+    """An incomplete header makes the worker wait for more data."""
+    server = SniTunServerWorker(FERNET_TOKENS, proxy_protocol=True)
+    client = Connection(MagicMock(), MagicMock(), buffer=b"PROXY TCP4 1.2.3.4")
+
+    assert server._strip_proxy_protocol(client) is False
+    assert not client.proxy_done
+
+
+def test_worker_strip_proxy_protocol_malformed_closes() -> None:
+    """A malformed header closes the connection."""
+    server = SniTunServerWorker(FERNET_TOKENS, proxy_protocol=True)
+    epoll = MagicMock()
+    client = Connection(MagicMock(), epoll, buffer=b"PROXY TCP4 invalid\r\n" + TLS_1_2)
+
+    assert server._strip_proxy_protocol(client) is False
+    assert client.close
+    epoll.unregister.assert_called_once()
+
+
+async def test_snitun_single_runner_proxy_protocol() -> None:
+    """End-to-end: a PROXY header's source IP is forwarded to the peer."""
+    peer_address: list[ipaddress.IPv4Address] = []
+
+    server = SniTunServerSingle(
+        FERNET_TOKENS,
+        host="127.0.0.1",
+        port=32000,
+        proxy_protocol=True,
+    )
+    await server.start()
+
+    reader_peer, writer_peer = await asyncio.open_connection(
+        host="127.0.0.1",
+        port="32000",
+    )
+
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    hostname = "localhost"
+    fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
+    crypto = CryptoTransport(aes_key, aes_iv)
+
+    writer_peer.write(fernet_token)
+    await writer_peer.drain()
+    token = await reader_peer.readexactly(32)
+    token = hashlib.sha256(crypto.decrypt(token)).digest()
+    writer_peer.write(crypto.encrypt(token))
+    await writer_peer.drain()
+    await asyncio.sleep(0.1)
+
+    async def mock_new_channel(
+        multiplexer: Multiplexer,
+        channel: MultiplexerChannel,
+    ) -> None:
+        """Mock new channel."""
+        while True:
+            await channel.read()
+            peer_address.append(channel.ip_address)
+
+    _, writer_ssl = await asyncio.open_connection(host="127.0.0.1", port="32000")
+    multiplexer = Multiplexer(
+        crypto,
+        reader_peer,
+        writer_peer,
+        snitun.PROTOCOL_VERSION,
+        mock_new_channel,
+    )
+
+    writer_ssl.write(b"PROXY TCP4 1.2.3.4 5.6.7.8 1111 443\r\n" + TLS_1_2)
+    await writer_ssl.drain()
+    await asyncio.sleep(0.1)
+
+    assert peer_address
+    assert peer_address[0] == ipaddress.IPv4Address("1.2.3.4")
+
+    multiplexer.shutdown()
+    await multiplexer.wait()
+    writer_ssl.close()
+    await server.stop()

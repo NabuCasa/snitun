@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import errno
 import ipaddress
+import struct
 from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -18,6 +19,23 @@ from snitun.server.peer_manager import PeerManager
 
 from ..conftest import Client
 from .const_tls import TLS_1_2
+
+_PROXY_V2_SIGNATURE = b"\r\n\r\n\x00\r\nQUIT\n"
+
+
+def _proxy_v2_tcp4(source: str) -> bytes:
+    """Build a v2 PROXY header advertising ``source`` as the client IPv4."""
+    block = (
+        ipaddress.IPv4Address(source).packed
+        + ipaddress.IPv4Address("5.6.7.8").packed
+        + struct.pack("!HH", 1111, 443)
+    )
+    return (
+        _PROXY_V2_SIGNATURE
+        + bytes([0x21, 0x11])
+        + struct.pack("!H", len(block))
+        + block
+    )
 
 IP_ADDR = ipaddress.ip_address("127.0.0.1")
 
@@ -412,4 +430,98 @@ async def test_proxy_peer_os_error_on_write(
 
     assert not multiplexer_client._channels
     assert "Broken Pipe" in caplog.text
+    await proxy.stop()
+
+
+async def test_proxy_protocol_v1_forwards_source_ip(
+    multiplexer_client: Multiplexer,
+    peer_manager: PeerManager,
+) -> None:
+    """With proxy_protocol enabled, a v1 header's source IP reaches the channel."""
+    proxy = SNIProxy(peer_manager, "127.0.0.1", "8863", proxy_protocol=True)
+    await proxy.start()
+    _, writer = await asyncio.open_connection(host="127.0.0.1", port="8863")
+
+    writer.write(b"PROXY TCP4 1.2.3.4 5.6.7.8 1111 443\r\n" + TLS_1_2)
+    await writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert multiplexer_client._channels
+    channel = next(iter(multiplexer_client._channels.values()))
+    # The forwarded source IP is the one from the PROXY header, not 127.0.0.1.
+    assert channel.ip_address == ipaddress.IPv4Address("1.2.3.4")
+    assert await channel.read() == TLS_1_2
+
+    writer.close()
+    await asyncio.sleep(0.1)
+    await proxy.stop()
+
+
+async def test_proxy_protocol_v2_forwards_source_ip(
+    multiplexer_client: Multiplexer,
+    peer_manager: PeerManager,
+) -> None:
+    """With proxy_protocol enabled, a v2 header's source IP reaches the channel."""
+    proxy = SNIProxy(peer_manager, "127.0.0.1", "8863", proxy_protocol=True)
+    await proxy.start()
+    _, writer = await asyncio.open_connection(host="127.0.0.1", port="8863")
+
+    writer.write(_proxy_v2_tcp4("9.8.7.6") + TLS_1_2)
+    await writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert multiplexer_client._channels
+    channel = next(iter(multiplexer_client._channels.values()))
+    assert channel.ip_address == ipaddress.IPv4Address("9.8.7.6")
+    assert await channel.read() == TLS_1_2
+
+    writer.close()
+    await asyncio.sleep(0.1)
+    await proxy.stop()
+
+
+async def test_proxy_protocol_disabled_does_not_strip_header(
+    multiplexer_client: Multiplexer,
+    peer_manager: PeerManager,
+) -> None:
+    """Without proxy_protocol a PROXY header is not trusted (no IP spoofing).
+
+    The header bytes are treated as (invalid) TLS, so the connection is
+    rejected and no channel is created.
+    """
+    proxy = SNIProxy(peer_manager, "127.0.0.1", "8863")
+    await proxy.start()
+    _, writer = await asyncio.open_connection(host="127.0.0.1", port="8863")
+
+    writer.write(b"PROXY TCP4 1.2.3.4 5.6.7.8 1111 443\r\n" + TLS_1_2)
+    await writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert not multiplexer_client._channels
+
+    writer.close()
+    await asyncio.sleep(0.1)
+    await proxy.stop()
+
+
+async def test_proxy_protocol_enabled_without_header_uses_peername(
+    multiplexer_client: Multiplexer,
+    peer_manager: PeerManager,
+) -> None:
+    """With proxy_protocol enabled but no header sent, fall back to the peer."""
+    proxy = SNIProxy(peer_manager, "127.0.0.1", "8863", proxy_protocol=True)
+    await proxy.start()
+    _, writer = await asyncio.open_connection(host="127.0.0.1", port="8863")
+
+    writer.write(TLS_1_2)
+    await writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert multiplexer_client._channels
+    channel = next(iter(multiplexer_client._channels.values()))
+    assert channel.ip_address == IP_ADDR  # socket peername (127.0.0.1)
+    assert await channel.read() == TLS_1_2
+
+    writer.close()
+    await asyncio.sleep(0.1)
     await proxy.stop()
