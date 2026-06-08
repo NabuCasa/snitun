@@ -578,13 +578,12 @@ async def snitun_loopback(
     connector_handler: ConnectorHandler | None = None
 
     def save_connector_handler(
-        loop: asyncio.AbstractEventLoop,
         multiplexer: Multiplexer,
         channel: MultiplexerChannel,
         transport: ChannelTransport,
     ) -> ConnectorHandler:
         nonlocal connector_handler
-        connector_handler = ConnectorHandler(loop, multiplexer, channel, transport)
+        connector_handler = ConnectorHandler(multiplexer, channel, transport)
         return connector_handler
 
     loop = asyncio.get_running_loop()

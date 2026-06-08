@@ -36,7 +36,6 @@ class PeerManager:
     ) -> None:
         """Initialize Peer Manager."""
         self._fernet = MultiFernet([Fernet(key) for key in fernet_tokens])
-        self._loop = asyncio.get_event_loop()
         self._throttling = throttling
         self._event_callback = event_callback
         self._peers: dict[str, Peer] = {}
@@ -93,7 +92,11 @@ class PeerManager:
             self._peers[alias] = peer
 
         if self._event_callback:
-            self._loop.call_soon(self._event_callback, peer, PeerManagerEvent.CONNECTED)
+            asyncio.get_running_loop().call_soon(
+                self._event_callback,
+                peer,
+                PeerManagerEvent.CONNECTED,
+            )
 
     def remove_peer(self, peer: Peer) -> None:
         """Remove peer from list."""
@@ -104,7 +107,7 @@ class PeerManager:
             self._peers.pop(hostname, None)
 
         if self._event_callback:
-            self._loop.call_soon(
+            asyncio.get_running_loop().call_soon(
                 self._event_callback,
                 peer,
                 PeerManagerEvent.DISCONNECTED,

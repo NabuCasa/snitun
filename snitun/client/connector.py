@@ -119,10 +119,9 @@ class TransportConnector(Connector):
         """Bridge an accepted channel to a TLS protocol."""
         _LOGGER.debug("New connection from %s", channel.ip_address)
 
-        loop = asyncio.get_running_loop()
         transport = ChannelTransport(channel, multiplexer)
 
-        await ConnectorHandler(loop, multiplexer, channel, transport).start(
+        await ConnectorHandler(multiplexer, channel, transport).start(
             self._protocol_factory,
             self._ssl_context,
         )
@@ -161,8 +160,7 @@ class EndpointConnector(Connector):
             self._end_host,
         )
 
-        loop = asyncio.get_running_loop()
-        await EndpointConnectorHandler(loop, channel).start(
+        await EndpointConnectorHandler(channel).start(
             multiplexer,
             self._end_host,
             self._end_port,
@@ -185,13 +183,11 @@ class ConnectorHandler:
 
     def __init__(
         self,
-        loop: asyncio.AbstractEventLoop,
         multiplexer: Multiplexer,
         channel: MultiplexerChannel,
         transport: ChannelTransport,
     ) -> None:
         """Initialize ConnectorHandler."""
-        self._loop = loop
         self._multiplexer = multiplexer
         self._channel = channel
         self._transport = transport
@@ -237,7 +233,7 @@ class ConnectorHandler:
 
         # Upgrade the transport to TLS
         try:
-            new_transport = await self._loop.start_tls(
+            new_transport = await asyncio.get_running_loop().start_tls(
                 self._transport,
                 protocol,
                 ssl_context,
@@ -305,11 +301,10 @@ class EndpointConnectorHandler(ChannelFlowControlBase):
 
     def __init__(
         self,
-        loop: asyncio.AbstractEventLoop,
         channel: MultiplexerChannel,
     ) -> None:
         """Initialize EndpointConnectorHandler."""
-        super().__init__(loop)
+        super().__init__()
         self._channel = channel
 
     async def start(
@@ -322,6 +317,7 @@ class EndpointConnectorHandler(ChannelFlowControlBase):
     ) -> None:
         """Start handler."""
         channel = self._channel
+        loop = asyncio.get_running_loop()
         channel.set_pause_resume_reader_callback(self._pause_resume_reader_callback)
         # Open connection to endpoint
         try:
@@ -346,11 +342,11 @@ class EndpointConnectorHandler(ChannelFlowControlBase):
                     # If the multiplexer channel queue is under water, pause the reader
                     # by waiting for the future to be set, once the queue is not under
                     # water the future will be set and cleared to resume the reader
-                    from_endpoint = self._pause_future or self._loop.create_task(
+                    from_endpoint = self._pause_future or loop.create_task(
                         reader.read(4096),  # type: ignore[arg-type]
                     )
                 if not from_peer:
-                    from_peer = self._loop.create_task(channel.read())
+                    from_peer = loop.create_task(channel.read())
 
                 # Wait until data need to be processed
                 await asyncio.wait(

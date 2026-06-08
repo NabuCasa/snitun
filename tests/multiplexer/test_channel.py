@@ -332,7 +332,7 @@ async def test_flow_control_allow_multiple_pause_resume(
         """Channel consumer for testing."""
 
         def __init__(self) -> None:
-            super().__init__(asyncio.get_running_loop())
+            super().__init__()
             output = MultiplexerMultiChannelQueue(
                 OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
                 OUTGOING_QUEUE_LOW_WATERMARK,

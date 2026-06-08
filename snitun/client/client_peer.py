@@ -28,7 +28,6 @@ class ClientPeer:
     def __init__(self, snitun_host: str, snitun_port: int | None = None) -> None:
         """Initialize ClientPeer connector."""
         self._multiplexer: Multiplexer | None = None
-        self._loop = asyncio.get_event_loop()
         self._snitun_host = snitun_host
         self._snitun_port = snitun_port or 8080
         self._handler_task: asyncio.Task[None] | None = None
@@ -133,7 +132,7 @@ class ClientPeer:
         assert not self._handler_task or self._handler_task.done(), (
             "SniTun connection already running"
         )
-        self._handler_task = self._loop.create_task(self._handler())
+        self._handler_task = asyncio.create_task(self._handler())
 
     async def stop(self) -> None:
         """Stop connection to SniTun server."""
