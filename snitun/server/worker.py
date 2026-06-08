@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from ipaddress import IPv4Address
 import logging
 from multiprocessing import Manager
 from multiprocessing.context import ForkServerProcess
@@ -176,9 +177,10 @@ class ServerWorker(ForkServerProcess):
         con: socket,
         data: bytes,
         sni: str | None = None,
+        peer_address: IPv4Address | None = None,
     ) -> None:
         """Move new connection to worker."""
-        self._new.put_nowait((con, data, sni))
+        self._new.put_nowait((con, data, sni, peer_address))
 
     def run(self) -> None:
         """Run the worker process."""
@@ -239,6 +241,7 @@ class ServerWorker(ForkServerProcess):
         con: socket,
         data: bytes,
         sni: str | None,
+        peer_address: IPv4Address | None = None,
     ) -> None:
         """Handle incoming connection."""
         try:
@@ -252,7 +255,13 @@ class ServerWorker(ForkServerProcess):
         if sni:
             assert self._list_sni is not None, "SNIProxy not initialized"
             self._loop.create_task(
-                self._list_sni.handle_connection(reader, writer, data=data, sni=sni),
+                self._list_sni.handle_connection(
+                    reader,
+                    writer,
+                    data=data,
+                    sni=sni,
+                    peer_address=peer_address,
+                ),
             )
         else:
             assert self._list_peer is not None, "PeerListener not initialized"

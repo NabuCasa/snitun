@@ -21,6 +21,14 @@ class ParseSNIIncompleteError(ParseSNIError):
     """Incomplete ClientHello data."""
 
 
+class ParseProxyProtocolError(SniTunError):
+    """Invalid PROXY protocol header."""
+
+
+class ParseProxyProtocolIncompleteError(ParseProxyProtocolError):
+    """Incomplete PROXY protocol header (need more data)."""
+
+
 class MultiplexerTransportError(SniTunError):
     """Raise if multiplexer have an problem with peer."""
 

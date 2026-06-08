@@ -10,12 +10,14 @@ import logging
 from ..exceptions import (
     MultiplexerTransportClose,
     MultiplexerTransportError,
+    ParseProxyProtocolError,
     ParseSNIError,
 )
 from ..multiplexer.channel import ChannelFlowControlBase, MultiplexerChannel
 from ..multiplexer.core import Multiplexer
 from ..utils.asyncio import RangedTimeout, create_eager_task
 from .peer_manager import PeerManager
+from .proxy_protocol import read_proxy_protocol_header
 from .sni import parse_tls_sni, payload_reader
 
 _LOGGER = logging.getLogger(__name__)
@@ -32,12 +34,17 @@ class SNIProxy:
         peer_manager: PeerManager,
         host: str | None = None,
         port: int | None = None,
+        proxy_protocol: bool = False,
     ) -> None:
         """Initialize SNI Proxy interface."""
         self._peer_manager = peer_manager
         self._host = host
         self._port = port or 443
         self._server: asyncio.Server | None = None
+        # Only trust a PROXY protocol header when explicitly enabled, i.e. when
+        # SniTun is deployed behind a known proxy. Otherwise any client could
+        # spoof its source address by sending one.
+        self._proxy_protocol = proxy_protocol
 
     async def start(self) -> None:
         """Start Proxy server."""
@@ -59,20 +66,35 @@ class SNIProxy:
         writer: asyncio.StreamWriter,
         data: bytes | None = None,
         sni: str | None = None,
+        peer_address: ipaddress.IPv4Address | None = None,
     ) -> None:
         """Handle incoming requests."""
-        if data is None:
-            try:
-                async with asyncio.timeout(2):
-                    client_hello = await payload_reader(reader)
-            except TimeoutError:
-                _LOGGER.warning("Abort SNI handshake")
-                writer.close()
-                return
-            except OSError:
-                return
-        else:
-            client_hello = data
+        try:
+            async with asyncio.timeout(2):
+                # On a direct listen (no pre-read data) we may need to strip a
+                # PROXY protocol header before the TLS ClientHello.
+                if data is None and self._proxy_protocol:
+                    header, leftover = await read_proxy_protocol_header(reader)
+                    if header is not None and isinstance(
+                        header.source,
+                        ipaddress.IPv4Address,
+                    ):
+                        peer_address = header.source
+                    data = leftover
+                # Read the (rest of the) ClientHello. payload_reader completes a
+                # record that only partially arrived in the pre-read ``data``,
+                # so a fragmented hello is handled the same on every server.
+                client_hello = await payload_reader(reader, initial=data or b"")
+        except TimeoutError:
+            _LOGGER.warning("Abort SNI handshake")
+            writer.close()
+            return
+        except ParseProxyProtocolError:
+            _LOGGER.warning("Invalid PROXY protocol header")
+            writer.close()
+            return
+        except OSError:
+            return
 
         # Connection closed before data received
         if not client_hello:
@@ -100,7 +122,13 @@ class SNIProxy:
             # Proxy data over mutliplexer to client
             _LOGGER.debug("Processing for hostname %s started", hostname)
             assert peer.multiplexer is not None, "Multiplexer not initialized"
-            await self._proxy_peer(peer.multiplexer, client_hello, reader, writer)
+            await self._proxy_peer(
+                peer.multiplexer,
+                client_hello,
+                reader,
+                writer,
+                peer_address,
+            )
 
         finally:
             if not writer.transport.is_closing():
@@ -113,13 +141,20 @@ class SNIProxy:
         client_hello: bytes,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
+        peer_address: ipaddress.IPv4Address | None = None,
     ) -> None:
         """Proxy data between end points."""
-        try:
-            ip_address = ipaddress.IPv4Address(writer.get_extra_info("peername")[0])
-        except (TypeError, AttributeError):
-            _LOGGER.error("Can't read source IP")
-            return
+        if peer_address is not None:
+            # Real client address provided by a trusted PROXY protocol header.
+            ip_address = peer_address
+        else:
+            try:
+                ip_address = ipaddress.IPv4Address(
+                    writer.get_extra_info("peername")[0],
+                )
+            except (TypeError, AttributeError):
+                _LOGGER.error("Can't read source IP")
+                return
         handler = ProxyPeerHandler(ip_address)
         await handler.start(multiplexer, client_hello, reader, writer)
 
