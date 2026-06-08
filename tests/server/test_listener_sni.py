@@ -525,3 +525,18 @@ async def test_proxy_protocol_enabled_without_header_uses_peername(
     writer.close()
     await asyncio.sleep(0.1)
     await proxy.stop()
+
+
+async def test_proxy_peer_aborts_without_source_ip(
+    peer_manager: PeerManager,
+) -> None:
+    """_proxy_peer aborts cleanly when no source IP can be determined."""
+    proxy = SNIProxy(peer_manager)
+    writer = MagicMock()
+    writer.get_extra_info.return_value = None  # peername unavailable
+    multiplexer = MagicMock()
+
+    await proxy._proxy_peer(multiplexer, b"hello", MagicMock(), writer)
+
+    # No channel is opened when the source IP cannot be read.
+    multiplexer.create_channel.assert_not_called()

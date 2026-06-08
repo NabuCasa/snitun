@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import struct
 
@@ -14,6 +15,7 @@ from snitun.exceptions import (
 from snitun.server.proxy_protocol import (
     ProxyProtocolHeader,
     parse_proxy_protocol_header,
+    read_proxy_protocol_header,
 )
 
 V2_SIGNATURE = b"\r\n\r\n\x00\r\nQUIT\n"
@@ -195,3 +197,63 @@ def test_partial_signature_is_incomplete() -> None:
         parse_proxy_protocol_header(V2_SIGNATURE[:5])
     with pytest.raises(ParseProxyProtocolIncompleteError):
         parse_proxy_protocol_header(b"")
+
+
+def test_v1_crlf_present_but_over_limit() -> None:
+    """A v1 line that terminates beyond the maximum length is rejected."""
+    raw = b"PROXY TCP4 " + b"1" * 120 + b"\r\n"
+    with pytest.raises(ParseProxyProtocolError):
+        parse_proxy_protocol_header(raw)
+
+
+# --- async reader ----------------------------------------------------------
+
+
+async def test_read_header_v1() -> None:
+    """The async reader returns the header and the payload that follows it."""
+    reader = asyncio.StreamReader()
+    reader.feed_data(b"PROXY TCP4 1.2.3.4 5.6.7.8 1 2\r\nPAYLOAD")
+    header, leftover = await read_proxy_protocol_header(reader)
+    assert header is not None
+    assert header.source == ipaddress.IPv4Address("1.2.3.4")
+    assert leftover == b"PAYLOAD"
+
+
+async def test_read_header_none_for_non_proxy() -> None:
+    """The async reader returns None and the bytes read for non-PROXY data."""
+    reader = asyncio.StreamReader()
+    reader.feed_data(b"\x16\x03\x01hello")
+    header, leftover = await read_proxy_protocol_header(reader)
+    assert header is None
+    assert leftover == b"\x16\x03\x01hello"
+
+
+async def test_read_header_split_across_reads() -> None:
+    """The async reader keeps reading until the header is complete."""
+    reader = asyncio.StreamReader()
+    reader.feed_data(b"PROXY TCP4 1.2.3.4")
+    reader.feed_data(b" 5.6.7.8 1 2\r\nrest")
+    header, leftover = await read_proxy_protocol_header(reader)
+    assert header is not None
+    assert header.source == ipaddress.IPv4Address("1.2.3.4")
+    assert leftover == b"rest"
+
+
+async def test_read_header_connection_closed() -> None:
+    """A connection closing mid-header is an error."""
+    reader = asyncio.StreamReader()
+    reader.feed_data(b"PROXY TCP4 1.2.3.4")
+    reader.feed_eof()
+    with pytest.raises(ParseProxyProtocolError):
+        await read_proxy_protocol_header(reader)
+
+
+async def test_read_header_exceeds_max_size() -> None:
+    """A header that never completes is bounded and rejected."""
+    reader = asyncio.StreamReader()
+    # v2 header advertising a huge address block that never arrives.
+    reader.feed_data(
+        V2_SIGNATURE + bytes([0x21, 0x11]) + struct.pack("!H", 0xFFFF) + b"\x00" * 1600,
+    )
+    with pytest.raises(ParseProxyProtocolError):
+        await read_proxy_protocol_header(reader)

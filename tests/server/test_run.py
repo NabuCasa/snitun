@@ -8,12 +8,14 @@ import hashlib
 import ipaddress
 import os
 import socket
+import struct
 import time
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 import snitun
+from snitun.exceptions import ParseProxyProtocolError
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import CryptoTransport
@@ -658,3 +660,55 @@ async def test_snitun_single_runner_proxy_protocol() -> None:
     await multiplexer.wait()
     writer_ssl.close()
     await server.stop()
+
+
+_PROXY_V2_SIGNATURE = b"\r\n\r\n\x00\r\nQUIT\n"
+
+
+async def test_single_strip_proxy_protocol_closed_connection() -> None:
+    """A connection closing mid PROXY header is rejected."""
+    server = SniTunServerSingle(FERNET_TOKENS, proxy_protocol=True)
+    reader = asyncio.StreamReader()
+    reader.feed_eof()
+    with pytest.raises(ParseProxyProtocolError):
+        await server._strip_proxy_protocol(reader, b"PROXY TCP4 1.2.3.4")
+
+
+def test_worker_strip_proxy_protocol_no_header() -> None:
+    """An enabled worker leaves a non-PROXY buffer untouched."""
+    server = SniTunServerWorker(FERNET_TOKENS, proxy_protocol=True)
+    client = Connection(MagicMock(), MagicMock(), buffer=TLS_1_2)
+
+    assert server._strip_proxy_protocol(client) is True
+    assert client.proxy_done
+    assert client.buffer == TLS_1_2
+    assert client.peer_address is None
+
+
+def test_worker_strip_proxy_protocol_unknown_source() -> None:
+    """A header without an address is stripped but yields no source IP."""
+    server = SniTunServerWorker(FERNET_TOKENS, proxy_protocol=True)
+    client = Connection(MagicMock(), MagicMock(), buffer=b"PROXY UNKNOWN\r\n" + TLS_1_2)
+
+    assert server._strip_proxy_protocol(client) is True
+    assert client.buffer == TLS_1_2
+    assert client.peer_address is None
+
+
+def test_worker_strip_proxy_protocol_oversize_closes() -> None:
+    """An over-long incomplete header closes the connection."""
+    server = SniTunServerWorker(FERNET_TOKENS, proxy_protocol=True)
+    epoll = MagicMock()
+    # v2 header advertising an address block that never arrives.
+    buffer = (
+        _PROXY_V2_SIGNATURE
+        + bytes([0x21, 0x11])
+        + struct.pack("!H", 0xFFFF)
+        + b"\x00" * 200
+    )
+    client = Connection(MagicMock(), epoll, buffer=buffer)
+
+    with patch("snitun.server.run.MAX_BUFFER_SIZE", 64):
+        assert server._strip_proxy_protocol(client) is False
+    assert client.close
+    epoll.unregister.assert_called_once()
