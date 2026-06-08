@@ -6,10 +6,11 @@ import asyncio
 import errno
 import ipaddress
 from typing import cast
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from snitun.exceptions import MultiplexerTransportError
 from snitun.multiplexer.core import Multiplexer
 from snitun.server.listener_sni import ProxyPeerHandler, SNIProxy
 from snitun.server.peer import Peer
@@ -198,6 +199,59 @@ async def test_sni_proxy_flow_timeout(
         await asyncio.sleep(0.3)
 
     assert not multiplexer_client._channels
+
+
+async def test_proxy_peer_handler_cancels_timeout_on_close(
+    multiplexer_client: Multiplexer,
+    peer_manager: PeerManager,
+) -> None:
+    """The idle timeout is cancelled once the session ends (no timer leak)."""
+    proxy_peer_handler: ProxyPeerHandler | None = None
+
+    def save_proxy_peer_handler(
+        loop: asyncio.AbstractEventLoop,
+        ip_address: ipaddress.IPv4Address,
+    ) -> ProxyPeerHandler:
+        nonlocal proxy_peer_handler
+        proxy_peer_handler = ProxyPeerHandler(loop, ip_address)
+        return proxy_peer_handler
+
+    with patch("snitun.server.listener_sni.ProxyPeerHandler", save_proxy_peer_handler):
+        proxy = SNIProxy(peer_manager, "127.0.0.1", "8863")
+        await proxy.start()
+        reader, writer = await asyncio.open_connection(host="127.0.0.1", port="8863")
+        test_client_ssl = Client(reader, writer)
+        test_client_ssl.writer.write(TLS_1_2)
+        await test_client_ssl.writer.drain()
+        await asyncio.sleep(0.1)
+
+        assert isinstance(proxy_peer_handler, ProxyPeerHandler)
+        handler = cast(ProxyPeerHandler, proxy_peer_handler)
+        # While the session is alive the timer is armed.
+        assert handler._ranged_timeout._timer is not None
+
+        # Client goes away -> session tears down.
+        test_client_ssl.writer.close()
+        await asyncio.sleep(0.1)
+
+    assert not multiplexer_client._channels
+    # The timer must be cancelled so it cannot fire after the session closed.
+    assert handler._ranged_timeout._timer is None
+    await proxy.stop()
+
+
+async def test_proxy_peer_handler_channel_create_fails() -> None:
+    """A failed channel creation returns cleanly and arms no idle timeout."""
+    loop = asyncio.get_running_loop()
+    multiplexer = MagicMock()
+    multiplexer.create_channel = AsyncMock(side_effect=MultiplexerTransportError)
+
+    handler = ProxyPeerHandler(loop, IP_ADDR)
+    await handler.start(multiplexer, TLS_1_2, MagicMock(), MagicMock())
+
+    # The timeout is only armed after the channel exists, so the early return
+    # must leave no timer behind that could later fire against an unset state.
+    assert not hasattr(handler, "_ranged_timeout")
 
 
 async def test_proxy_peer_handler_can_pause(

@@ -68,6 +68,21 @@ async def test_init_multiplexer_client(
     multiplexer.shutdown()
 
 
+async def test_multiplexer_cancels_ranged_timeout_on_close(
+    multiplexer_client: Multiplexer,
+) -> None:
+    """The idle timeout is cancelled when the connection closes (no leak)."""
+    assert multiplexer_client._ranged_timeout._timer is not None
+
+    multiplexer_client.shutdown()
+    await multiplexer_client.wait()
+    await asyncio.sleep(0)
+
+    # The timer must be cancelled so it cannot fire (and log a spurious
+    # error) after the connection has already closed.
+    assert multiplexer_client._ranged_timeout._timer is None
+
+
 async def test_init_multiplexer_server_throttling(
     test_server: list[Client],
     test_client: Client,
