@@ -16,7 +16,7 @@ from ..exceptions import (
     MultiplexerTransportDecrypt,
     MultiplexerTransportError,
 )
-from ..utils.asyncio import asyncio_timeout
+from ..utils.asyncio import asyncio_timeout, create_eager_task
 from ..utils.ipaddress import bytes_to_ip_address
 from .channel import MultiplexerChannel
 from .const import (
@@ -359,7 +359,7 @@ class Multiplexer:
 
     def _create_channel_task(self, coro: Coroutine[Any, Any, None]) -> None:
         """Create a new task for channel."""
-        task = self._loop.create_task(coro)
+        task = create_eager_task(coro, loop=self._loop)
         self._channel_tasks.add(task)
         task.add_done_callback(self._channel_tasks.remove)
 
