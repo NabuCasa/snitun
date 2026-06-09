@@ -111,7 +111,7 @@ async def test_init_peer_multiplexer_gcm(
     assert not init_task.done()
 
     # The GCM challenge frame is 32 bytes + nonce + tag.
-    token = await client.reader.readexactly(32 + crypto.header_overhead)
+    token = await client.reader.readexactly(32 + crypto.overhead)
     answer = hashlib.sha256(crypto.decrypt(token)).digest()
     client.writer.write(crypto.encrypt(answer))
     await client.writer.drain()

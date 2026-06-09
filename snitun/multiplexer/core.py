@@ -281,7 +281,7 @@ class Multiplexer:
     async def _read_message(self) -> None:
         """Read message from peer."""
         header = await self._reader.readexactly(
-            HEADER_SIZE + self._crypto.header_overhead,
+            HEADER_SIZE + self._crypto.overhead,
         )
 
         channel_id: bytes
@@ -311,7 +311,7 @@ class Multiplexer:
                 # The NEW data was encrypted as its own unit (see
                 # _write_message); decrypt it to recover the source IP.
                 data = await self._reader.readexactly(
-                    data_size + self._crypto.data_tag_overhead,
+                    data_size + self._crypto.overhead,
                 )
                 try:
                     data = self._crypto.decrypt(data)

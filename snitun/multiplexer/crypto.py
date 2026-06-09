@@ -32,13 +32,8 @@ class CryptoTransport(ABC):
 
     @property
     @abstractmethod
-    def header_overhead(self) -> int:
-        """Return the extra bytes added to an encrypted header on the wire."""
-
-    @property
-    @abstractmethod
-    def data_tag_overhead(self) -> int:
-        """Return the extra bytes added to an encrypted data unit on the wire."""
+    def overhead(self) -> int:
+        """Return the extra bytes added to each encrypted unit on the wire."""
 
     @abstractmethod
     def encrypt(self, data: bytes) -> bytes:
@@ -73,13 +68,8 @@ class CBCCryptoTransport(CryptoTransport):
         self._decryptor = self._cipher.decryptor()
 
     @property
-    def header_overhead(self) -> int:
-        """Return the extra bytes added to an encrypted header on the wire."""
-        return 0
-
-    @property
-    def data_tag_overhead(self) -> int:
-        """Return the extra bytes added to an encrypted data unit on the wire."""
+    def overhead(self) -> int:
+        """Return the extra bytes added to each encrypted unit on the wire."""
         return 0
 
     def encrypt(self, data: bytes) -> bytes:
@@ -111,13 +101,8 @@ class GCMCryptoTransport(CryptoTransport):
         self._aesgcm = AESGCM(key)
 
     @property
-    def header_overhead(self) -> int:
-        """Return the extra bytes added to an encrypted header on the wire."""
-        return _GCM_NONCE_SIZE + _GCM_TAG_SIZE
-
-    @property
-    def data_tag_overhead(self) -> int:
-        """Return the extra bytes added to an encrypted data unit on the wire."""
+    def overhead(self) -> int:
+        """Return the extra bytes added to each encrypted unit on the wire."""
         return _GCM_NONCE_SIZE + _GCM_TAG_SIZE
 
     def encrypt(self, data: bytes) -> bytes:

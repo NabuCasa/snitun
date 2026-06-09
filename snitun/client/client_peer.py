@@ -96,7 +96,7 @@ class ClientPeer:
         crypto = create_crypto_transport(cipher, aes_key, aes_iv)
         try:
             async with asyncio.timeout(CONNECTION_TIMEOUT):
-                challenge = await reader.readexactly(32 + crypto.header_overhead)
+                challenge = await reader.readexactly(32 + crypto.overhead)
                 answer = hashlib.sha256(crypto.decrypt(challenge)).digest()
 
                 writer.write(crypto.encrypt(answer))

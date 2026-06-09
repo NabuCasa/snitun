@@ -94,7 +94,7 @@ class Peer:
 
             async with asyncio.timeout(60):
                 await writer.drain()
-                data = await reader.readexactly(32 + self._crypto.header_overhead)
+                data = await reader.readexactly(32 + self._crypto.overhead)
 
             # Check Token
             data = self._crypto.decrypt(data)
