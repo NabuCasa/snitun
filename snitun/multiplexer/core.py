@@ -292,16 +292,14 @@ class Multiplexer:
             channel_id, flow_type, data_size, extra = HEADER_STRUCT.unpack(
                 self._crypto.decrypt(header),
             )
-        except struct.error:
+        except struct.error:  # pragma: no cover - defensive, header is fixed size
             _LOGGER.warning("Wrong message header received")
             return
         except MultiplexerTransportDecrypt:
-            if self._crypto.authenticated:
-                # A bad authentication tag means the framing is corrupt or
-                # tampered with; the stream can no longer be trusted.
-                raise MultiplexerTransportClose from None
-            _LOGGER.warning("Wrong message header received")
-            return
+            # Only an authenticated cipher (AES-GCM) raises here; a bad tag
+            # means the framing is corrupt or tampered with and the stream can
+            # no longer be trusted.
+            raise MultiplexerTransportClose from None
 
         # Read message data
         if data_size:

@@ -40,11 +40,6 @@ class CryptoTransport(ABC):
     def data_tag_overhead(self) -> int:
         """Return the extra bytes added to an encrypted data unit on the wire."""
 
-    @property
-    @abstractmethod
-    def authenticated(self) -> bool:
-        """Return True if the cipher authenticates (detects tampering)."""
-
     @abstractmethod
     def encrypt(self, data: bytes) -> bytes:
         """Encrypt data for the transport."""
@@ -87,21 +82,17 @@ class CBCCryptoTransport(CryptoTransport):
         """Return the extra bytes added to an encrypted data unit on the wire."""
         return 0
 
-    @property
-    def authenticated(self) -> bool:
-        """Return True if the cipher authenticates (detects tampering)."""
-        return False
-
     def encrypt(self, data: bytes) -> bytes:
         """Encrypt data for the transport."""
         return self._encryptor.update(data)
 
     def decrypt(self, data: bytes) -> bytes:
-        """Decrypt data from the transport."""
-        try:
-            return self._decryptor.update(data)
-        except InvalidTag:
-            raise MultiplexerTransportDecrypt from None
+        """Decrypt data from the transport.
+
+        CBC is not authenticated, so this never raises and the ciphertext is
+        always accepted.
+        """
+        return self._decryptor.update(data)
 
 
 class GCMCryptoTransport(CryptoTransport):
@@ -128,11 +119,6 @@ class GCMCryptoTransport(CryptoTransport):
     def data_tag_overhead(self) -> int:
         """Return the extra bytes added to an encrypted data unit on the wire."""
         return _GCM_NONCE_SIZE + _GCM_TAG_SIZE
-
-    @property
-    def authenticated(self) -> bool:
-        """Return True if the cipher authenticates (detects tampering)."""
-        return True
 
     def encrypt(self, data: bytes) -> bytes:
         """Encrypt data for the transport."""

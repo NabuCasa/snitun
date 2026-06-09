@@ -18,9 +18,11 @@ from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import MIN_SIZE_THROTTLE, Multiplexer
 from snitun.multiplexer.crypto import CBCCryptoTransport, GCMCryptoTransport
 from snitun.multiplexer.message import (
+    CHANNEL_FLOW_NEW,
     CHANNEL_FLOW_PAUSE,
     CHANNEL_FLOW_PING,
     HEADER_SIZE,
+    HEADER_STRUCT,
     MultiplexerChannelId,
     MultiplexerMessage,
 )
@@ -442,6 +444,63 @@ async def test_multiplexer_data_channel_gcm(
         multiplexer_client.shutdown()
         multiplexer_server.shutdown()
         server_conn.close.set()
+
+
+async def test_multiplexer_gcm_tampered_header_closes(
+    test_server: list[Client],
+    test_client: Client,
+) -> None:
+    """A GCM peer closes the connection when a header fails its tag check."""
+    server_conn = test_server[0]
+    multiplexer = Multiplexer(
+        GCMCryptoTransport(os.urandom(32)),
+        server_conn.reader,
+        server_conn.writer,
+        snitun.PROTOCOL_VERSION,
+    )
+
+    # Feed a frame of the right size but with a bad authentication tag.
+    test_client.writer.write(os.urandom(HEADER_SIZE + 28))
+    await test_client.writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert not multiplexer.is_connected
+
+    test_client.writer.close()
+    server_conn.close.set()
+
+
+async def test_multiplexer_gcm_tampered_new_data_closes(
+    test_server: list[Client],
+    test_client: Client,
+) -> None:
+    """A GCM peer closes when the NEW data unit fails its tag check."""
+    key = os.urandom(32)
+    server_conn = test_server[0]
+    multiplexer = Multiplexer(
+        GCMCryptoTransport(key),
+        server_conn.reader,
+        server_conn.writer,
+        snitun.PROTOCOL_VERSION,
+    )
+
+    # A valid NEW header announcing data, followed by a tampered data unit.
+    sender = GCMCryptoTransport(key)
+    data_size = 32
+    header = HEADER_STRUCT.pack(
+        MultiplexerChannelId(os.urandom(16)).bytes,
+        CHANNEL_FLOW_NEW,
+        data_size,
+        os.urandom(11),
+    )
+    test_client.writer.write(sender.encrypt(header) + os.urandom(data_size + 28))
+    await test_client.writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert not multiplexer.is_connected
+
+    test_client.writer.close()
+    server_conn.close.set()
 
 
 async def test_multiplexer_channel_shutdown(

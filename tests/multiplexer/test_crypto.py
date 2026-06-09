@@ -45,12 +45,11 @@ def test_cbc_split_encrypt_matches_combined() -> None:
     )
 
 
-def test_cbc_overhead_and_authenticated() -> None:
-    """CBC adds no overhead and is not authenticated."""
+def test_cbc_overhead() -> None:
+    """CBC adds no overhead on the wire."""
     crypto = CBCCryptoTransport(os.urandom(32), os.urandom(16))
     assert crypto.header_overhead == 0
     assert crypto.data_tag_overhead == 0
-    assert crypto.authenticated is False
 
 
 def test_gcm_round_trip() -> None:
@@ -64,12 +63,11 @@ def test_gcm_round_trip() -> None:
         assert decrypt_side.decrypt(encrypt_side.encrypt(test_data)) == test_data
 
 
-def test_gcm_overhead_and_authenticated() -> None:
+def test_gcm_overhead() -> None:
     """GCM prepends a 12-byte nonce and appends a 16-byte tag."""
     crypto = GCMCryptoTransport(os.urandom(32))
     assert crypto.header_overhead == 28
     assert crypto.data_tag_overhead == 28
-    assert crypto.authenticated is True
 
     encrypted = crypto.encrypt(os.urandom(32))
     assert len(encrypted) == 32 + 28
