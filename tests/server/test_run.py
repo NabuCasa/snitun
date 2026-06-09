@@ -24,12 +24,36 @@ from snitun.server.run import (
     SniTunServer,
     SniTunServerSingle,
     SniTunServerWorker,
+    create_listen_sockets,
 )
 
 from .const_fernet import FERNET_TOKENS, create_peer_config
 from .const_tls import TLS_1_2
 
 IP_ADDR = ipaddress.ip_address("127.0.0.1")
+
+
+def _ipv6_loopback_available() -> bool:
+    """Return True if we can bind the IPv6 loopback."""
+    if not socket.has_ipv6:
+        return False
+    try:
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    except OSError:
+        return False
+    try:
+        sock.bind(("::1", 0))
+    except OSError:
+        return False
+    finally:
+        sock.close()
+    return True
+
+
+skip_without_ipv6 = pytest.mark.skipif(
+    not _ipv6_loopback_available(),
+    reason="IPv6 loopback not available",
+)
 
 
 async def test_snitun_runner_updown() -> None:
@@ -849,3 +873,113 @@ async def test_snitun_single_runner_proxy_protocol_fragmented_hello() -> None:
     await multiplexer.wait()
     writer_ssl.close()
     await server.stop()
+
+
+def test_create_listen_sockets_ipv4() -> None:
+    """A single IPv4 host yields one bound AF_INET socket."""
+    sockets = create_listen_sockets(["127.0.0.1"], 32020)
+    try:
+        assert len(sockets) == 1
+        assert sockets[0].family == socket.AF_INET
+    finally:
+        for sock in sockets:
+            sock.close()
+
+
+def test_create_listen_sockets_dedupes() -> None:
+    """Repeated addresses are bound only once."""
+    sockets = create_listen_sockets(["127.0.0.1", "127.0.0.1"], 32021)
+    try:
+        assert len(sockets) == 1
+    finally:
+        for sock in sockets:
+            sock.close()
+
+
+def test_create_listen_sockets_none_binds_wildcard() -> None:
+    """None binds the wildcard address(es), i.e. all interfaces."""
+    sockets = create_listen_sockets(None, 32025)
+    try:
+        assert sockets
+        # Every bound address is a wildcard ("0.0.0.0" / "::").
+        for sock in sockets:
+            assert sock.getsockname()[0] in ("0.0.0.0", "::")
+    finally:
+        for sock in sockets:
+            sock.close()
+
+
+@skip_without_ipv6
+def test_create_listen_sockets_dual_stack() -> None:
+    """IPv4 and IPv6 hosts each yield a socket of the right family."""
+    sockets = create_listen_sockets(["0.0.0.0", "::"], 32022)
+    try:
+        families = {sock.family for sock in sockets}
+        assert families == {socket.AF_INET, socket.AF_INET6}
+        # The IPv6 socket must be v6-only so it does not collide with 0.0.0.0.
+        ipv6 = next(s for s in sockets if s.family == socket.AF_INET6)
+        assert ipv6.getsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY) == 1
+    finally:
+        for sock in sockets:
+            sock.close()
+
+
+def test_snitun_worker_default_host_binds_wildcard(
+    event_loop: asyncio.AbstractEventLoop,
+) -> None:
+    """With no host the worker binds the wildcard (reachable via loopback)."""
+    server = SniTunServerWorker(FERNET_TOKENS, port=32026, worker_size=2)
+    server.start()
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(("127.0.0.1", 32026))
+        sock.close()
+        time.sleep(0.1)
+    finally:
+        server.stop()
+
+
+@skip_without_ipv6
+def test_snitun_worker_dual_stack(event_loop: asyncio.AbstractEventLoop) -> None:
+    """The worker server accepts connections on both IPv4 and IPv6."""
+    server = SniTunServerWorker(
+        FERNET_TOKENS,
+        host=["127.0.0.1", "::1"],
+        port=32023,
+        worker_size=2,
+    )
+    server.start()
+    try:
+        for family, address in (
+            (socket.AF_INET, ("127.0.0.1", 32023)),
+            (socket.AF_INET6, ("::1", 32023)),
+        ):
+            sock = socket.socket(family, socket.SOCK_STREAM)
+            # connect() succeeding proves the address is bound and listening.
+            sock.connect(address)
+            sock.close()
+        time.sleep(0.1)
+    finally:
+        server.stop()
+
+
+@skip_without_ipv6
+async def test_snitun_single_dual_stack() -> None:
+    """SniTunServerSingle binds a list of hosts (IPv4 + IPv6).
+
+    Also exercises passing ipaddress objects (not just strings) as hosts.
+    """
+    server = SniTunServerSingle(
+        FERNET_TOKENS,
+        host=[ipaddress.ip_address("127.0.0.1"), ipaddress.ip_address("::1")],
+        port=32024,
+    )
+    await server.start()
+    try:
+        for host in ("127.0.0.1", "::1"):
+            reader, writer = await asyncio.open_connection(host=host, port=32024)
+            writer.close()
+            await writer.wait_closed()
+            assert reader is not None
+    finally:
+        await server.stop()

@@ -16,6 +16,7 @@ from ..exceptions import (
 from ..multiplexer.channel import ChannelFlowControlBase, MultiplexerChannel
 from ..multiplexer.core import Multiplexer
 from ..utils.asyncio import RangedTimeout, create_eager_task
+from ..utils.ipaddress import Hosts, normalize_hosts
 from .peer_manager import PeerManager
 from .proxy_protocol import read_proxy_protocol_header
 from .sni import parse_tls_sni, payload_reader
@@ -32,13 +33,19 @@ class SNIProxy:
     def __init__(
         self,
         peer_manager: PeerManager,
-        host: str | None = None,
+        host: Hosts = None,
         port: int | None = None,
         proxy_protocol: bool = False,
     ) -> None:
-        """Initialize SNI Proxy interface."""
+        """Initialize SNI Proxy interface.
+
+        ``host`` accepts a single address or a sequence of addresses (e.g.
+        ``["0.0.0.0", "::"]`` to listen on IPv4 and IPv6). Each address may be
+        a string (hostname or IP) or an ipaddress object. None binds all
+        interfaces.
+        """
         self._peer_manager = peer_manager
-        self._host = host
+        self._host = normalize_hosts(host)
         self._port = port or 443
         self._server: asyncio.Server | None = None
         # Only trust a PROXY protocol header when explicitly enabled, i.e. when
