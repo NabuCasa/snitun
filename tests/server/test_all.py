@@ -9,7 +9,7 @@ import os
 import snitun
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
-from snitun.multiplexer.crypto import CryptoTransport
+from snitun.multiplexer.crypto import CBCCryptoTransport
 from snitun.server.listener_peer import PeerListener
 from snitun.server.listener_sni import SNIProxy
 from snitun.server.peer_manager import PeerManager
@@ -38,7 +38,7 @@ async def test_server_full(
     hostname = "localhost"
     fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     test_client_peer.writer.write(fernet_token)
     await test_client_peer.writer.drain()

@@ -16,11 +16,13 @@ from snitun.multiplexer import (
 )
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import MIN_SIZE_THROTTLE, Multiplexer
-from snitun.multiplexer.crypto import CryptoTransport
+from snitun.multiplexer.crypto import CBCCryptoTransport, GCMCryptoTransport
 from snitun.multiplexer.message import (
+    CHANNEL_FLOW_NEW,
     CHANNEL_FLOW_PAUSE,
     CHANNEL_FLOW_PING,
     HEADER_SIZE,
+    HEADER_STRUCT,
     MultiplexerChannelId,
     MultiplexerMessage,
 )
@@ -39,7 +41,7 @@ async def test_init_multiplexer_server(
     client = test_server[0]
 
     multiplexer = Multiplexer(
-        CryptoTransport(*crypto_key_iv),
+        CBCCryptoTransport(*crypto_key_iv),
         client.reader,
         client.writer,
         snitun.PROTOCOL_VERSION,
@@ -57,7 +59,7 @@ async def test_init_multiplexer_client(
 ) -> None:
     """Test to create a new Multiplexer from client socket."""
     multiplexer = Multiplexer(
-        CryptoTransport(*crypto_key_iv),
+        CBCCryptoTransport(*crypto_key_iv),
         test_client.reader,
         test_client.writer,
         snitun.PROTOCOL_VERSION,
@@ -92,7 +94,7 @@ async def test_init_multiplexer_server_throttling(
     client = test_server[0]
 
     multiplexer = Multiplexer(
-        CryptoTransport(*crypto_key_iv),
+        CBCCryptoTransport(*crypto_key_iv),
         client.reader,
         client.writer,
         snitun.PROTOCOL_VERSION,
@@ -111,7 +113,7 @@ async def test_init_multiplexer_client_throttling(
 ) -> None:
     """Test to create a new Multiplexer from client socket."""
     multiplexer = Multiplexer(
-        CryptoTransport(*crypto_key_iv),
+        CBCCryptoTransport(*crypto_key_iv),
         test_client.reader,
         test_client.writer,
         snitun.PROTOCOL_VERSION,
@@ -389,6 +391,116 @@ async def test_multiplexer_data_channel(
     await asyncio.sleep(0.1)
     data = await channel_client.read()
     assert data == b"test 2"
+
+
+async def test_multiplexer_data_channel_gcm(
+    test_server: list[Client],
+    test_client: Client,
+) -> None:
+    """A GCM multiplexer pair opens a channel (NEW) and round-trips data."""
+    key = os.urandom(32)
+    server_conn = test_server[0]
+
+    async def mock_new_channel(
+        multiplexer: Multiplexer,
+        channel: MultiplexerChannel,
+    ) -> None:
+        """Mock new channel."""
+
+    multiplexer_server = Multiplexer(
+        GCMCryptoTransport(key),
+        server_conn.reader,
+        server_conn.writer,
+        snitun.PROTOCOL_VERSION,
+        mock_new_channel,
+    )
+    multiplexer_client = Multiplexer(
+        GCMCryptoTransport(key),
+        test_client.reader,
+        test_client.writer,
+        snitun.PROTOCOL_VERSION,
+    )
+
+    try:
+        channel_client = await multiplexer_client.create_channel(
+            IP_ADDR,
+            lambda _: None,
+        )
+        await asyncio.sleep(0.1)
+
+        channel_server = multiplexer_server._channels.get(channel_client.id)
+        assert channel_server
+        # The source IP travels in the encrypted NEW data unit and is recovered.
+        assert channel_server.ip_address == IP_ADDR
+
+        await channel_client.write(b"test 1")
+        await asyncio.sleep(0.1)
+        assert await channel_server.read() == b"test 1"
+
+        await channel_server.write(b"test 2")
+        await asyncio.sleep(0.1)
+        assert await channel_client.read() == b"test 2"
+    finally:
+        multiplexer_client.shutdown()
+        multiplexer_server.shutdown()
+        server_conn.close.set()
+
+
+async def test_multiplexer_gcm_tampered_header_closes(
+    test_server: list[Client],
+    test_client: Client,
+) -> None:
+    """A GCM peer closes the connection when a header fails its tag check."""
+    server_conn = test_server[0]
+    multiplexer = Multiplexer(
+        GCMCryptoTransport(os.urandom(32)),
+        server_conn.reader,
+        server_conn.writer,
+        snitun.PROTOCOL_VERSION,
+    )
+
+    # Feed a frame of the right size but with a bad authentication tag.
+    test_client.writer.write(os.urandom(HEADER_SIZE + 28))
+    await test_client.writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert not multiplexer.is_connected
+
+    test_client.writer.close()
+    server_conn.close.set()
+
+
+async def test_multiplexer_gcm_tampered_new_data_closes(
+    test_server: list[Client],
+    test_client: Client,
+) -> None:
+    """A GCM peer closes when the NEW data unit fails its tag check."""
+    key = os.urandom(32)
+    server_conn = test_server[0]
+    multiplexer = Multiplexer(
+        GCMCryptoTransport(key),
+        server_conn.reader,
+        server_conn.writer,
+        snitun.PROTOCOL_VERSION,
+    )
+
+    # A valid NEW header announcing data, followed by a tampered data unit.
+    sender = GCMCryptoTransport(key)
+    data_size = 32
+    header = HEADER_STRUCT.pack(
+        MultiplexerChannelId(os.urandom(16)).bytes,
+        CHANNEL_FLOW_NEW,
+        data_size,
+        os.urandom(11),
+    )
+    test_client.writer.write(sender.encrypt(header) + os.urandom(data_size + 28))
+    await test_client.writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert not multiplexer.is_connected
+
+    test_client.writer.close()
+    server_conn.close.set()
 
 
 async def test_multiplexer_channel_shutdown(

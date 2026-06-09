@@ -7,7 +7,7 @@ import os
 
 import pytest
 
-from snitun.multiplexer.crypto import CryptoTransport
+from snitun.multiplexer.crypto import CBCCryptoTransport
 from snitun.server.listener_peer import PeerListener
 from snitun.server.peer_manager import PeerManager
 
@@ -37,7 +37,7 @@ async def test_peer_listener(
     hostname = "localhost"
     fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     test_client_peer.writer.write(fernet_token)
     await test_client_peer.writer.drain()
@@ -64,7 +64,7 @@ async def test_peer_listener_invalid(
     hostname = "localhost"
     fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     test_client_peer.writer.write(fernet_token)
     await test_client_peer.writer.drain()
@@ -85,7 +85,7 @@ async def test_peer_listener_disconnect(
     hostname = "localhost"
     fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     test_client_peer.writer.write(fernet_token)
     await test_client_peer.writer.drain()
@@ -118,7 +118,7 @@ async def test_peer_listener_timeout(
     hostname = "localhost"
     fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     test_client_peer.writer.write(fernet_token)
     await test_client_peer.writer.drain()
@@ -150,7 +150,7 @@ async def test_peer_listener_expire(
     hostname = "localhost"
     fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     test_client_peer.writer.write(fernet_token)
     await test_client_peer.writer.drain()

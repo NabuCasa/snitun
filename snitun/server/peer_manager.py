@@ -12,6 +12,7 @@ import logging
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
 from ..exceptions import SniTunInvalidPeer
+from ..multiplexer.crypto import DEFAULT_CIPHER
 from ..utils.server import TokenData
 from .peer import Peer
 
@@ -73,6 +74,7 @@ class PeerManager:
             aes_key,
             aes_iv,
             protocol_version=config.get("protocol_version", 0),
+            cipher=config.get("cipher", DEFAULT_CIPHER),
             throttling=self._throttling,
             alias=config.get("alias", []),
         )

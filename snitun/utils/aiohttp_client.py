@@ -11,7 +11,7 @@ import warnings
 
 from ..client.client_peer import ClientPeer
 from ..client.connector import Connector, TransportConnector
-from . import DEFAULT_PROTOCOL_VERSION
+from . import DEFAULT_CIPHER, DEFAULT_PROTOCOL_VERSION
 
 if TYPE_CHECKING:
     from aiohttp.web import AppRunner
@@ -95,6 +95,7 @@ class SniTunClientAioHttp:
         aes_iv: bytes,
         throttling: int | None = None,
         protocol_version: int = DEFAULT_PROTOCOL_VERSION,
+        cipher: str = DEFAULT_CIPHER,
     ) -> None:
         """Connect to SniTun server."""
         if self._client.is_connected:
@@ -107,6 +108,7 @@ class SniTunClientAioHttp:
             aes_iv,
             throttling=throttling,
             protocol_version=protocol_version,
+            cipher=cipher,
         )
         _LOGGER.info("AioHTTP snitun client connected to: %s", self._server_name)
 

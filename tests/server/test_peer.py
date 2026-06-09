@@ -9,7 +9,11 @@ import pytest
 
 import snitun
 from snitun.exceptions import SniTunChallengeError
-from snitun.multiplexer.crypto import CryptoTransport
+from snitun.multiplexer.crypto import (
+    CIPHER_GCM,
+    CBCCryptoTransport,
+    GCMCryptoTransport,
+)
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
 from snitun.server.peer import Peer
 
@@ -46,7 +50,7 @@ async def test_init_peer_multiplexer(
     valid = datetime.now(tz=UTC) + timedelta(days=1)
 
     peer = Peer("localhost", valid, aes_key, aes_iv, snitun.PROTOCOL_VERSION)
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     with pytest.raises(RuntimeError):
         await peer.wait_disconnect()
@@ -79,6 +83,49 @@ async def test_init_peer_multiplexer(
     assert not peer.multiplexer.is_connected
 
 
+async def test_init_peer_multiplexer_gcm(
+    test_client: Client,
+    test_server: list[Client],
+) -> None:
+    """Test the challenge/response handshake with the AES-GCM cipher."""
+    loop = asyncio.get_running_loop()
+    client = test_server[0]
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
+
+    peer = Peer(
+        "localhost",
+        valid,
+        aes_key,
+        aes_iv,
+        snitun.PROTOCOL_VERSION,
+        cipher=CIPHER_GCM,
+    )
+    crypto = GCMCryptoTransport(aes_key)
+
+    init_task = loop.create_task(
+        peer.init_multiplexer_challenge(test_client.reader, test_client.writer),
+    )
+    await asyncio.sleep(0.1)
+    assert not init_task.done()
+
+    # The GCM challenge frame is 32 bytes + nonce + tag.
+    token = await client.reader.readexactly(32 + crypto.overhead)
+    answer = hashlib.sha256(crypto.decrypt(token)).digest()
+    client.writer.write(crypto.encrypt(answer))
+    await client.writer.drain()
+    await asyncio.sleep(0.1)
+
+    assert init_task.exception() is None
+    assert init_task.done()
+    assert peer.is_ready
+    assert peer.is_connected
+
+    client.writer.close()
+    client.close.set()
+
+
 async def test_init_peer_multiplexer_crypto(
     test_client: Client,
     test_server: list[Client],
@@ -91,7 +138,7 @@ async def test_init_peer_multiplexer_crypto(
     valid = datetime.now(tz=UTC) + timedelta(days=1)
 
     peer = Peer("localhost", valid, aes_key, aes_iv, snitun.PROTOCOL_VERSION)
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     with pytest.raises(RuntimeError):
         await peer.wait_disconnect()
@@ -146,7 +193,7 @@ async def test_init_peer_wrong_challenge(
     valid = datetime.now(tz=UTC) + timedelta(days=1)
 
     peer = Peer("localhost", valid, aes_key, aes_iv, snitun.PROTOCOL_VERSION)
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     with pytest.raises(RuntimeError):
         await peer.wait_disconnect()
@@ -206,7 +253,7 @@ async def test_init_peer_multiplexer_throttling(
         snitun.PROTOCOL_VERSION,
         throttling=500,
     )
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     with pytest.raises(RuntimeError):
         await peer.wait_disconnect()
