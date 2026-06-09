@@ -69,12 +69,15 @@ The header is encrypted using AES/CBC. The payload should be SSL. The ID changes
 
 The extra information could include the caller IP address for a `New` message on protocol version < 2. From protocol version 2 the caller IP is sent in the (encrypted) data instead — see the `New` message type below. Otherwise, it is random bits.
 
-```
-|________________________________________________________|
-|-----------------HEADER---------------------------------|______________________________________________|
-|------ID-----|--FLAG--|--SIZE--|---------EXTRA ---------|--------------------DATA----------------------|
-|   16 bytes  | 1 byte | 4 bytes|       11 bytes         |                  variable                    |
-|--------------------------------------------------------|----------------------------------------------|
+The 32-byte header is followed by a variable-length data payload (byte offsets shown):
+
+```mermaid
+packet-beta
+0-15: "ID (16 bytes)"
+16-16: "FLAG (1 byte)"
+17-20: "SIZE (4 bytes)"
+21-31: "EXTRA (11 bytes)"
+32-63: "DATA (variable)"
 ```
 
 Message Flags/Types:
