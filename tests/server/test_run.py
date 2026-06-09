@@ -896,6 +896,19 @@ def test_create_listen_sockets_dedupes() -> None:
             sock.close()
 
 
+def test_create_listen_sockets_none_binds_wildcard() -> None:
+    """None binds the wildcard address(es), i.e. all interfaces."""
+    sockets = create_listen_sockets(None, 32025)
+    try:
+        assert sockets
+        # Every bound address is a wildcard ("0.0.0.0" / "::").
+        for sock in sockets:
+            assert sock.getsockname()[0] in ("0.0.0.0", "::")
+    finally:
+        for sock in sockets:
+            sock.close()
+
+
 @skip_without_ipv6
 def test_create_listen_sockets_dual_stack() -> None:
     """IPv4 and IPv6 hosts each yield a socket of the right family."""

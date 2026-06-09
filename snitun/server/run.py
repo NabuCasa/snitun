@@ -38,17 +38,22 @@ WORKER_STALE_MAX = 30
 LISTEN_BACKLOG = 80 * 1000
 
 
-def create_listen_sockets(hosts: Sequence[str], port: int) -> list[socket.socket]:
+def create_listen_sockets(
+    hosts: Sequence[str] | None,
+    port: int,
+) -> list[socket.socket]:
     """Create bound, listening TCP sockets for the given hosts.
 
     Each host is resolved with ``getaddrinfo`` so both IPv4 and IPv6
     addresses are supported. IPv6 sockets are bound with ``IPV6_V6ONLY`` so
     that binding ``"::"`` does not collide with a separate ``"0.0.0.0"`` bind.
+    ``None`` binds the wildcard address(es), i.e. all interfaces.
     """
+    targets: list[str | None] = [None] if hosts is None else list(hosts)
     sockets: list[socket.socket] = []
     seen: set[tuple] = set()
     try:
-        for host in hosts:
+        for host in targets:
             for family, sock_type, proto, _, sockaddr in socket.getaddrinfo(
                 host,
                 port,
@@ -150,7 +155,7 @@ class SniTunServerSingle:
     def __init__(
         self,
         fernet_keys: list[str],
-        host: Hosts = None,
+        host: Hosts = "0.0.0.0",
         port: int | None = None,
         throttling: int | None = None,
         proxy_protocol: bool = False,
@@ -159,13 +164,14 @@ class SniTunServerSingle:
 
         ``host`` accepts a single address or a sequence of addresses (e.g.
         ``["0.0.0.0", "::"]`` to listen on IPv4 and IPv6). Each address may be
-        a string (hostname or IP) or an ipaddress object.
+        a string (hostname or IP) or an ipaddress object. ``None`` binds all
+        interfaces.
         """
         self._server: asyncio.AbstractServer | None = None
         self._peers: PeerManager = PeerManager(fernet_keys, throttling=throttling)
         self._list_sni: SNIProxy = SNIProxy(self._peers)
         self._list_peer: PeerListener = PeerListener(self._peers)
-        self._host: list[str] = normalize_hosts(host) or ["0.0.0.0"]
+        self._host: list[str] | None = normalize_hosts(host)
         self._port: int = port or 443
         self._connection_tasks: set[asyncio.Task[None]] = set()
         # Only trust a PROXY protocol header when explicitly enabled (i.e. when
@@ -319,7 +325,7 @@ class SniTunServerWorker(Thread):
     def __init__(
         self,
         fernet_keys: list[str],
-        host: Hosts = None,
+        host: Hosts = "0.0.0.0",
         port: int | None = None,
         worker_size: int | None = None,
         throttling: int | None = None,
@@ -331,11 +337,12 @@ class SniTunServerWorker(Thread):
 
         ``host`` accepts a single address or a sequence of addresses (e.g.
         ``["0.0.0.0", "::"]`` to listen on IPv4 and IPv6). Each address may be
-        a string (hostname or IP) or an ipaddress object.
+        a string (hostname or IP) or an ipaddress object. ``None`` binds all
+        interfaces.
         """
         super().__init__()
 
-        self._hosts: list[str] = normalize_hosts(host) or ["0.0.0.0"]
+        self._hosts: list[str] | None = normalize_hosts(host)
         self._port: int = port or 443
         self._fernet_keys: list[str] = fernet_keys
         self._throttling: int | None = throttling
