@@ -7,7 +7,6 @@ import asyncio
 from collections.abc import Callable, Coroutine
 from contextlib import suppress
 import ipaddress
-from ipaddress import IPv4Address, IPv6Address
 import logging
 from ssl import SSLContext, SSLError
 from typing import Any
@@ -16,6 +15,7 @@ from ..exceptions import MultiplexerTransportClose, MultiplexerTransportError
 from ..multiplexer.channel import ChannelFlowControlBase, MultiplexerChannel
 from ..multiplexer.core import Multiplexer
 from ..multiplexer.transport import ChannelTransport
+from .access_list import AccessList
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class Connector(ABC):
     """Abstract connector to an end resource.
 
     A connector receives new channels from the multiplexer (via
-    :meth:`handler`), applies the shared allowlist policy and then
+    :meth:`handler`), applies the shared access list policy and then
     delegates the actual bridging of the channel to a concrete
     implementation through :meth:`_handle_connection`.
 
@@ -40,22 +40,25 @@ class Connector(ABC):
       snitun behavior).
     """
 
-    def __init__(self, allowlist: bool = False) -> None:
-        """Initialize Connector."""
-        self._allowlist: set[IPv4Address | IPv6Address] = set()
-        self._allowlist_enabled = allowlist
+    def __init__(self, access_list: AccessList | None = None) -> None:
+        """Initialize Connector.
+
+        access_list applies a per-IP policy to incoming channels. When None
+        (the default) every IP is allowed.
+        """
+        self._access_list = access_list
 
     @property
-    def allowlist(self) -> set[IPv4Address | IPv6Address]:
-        """Allow to block requests per IP Return None or access to a set."""
-        return self._allowlist
+    def access_list(self) -> AccessList | None:
+        """Return the access list applied to incoming channels (or None)."""
+        return self._access_list
 
-    def _allowlist_policy(
+    def _access_policy(
         self,
         ip_address: ipaddress.IPv4Address | ipaddress.IPv6Address,
     ) -> bool:
         """Return True if the ip address can access to endpoint."""
-        return not self._allowlist_enabled or ip_address in self._allowlist
+        return self._access_list is None or self._access_list.allowed(ip_address)
 
     async def handler(
         self,
@@ -64,7 +67,7 @@ class Connector(ABC):
     ) -> None:
         """Handle new connection from SNIProxy."""
         # Check policy
-        if not self._allowlist_policy(channel.ip_address):
+        if not self._access_policy(channel.ip_address):
             _LOGGER.warning("Block request from %s per policy", channel.ip_address)
             multiplexer.delete_channel(channel)
             return
@@ -103,14 +106,14 @@ class TransportConnector(Connector):
         self,
         protocol_factory: Callable[[], asyncio.Protocol],
         ssl_context: SSLContext,
-        allowlist: bool = False,
+        access_list: AccessList | None = None,
     ) -> None:
         """Initialize TransportConnector.
 
         protocol_factory must produce a protocol whose connection_lost()
         is safe to call more than once; see the class docstring.
         """
-        super().__init__(allowlist)
+        super().__init__(access_list)
         self._protocol_factory = protocol_factory
         self._ssl_context = ssl_context
 
@@ -141,12 +144,12 @@ class EndpointConnector(Connector):
         self,
         end_host: str,
         end_port: int | str | None = None,
-        allowlist: bool = False,
+        access_list: AccessList | None = None,
         endpoint_connection_error_callback: Callable[[], Coroutine[Any, Any, None]]
         | None = None,
     ) -> None:
         """Initialize EndpointConnector."""
-        super().__init__(allowlist)
+        super().__init__(access_list)
         self._end_host = end_host
         self._end_port = end_port or 443
         self._endpoint_connection_error_callback = endpoint_connection_error_callback

@@ -10,6 +10,7 @@ import aiohttp
 from aiohttp import ClientConnectorError
 import pytest
 
+from snitun.client.access_list import AccessList, AccessListAction
 from snitun.client.connector import Connector
 from snitun.exceptions import MultiplexerTransportClose
 from snitun.multiplexer.channel import MultiplexerChannel
@@ -543,13 +544,17 @@ async def test_init_connector_allowlist_bad(
     server_ssl_context: ssl.SSLContext,
 ) -> None:
     """Test and init a connector with allowlist bad requests."""
-    connector_with_streams = make_snitun_connector(server_ssl_context, allowlist=True)
+    access_list = AccessList(default_action=AccessListAction.ALLOW)
+    connector_with_streams = make_snitun_connector(
+        server_ssl_context,
+        access_list=access_list,
+    )
     connector = connector_with_streams.connector
     multiplexer_client._new_connections = connector.handler
 
-    connector.allowlist.add(IP_ADDR)
-    assert IP_ADDR in connector.allowlist
-    assert BAD_ADDR not in connector.allowlist
+    access_list.add(IP_ADDR)
+    assert IP_ADDR in access_list.ips
+    assert BAD_ADDR not in access_list.ips
     channel = await multiplexer_server.create_channel(BAD_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 

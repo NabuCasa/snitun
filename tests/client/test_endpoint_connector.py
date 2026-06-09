@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from snitun.client.access_list import AccessList, AccessListAction
 from snitun.client.connector import EndpointConnector, EndpointConnectorHandler
 from snitun.exceptions import MultiplexerTransportClose
 from snitun.multiplexer.channel import MultiplexerChannel
@@ -149,11 +150,12 @@ async def test_init_connector_allowlist(
     """Test and init a connector with allowlist."""
     assert not test_endpoint
 
-    connector = EndpointConnector("127.0.0.1", "8822", True)
+    access_list = AccessList(default_action=AccessListAction.ALLOW)
+    connector = EndpointConnector("127.0.0.1", "8822", access_list)
     multiplexer_client._new_connections = connector.handler
 
-    connector.allowlist.add(IP_ADDR)
-    assert IP_ADDR in connector.allowlist
+    access_list.add(IP_ADDR)
+    assert IP_ADDR in access_list.ips
     channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
@@ -175,12 +177,13 @@ async def test_init_connector_allowlist_bad(
     """Test and init a connector with allowlist bad requests."""
     assert not test_endpoint
 
-    connector = EndpointConnector("127.0.0.1", "8822", True)
+    access_list = AccessList(default_action=AccessListAction.ALLOW)
+    connector = EndpointConnector("127.0.0.1", "8822", access_list)
     multiplexer_client._new_connections = connector.handler
 
-    connector.allowlist.add(IP_ADDR)
-    assert IP_ADDR in connector.allowlist
-    assert BAD_ADDR not in connector.allowlist
+    access_list.add(IP_ADDR)
+    assert IP_ADDR in access_list.ips
+    assert BAD_ADDR not in access_list.ips
     channel = await multiplexer_server.create_channel(BAD_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
@@ -196,7 +199,7 @@ async def test_connector_error_callback(
 ) -> None:
     """Test connector endpoint error callback."""
     callback = AsyncMock()
-    connector = EndpointConnector("127.0.0.1", "8822", False, callback)
+    connector = EndpointConnector("127.0.0.1", "8822", None, callback)
 
     channel = await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
 
@@ -213,7 +216,7 @@ async def test_connector_no_error_callback(
     multiplexer_server: Multiplexer,
 ) -> None:
     """Test connector with not endpoint error callback."""
-    connector = EndpointConnector("127.0.0.1", "8822", False, None)
+    connector = EndpointConnector("127.0.0.1", "8822", None, None)
     channel = await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
     with patch("asyncio.open_connection", side_effect=OSError("Lorem ipsum...")):
         await connector.handler(multiplexer_client, channel)

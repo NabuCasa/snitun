@@ -23,6 +23,7 @@ from pytest_aiohttp import AiohttpServer
 import trustme
 
 import snitun
+from snitun.client.access_list import AccessList, AccessListAction
 from snitun.client.connector import (
     ConnectorHandler,
     TransportConnector,
@@ -445,8 +446,9 @@ async def make_snitun_client_aiohttp(
     )
     server = await aiohttp_server(app)
     client = SniTunClientAioHttp(server.runner, server_ssl_context, "127.0.0.1", "4242")
-    await client.start(allowlist=True)
-    client._connector.allowlist.add(IP_ADDR)
+    access_list = AccessList(default_action=AccessListAction.ALLOW)
+    access_list.add(IP_ADDR)
+    await client.start(access_list=access_list)
     yield client
     await client.stop()
     await server.close()
@@ -533,7 +535,7 @@ class _ConnectorWithStreams:
 
 def make_snitun_connector(
     ssl_context: ssl.SSLContext,
-    allowlist: bool = False,
+    access_list: AccessList | None = None,
 ) -> _ConnectorWithStreams:
     """Make connector."""
     connections: list[BufferedStreamReaderProtocol] = []
@@ -550,7 +552,7 @@ def make_snitun_connector(
         TransportConnector(
             protocol_factory=protocol_factory,
             ssl_context=ssl_context,
-            allowlist=allowlist,
+            access_list=access_list,
         ),
     )
 
@@ -598,7 +600,7 @@ async def snitun_loopback(
     - The client is what is connected to a Home Assistant instance
     - The server is what is connected to the internet (browser)
     """
-    connector_with_streams = make_snitun_connector(server_ssl_context, allowlist=False)
+    connector_with_streams = make_snitun_connector(server_ssl_context)
     connector = connector_with_streams.connector
     multiplexer_client._new_connections = connector.handler  # noqa: SLF001
     connector_handler: ConnectorHandler | None = None
