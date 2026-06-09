@@ -34,14 +34,14 @@ def test_allow_action() -> None:
     access_list = AccessList(default_action=AccessListAction.ALLOW)
     access_list.add(IP_ADDR)
 
-    assert access_list.allowed(IP_ADDR)
-    assert not access_list.allowed(OTHER_ADDR)
+    assert access_list.check_policy(IP_ADDR)
+    assert not access_list.check_policy(OTHER_ADDR)
 
 
 def test_allow_action_empty_blocks_everyone() -> None:
     """An empty ALLOW list blocks every IP."""
     access_list = AccessList(default_action=AccessListAction.ALLOW)
-    assert not access_list.allowed(IP_ADDR)
+    assert not access_list.check_policy(IP_ADDR)
 
 
 def test_block_action() -> None:
@@ -49,14 +49,14 @@ def test_block_action() -> None:
     access_list = AccessList(default_action=AccessListAction.BLOCK)
     access_list.add(IP_ADDR)
 
-    assert not access_list.allowed(IP_ADDR)
-    assert access_list.allowed(OTHER_ADDR)
+    assert not access_list.check_policy(IP_ADDR)
+    assert access_list.check_policy(OTHER_ADDR)
 
 
 def test_block_action_empty_allows_everyone() -> None:
     """An empty BLOCK list allows every IP."""
     access_list = AccessList(default_action=AccessListAction.BLOCK)
-    assert access_list.allowed(IP_ADDR)
+    assert access_list.check_policy(IP_ADDR)
 
 
 def test_ipv6_addresses() -> None:
@@ -64,5 +64,5 @@ def test_ipv6_addresses() -> None:
     access_list = AccessList(default_action=AccessListAction.ALLOW)
     access_list.add(IP_ADDR_V6)
 
-    assert access_list.allowed(IP_ADDR_V6)
-    assert not access_list.allowed(IP_ADDR)
+    assert access_list.check_policy(IP_ADDR_V6)
+    assert not access_list.check_policy(IP_ADDR)

@@ -58,7 +58,7 @@ class Connector(ABC):
         ip_address: ipaddress.IPv4Address | ipaddress.IPv6Address,
     ) -> bool:
         """Return True if the ip address can access to endpoint."""
-        return self._access_list is None or self._access_list.allowed(ip_address)
+        return self._access_list is None or self._access_list.check_policy(ip_address)
 
     async def handler(
         self,

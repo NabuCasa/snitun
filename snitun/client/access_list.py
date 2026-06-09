@@ -41,7 +41,7 @@ class AccessList:
         """Remove an IP address from the list (no error if absent)."""
         self.ips.discard(ip_address)
 
-    def allowed(self, ip_address: IPv4Address | IPv6Address) -> bool:
+    def check_policy(self, ip_address: IPv4Address | IPv6Address) -> bool:
         """Return True if the IP address is allowed to connect."""
         if self.default_action is AccessListAction.ALLOW:
             return ip_address in self.ips
