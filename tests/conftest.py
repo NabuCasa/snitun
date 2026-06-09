@@ -30,7 +30,7 @@ from snitun.client.connector import (
 )
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
-from snitun.multiplexer.crypto import CryptoTransport
+from snitun.multiplexer.crypto import CBCCryptoTransport
 from snitun.multiplexer.transport import ChannelTransport
 from snitun.server.listener_peer import PeerListener
 from snitun.server.listener_sni import SNIProxy
@@ -211,7 +211,7 @@ async def multiplexer_server(
         """Mock new channel."""
 
     multiplexer = Multiplexer(
-        CryptoTransport(*crypto_key_iv),
+        CBCCryptoTransport(*crypto_key_iv),
         client.reader,
         client.writer,
         snitun.PROTOCOL_VERSION,
@@ -240,7 +240,7 @@ async def multiplexer_server_peer_protocol_0(
         """Mock new channel."""
 
     multiplexer = Multiplexer(
-        CryptoTransport(*crypto_key_iv),
+        CBCCryptoTransport(*crypto_key_iv),
         client.reader,
         client.writer,
         0,
@@ -267,7 +267,7 @@ async def multiplexer_client(
         """Mock new channel."""
 
     multiplexer = Multiplexer(
-        CryptoTransport(*crypto_key_iv),
+        CBCCryptoTransport(*crypto_key_iv),
         test_client.reader,
         test_client.writer,
         snitun.PROTOCOL_VERSION,
@@ -293,7 +293,7 @@ async def multiplexer_client_peer_protocol_0(
         """Mock new channel."""
 
     multiplexer = Multiplexer(
-        CryptoTransport(*crypto_key_iv),
+        CBCCryptoTransport(*crypto_key_iv),
         test_client.reader,
         test_client.writer,
         0,
@@ -355,7 +355,7 @@ async def peer(
         os.urandom(16),
         snitun.PROTOCOL_VERSION,
     )
-    peer._crypto = CryptoTransport(*crypto_key_iv)
+    peer._crypto = CBCCryptoTransport(*crypto_key_iv)
     peer._multiplexer = multiplexer_server
 
     return peer

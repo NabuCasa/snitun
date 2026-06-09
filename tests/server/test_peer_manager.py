@@ -8,6 +8,11 @@ import pytest
 
 from snitun.exceptions import SniTunInvalidPeer
 from snitun.multiplexer.core import Multiplexer
+from snitun.multiplexer.crypto import (
+    CIPHER_GCM,
+    CBCCryptoTransport,
+    GCMCryptoTransport,
+)
 from snitun.server.peer import Peer
 from snitun.server.peer_manager import PeerManager, PeerManagerEvent
 
@@ -46,6 +51,38 @@ async def test_init_new_peer() -> None:
     assert not manager.peer_available(hostname)
     assert hostname in manager._peers
     assert manager.connections == 1
+
+
+async def test_init_new_peer_defaults_to_cbc() -> None:
+    """A token without a cipher field falls back to AES-CBC (back-compat)."""
+    manager = PeerManager(FERNET_TOKENS)
+
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    fernet_token = create_peer_config(valid.timestamp(), "localhost", aes_key, aes_iv)
+
+    peer = manager.create_peer(fernet_token)
+    assert isinstance(peer._crypto, CBCCryptoTransport)
+
+
+async def test_init_new_peer_with_gcm_cipher() -> None:
+    """A token requesting AES-GCM builds a GCM crypto transport."""
+    manager = PeerManager(FERNET_TOKENS)
+
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    fernet_token = create_peer_config(
+        valid.timestamp(),
+        "localhost",
+        aes_key,
+        aes_iv,
+        cipher=CIPHER_GCM,
+    )
+
+    peer = manager.create_peer(fernet_token)
+    assert isinstance(peer._crypto, GCMCryptoTransport)
 
 
 async def test_init_new_peer_with_alias() -> None:

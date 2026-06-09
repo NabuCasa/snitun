@@ -255,31 +255,34 @@ class Multiplexer:
             extra + os.urandom(11 - len(extra)),
         )
         try:
+            encrypted_header = self._crypto.encrypt(header)
             if (
                 flow_type == CHANNEL_FLOW_NEW
                 and data_len
                 and self._peer_protocol_version
                 >= MIN_PROTOCOL_VERSION_FOR_ENCRYPTED_NEW
             ):
-                # The NEW message data carries the source IP; encrypt it with
-                # the header so the address is never sent in clear. data is
-                # padded to an AES block, so header + data stays CBC-aligned.
-                self._writer.write(self._crypto.encrypt(header + data))
+                # The NEW message data carries the source IP; encrypt it as its
+                # own unit so the address is never sent in clear. Encrypting the
+                # header and data separately is byte-identical to one call for
+                # the streaming CBC cipher and is required for AEAD ciphers,
+                # which can only verify a complete unit.
+                self._writer.write(encrypted_header + self._crypto.encrypt(data))
+            elif data_len and data_len > MAX_PAYLOAD_FOR_WRITE:
+                self._writer.writelines((encrypted_header, data))
+            elif data_len:
+                self._writer.write(b"".join((encrypted_header, data)))
             else:
-                encrypted_header = self._crypto.encrypt(header)
-                if data_len and data_len > MAX_PAYLOAD_FOR_WRITE:
-                    self._writer.writelines((encrypted_header, data))
-                elif data_len:
-                    self._writer.write(b"".join((encrypted_header, data)))
-                else:
-                    self._writer.write(encrypted_header)
+                self._writer.write(encrypted_header)
         except RuntimeError:
             raise MultiplexerTransportClose from None
         return data_len
 
     async def _read_message(self) -> None:
         """Read message from peer."""
-        header = await self._reader.readexactly(HEADER_SIZE)
+        header = await self._reader.readexactly(
+            HEADER_SIZE + self._crypto.header_overhead,
+        )
 
         channel_id: bytes
         flow_type: int
@@ -289,21 +292,37 @@ class Multiplexer:
             channel_id, flow_type, data_size, extra = HEADER_STRUCT.unpack(
                 self._crypto.decrypt(header),
             )
-        except (struct.error, MultiplexerTransportDecrypt):
+        except struct.error:
+            _LOGGER.warning("Wrong message header received")
+            return
+        except MultiplexerTransportDecrypt:
+            if self._crypto.authenticated:
+                # A bad authentication tag means the framing is corrupt or
+                # tampered with; the stream can no longer be trusted.
+                raise MultiplexerTransportClose from None
             _LOGGER.warning("Wrong message header received")
             return
 
         # Read message data
         if data_size:
-            data = await self._reader.readexactly(data_size)
             if (
                 flow_type == CHANNEL_FLOW_NEW
                 and self._peer_protocol_version
                 >= MIN_PROTOCOL_VERSION_FOR_ENCRYPTED_NEW
             ):
-                # The NEW data was encrypted with the header (see
+                # The NEW data was encrypted as its own unit (see
                 # _write_message); decrypt it to recover the source IP.
-                data = self._crypto.decrypt(data)
+                data = await self._reader.readexactly(
+                    data_size + self._crypto.data_tag_overhead,
+                )
+                try:
+                    data = self._crypto.decrypt(data)
+                except MultiplexerTransportDecrypt:
+                    # Authenticated ciphers reject a tampered/corrupt unit; the
+                    # stream can no longer be trusted (CBC never raises here).
+                    raise MultiplexerTransportClose from None
+            else:
+                data = await self._reader.readexactly(data_size)
         else:
             data = b""
 

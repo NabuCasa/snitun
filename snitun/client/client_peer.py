@@ -12,7 +12,7 @@ from ..exceptions import (
     SniTunConnectionError,
 )
 from ..multiplexer.core import Multiplexer
-from ..multiplexer.crypto import CryptoTransport
+from ..multiplexer.crypto import DEFAULT_CIPHER, create_crypto_transport
 from ..utils import DEFAULT_PROTOCOL_VERSION
 from ..utils.asyncio import make_task_waiter_future
 from .connector import Connector
@@ -53,6 +53,7 @@ class ClientPeer:
         aes_iv: bytes,
         throttling: int | None = None,
         protocol_version: int = DEFAULT_PROTOCOL_VERSION,
+        cipher: str = DEFAULT_CIPHER,
     ) -> None:
         """Connect an start ClientPeer."""
         if self._multiplexer:
@@ -92,10 +93,10 @@ class ClientPeer:
             ) from None
 
         # Challenge/Response
-        crypto = CryptoTransport(aes_key, aes_iv)
+        crypto = create_crypto_transport(cipher, aes_key, aes_iv)
         try:
             async with asyncio.timeout(CONNECTION_TIMEOUT):
-                challenge = await reader.readexactly(32)
+                challenge = await reader.readexactly(32 + crypto.header_overhead)
                 answer = hashlib.sha256(crypto.decrypt(challenge)).digest()
 
                 writer.write(crypto.encrypt(answer))

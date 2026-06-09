@@ -7,7 +7,7 @@ import os
 import socket
 import time
 
-from snitun.multiplexer.crypto import CryptoTransport
+from snitun.multiplexer.crypto import CBCCryptoTransport
 from snitun.server.worker import ServerWorker
 
 from .const_fernet import FERNET_TOKENS, create_peer_config
@@ -41,7 +41,7 @@ def test_peer_connection(
     fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
     worker.start()
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     worker.handover_connection(test_server_sync[-1], fernet_token, None)
 
@@ -72,7 +72,7 @@ def test_peer_connection_disconnect(
     fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
     worker.start()
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     worker.handover_connection(test_server_sync[-1], fernet_token, None)
 
@@ -114,7 +114,7 @@ def test_sni_connection(
     )
 
     worker.start()
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     worker.handover_connection(test_server_sync[0], fernet_token, None)
 

@@ -18,7 +18,7 @@ import snitun
 from snitun.exceptions import ParseProxyProtocolError
 from snitun.multiplexer.channel import MultiplexerChannel
 from snitun.multiplexer.core import Multiplexer
-from snitun.multiplexer.crypto import CryptoTransport
+from snitun.multiplexer.crypto import CBCCryptoTransport
 from snitun.server.run import (
     Connection,
     SniTunServer,
@@ -118,7 +118,7 @@ async def test_snitun_single_runner() -> None:
     hostname = "localhost"
     fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     writer_peer.write(fernet_token)
     await writer_peer.drain()
@@ -187,7 +187,7 @@ async def test_snitun_single_runner_timeout(raise_timeout: None) -> None:
     hostname = "localhost"
     fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     writer_peer.write(fernet_token)
     await writer_peer.drain()
@@ -219,7 +219,7 @@ async def test_snitun_single_runner_invalid_payload(raise_timeout: None) -> None
     aes_iv = os.urandom(16)
     hostname = "localhost"
 
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     writer_peer.write(b"INVALID")
     await writer_peer.drain()
@@ -261,7 +261,7 @@ async def test_snitun_single_runner_throttling() -> None:
     hostname = "localhost"
     fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     writer_peer.write(fernet_token)
     await writer_peer.drain()
@@ -352,7 +352,7 @@ def test_snitun_worker_runner(
     hostname = "localhost"
     fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
 
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     sock.sendall(fernet_token)
 
@@ -439,7 +439,7 @@ def test_snitun_worker_timeout(event_loop: asyncio.AbstractEventLoop) -> None:
     aes_iv = os.urandom(16)
     hostname = "localhost"
     fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     with pytest.raises(OSError):
         sock.sendall(fernet_token)
@@ -468,7 +468,7 @@ def test_snitun_worker_runner_invalid_payload(
 
     aes_key = os.urandom(32)
     aes_iv = os.urandom(16)
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     sock.sendall(b"INVALID")
 
@@ -621,7 +621,7 @@ async def test_snitun_single_runner_proxy_protocol() -> None:
     aes_iv = os.urandom(16)
     hostname = "localhost"
     fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     writer_peer.write(fernet_token)
     await writer_peer.drain()
@@ -736,7 +736,7 @@ async def test_snitun_single_runner_proxy_protocol_separate_writes() -> None:
     aes_iv = os.urandom(16)
     hostname = "localhost"
     fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     writer_peer.write(fernet_token)
     await writer_peer.drain()
@@ -803,7 +803,7 @@ async def test_snitun_single_runner_proxy_protocol_fragmented_hello() -> None:
     aes_iv = os.urandom(16)
     hostname = "localhost"
     fernet_token = create_peer_config(valid.timestamp(), hostname, aes_key, aes_iv)
-    crypto = CryptoTransport(aes_key, aes_iv)
+    crypto = CBCCryptoTransport(aes_key, aes_iv)
 
     writer_peer.write(fernet_token)
     await writer_peer.drain()

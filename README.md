@@ -42,6 +42,7 @@ The token payload is a JSON object:
   "aes_key": "401933e35f9f43d18db1d1de2e5d2e9a9f4c3b2a1d0e9f8c7b6a5d4c3b2a1f0e",
   "aes_iv": "9b2c4d6e8f0a1b3c5d7e9f0a1b2c3d4e",
   "protocol_version": 2,
+  "cipher": "aes-gcm",
   "alias": ["www.myname.ui.nabu.casa"]
 }
 ```
@@ -51,8 +52,9 @@ The token payload is a JSON object:
 | `valid`            | float    | Expiry as a UTC Unix timestamp in seconds. The SniTun server rejects the token once this time has passed.                                                                      |
 | `hostname`         | string   | Primary hostname (matched against the TLS SNI) that this peer serves.                                                                                                          |
 | `aes_key`          | string   | Hex-encoded 32-byte key (AES-256) used to encrypt the multiplexer header.                                                                                                      |
-| `aes_iv`           | string   | Hex-encoded 16-byte initialization vector for AES-CBC.                                                                                                                         |
+| `aes_iv`           | string   | Hex-encoded 16-byte initialization vector. Used by `aes-cbc`; ignored by `aes-gcm` (which uses a random per-frame nonce).                                                      |
 | `protocol_version` | int      | Multiplexer protocol version the client speaks (see [Protocol versioning considerations](#protocol-versioning-considerations)). Optional; the server assumes `0` when omitted. |
+| `cipher`           | string   | Multiplexer cipher: `aes-cbc` (default) or `aes-gcm` (authenticated). Optional; the server assumes `aes-cbc` when omitted. Both ends must be configured the same.              |
 | `alias`            | string[] | Additional hostnames the peer also serves. Optional.                                                                                                                           |
 
 The SniTun server must be able to decrypt this token to validate the client's authenticity. SniTun then initiates a challenge-response handling to validate the AES key and ensure that it is the same client that requested the Fernet token from the session master.
@@ -65,7 +67,9 @@ The SniTun server creates a SHA256 hash from a random 40-bit value. This value i
 
 ## Multiplexer Protocol
 
-The header is encrypted using AES/CBC. The payload should be SSL. The ID changes for every TCP connection and is unique for each connection. The size is for the data payload.
+The header is encrypted using the cipher selected by the token (see [Fernet token](#fernet-token)): `aes-cbc` (default) or the authenticated `aes-gcm`. The payload should be SSL. The ID changes for every TCP connection and is unique for each connection. The size is for the data payload.
+
+With `aes-gcm` each encrypted unit (the header, and the encrypted `New` data) is framed as `nonce(12) || ciphertext || tag(16)`, so the header occupies 60 bytes on the wire instead of 32 and the source IP in a `New` message carries its own nonce and tag. The tag makes the header — including `SIZE` — tamper-evident, which AES-CBC cannot detect.
 
 The extra information could include the caller IP address for a `New` message on protocol version < 2. From protocol version 2 the caller IP is sent in the (encrypted) data instead — see the `New` message type below. Otherwise, it is random bits.
 
@@ -84,7 +88,7 @@ Message Flags/Types:
 
 - `0x01`: New | Carries the caller IP address.
   - Protocol version < 2: the `EXTRA` field holds the first byte as an ASCII `4` (IPv6 is not supported), followed by the 4-byte IPv4 address; the `data` payload is empty.
-  - Protocol version >= 2: the address is sent in the `data` payload (which is encrypted together with the header) as a one-byte family marker (`4` or `6`) followed by the packed address (4 bytes for IPv4, 16 for IPv6), padded with random bytes to an AES block boundary. This keeps the caller IP off the wire in clear text and allows IPv6 to be carried.
+  - Protocol version >= 2: the address is sent in the encrypted `data` payload (its own encrypted unit, following the header) as a one-byte family marker (`4` or `6`) followed by the packed address (4 bytes for IPv4, 16 for IPv6), padded with random bytes to an AES block boundary. This keeps the caller IP off the wire in clear text and allows IPv6 to be carried.
 - `0x02`: DATA
 - `0x04`: Close
 - `0x08`: Ping | The extra data is a `ping` or `pong` response to a ping.

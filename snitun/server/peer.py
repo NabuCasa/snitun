@@ -10,7 +10,7 @@ import os
 
 from ..exceptions import MultiplexerTransportDecrypt, SniTunChallengeError
 from ..multiplexer.core import Multiplexer
-from ..multiplexer.crypto import CryptoTransport
+from ..multiplexer.crypto import DEFAULT_CIPHER, create_crypto_transport
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,6 +25,7 @@ class Peer:
         aes_key: bytes,
         aes_iv: bytes,
         protocol_version: int,
+        cipher: str = DEFAULT_CIPHER,
         throttling: int | None = None,
         alias: list[str] | None = None,
     ) -> None:
@@ -34,7 +35,7 @@ class Peer:
         self._throttling = throttling
         self._alias = alias or []
         self._multiplexer: Multiplexer | None = None
-        self._crypto = CryptoTransport(aes_key, aes_iv)
+        self._crypto = create_crypto_transport(cipher, aes_key, aes_iv)
         self._protocol_version = protocol_version
 
     @property
@@ -93,7 +94,7 @@ class Peer:
 
             async with asyncio.timeout(60):
                 await writer.drain()
-                data = await reader.readexactly(32)
+                data = await reader.readexactly(32 + self._crypto.header_overhead)
 
             # Check Token
             data = self._crypto.decrypt(data)
