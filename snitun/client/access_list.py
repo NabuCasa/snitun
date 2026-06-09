@@ -4,13 +4,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from ipaddress import IPv4Address, IPv6Address
+from ipaddress import (
+    IPv4Address,
+    IPv4Network,
+    IPv6Address,
+    IPv6Network,
+    ip_network,
+)
+
+type IPAddress = IPv4Address | IPv6Address
+type IPNetwork = IPv4Network | IPv6Network
+type IPNetworkLike = str | IPAddress | IPNetwork
 
 
 class AccessListAction(StrEnum):
     """Action of an :class:`AccessList`.
 
-    The action defines how the IPs in the list are treated:
+    The action defines how the networks in the list are treated:
 
     * ``ALLOW`` (old behavior): only the IPs in the list may connect, every
       other IP is blocked.
@@ -25,24 +35,30 @@ class AccessListAction(StrEnum):
 class AccessList:
     """Per-IP access policy for a connector.
 
-    ``default_action`` selects the policy applied to the IPs in ``ips`` (see
-    :class:`AccessListAction`). With the default ``ALLOW`` action an empty list
-    blocks everyone; with ``BLOCK`` an empty list allows everyone.
+    ``default_action`` selects the policy applied to the networks in
+    ``networks`` (see :class:`AccessListAction`). With the default ``ALLOW``
+    action an empty list blocks everyone; with ``BLOCK`` an empty list allows
+    everyone.
+
+    Each entry is an IP network. A single host is stored as a ``/32`` (IPv4) or
+    ``/128`` (IPv6) network, so addresses, network objects, and CIDR strings
+    (e.g. ``"10.0.0.0/8"``) can all be added.
     """
 
     default_action: AccessListAction = AccessListAction.ALLOW
-    ips: set[IPv4Address | IPv6Address] = field(default_factory=set)
+    networks: set[IPNetwork] = field(default_factory=set)
 
-    def add(self, ip_address: IPv4Address | IPv6Address) -> None:
-        """Add an IP address to the list."""
-        self.ips.add(ip_address)
+    def add(self, network: IPNetworkLike) -> None:
+        """Add an IP address or network (CIDR) to the list."""
+        self.networks.add(ip_network(network, strict=False))
 
-    def remove(self, ip_address: IPv4Address | IPv6Address) -> None:
-        """Remove an IP address from the list (no error if absent)."""
-        self.ips.discard(ip_address)
+    def remove(self, network: IPNetworkLike) -> None:
+        """Remove an IP address or network from the list (no error if absent)."""
+        self.networks.discard(ip_network(network, strict=False))
 
-    def check_policy(self, ip_address: IPv4Address | IPv6Address) -> bool:
+    def check_policy(self, ip_address: IPAddress) -> bool:
         """Return True if the IP address is allowed to connect."""
+        matched = any(ip_address in network for network in self.networks)
         if self.default_action is AccessListAction.ALLOW:
-            return ip_address in self.ips
-        return ip_address not in self.ips
+            return matched
+        return not matched

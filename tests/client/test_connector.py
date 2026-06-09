@@ -553,8 +553,8 @@ async def test_init_connector_allowlist_bad(
     multiplexer_client._new_connections = connector.handler
 
     access_list.add(IP_ADDR)
-    assert IP_ADDR in access_list.ips
-    assert BAD_ADDR not in access_list.ips
+    assert access_list.check_policy(IP_ADDR)
+    assert not access_list.check_policy(BAD_ADDR)
     channel = await multiplexer_server.create_channel(BAD_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
