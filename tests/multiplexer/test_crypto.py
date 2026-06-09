@@ -96,8 +96,12 @@ def test_gcm_detects_tampering() -> None:
 def test_gcm_rejects_short_frame() -> None:
     """A truncated frame fails cleanly with a decrypt error."""
     crypto = GCMCryptoTransport(os.urandom(32))
+    # Shorter than the tag (empty ciphertext) -> InvalidTag.
     with pytest.raises(MultiplexerTransportDecrypt):
-        crypto.decrypt(b"too-short")
+        crypto.decrypt(os.urandom(12))
+    # Shorter than a valid nonce -> ValueError, also surfaced as a decrypt error.
+    with pytest.raises(MultiplexerTransportDecrypt):
+        crypto.decrypt(b"x")
 
 
 def test_factory_selects_cipher() -> None:

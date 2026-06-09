@@ -130,7 +130,9 @@ class GCMCryptoTransport(CryptoTransport):
         nonce, ciphertext = data[:_GCM_NONCE_SIZE], data[_GCM_NONCE_SIZE:]
         try:
             return self._aesgcm.decrypt(nonce, ciphertext, None)
-        except InvalidTag:
+        except (InvalidTag, ValueError):
+            # InvalidTag: bad tag/tampering. ValueError: a frame too short to
+            # hold a valid nonce. Both mean the unit cannot be trusted.
             raise MultiplexerTransportDecrypt from None
 
 
