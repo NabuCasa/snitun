@@ -4,33 +4,56 @@ End-to-End encryption with SNI proxy on top of a TCP multiplexer
 
 ## Connection flow
 
-```
-                   [ CLIENT ] --AUTH/CONFIG--> [ SESSION MASTER ] (Trusted connection)
-                   [ CLIENT ] <--FERNET-TOKEN- [ SESSION MASTER ]
-                   [ CLIENT ] --------FERNET-TOKEN---------------------> [ SNITUN ] (Insecure connection)
-                   [ CLIENT ] <-------CHALLENGE-RESPONSE-(AES/CBC)-----> [ SNITUN ]
+```mermaid
+sequenceDiagram
+    participant E as Endpoint
+    participant C as Client
+    participant M as Session Master
+    participant S as SniTun
+    participant D as Device
 
+    Note over C,M: Trusted connection
+    C->>M: Auth / config
+    M-->>C: Fernet token
 
-             <--->                                                                  <------------------------------>
-[ ENDPOINT ] <---> [ CLIENT ] <---------MULTIPLEXER---(AES/CBC)--------> [ SNITUN ] <------EXTERNAL-CONECTIONS-----> [ DEVICE ]
-    |        <--->                                                                  <------------------------------>     |
-    |                                                                                                                    |
-    | <--------------------------------------------------END-TO-END-SSL------------------------------------------------->|
-                                                      (Trusted connection)
+    Note over C,S: Insecure connection
+    C->>S: Fernet token
+    S->>C: Challenge (AES/CBC)
+    C->>S: Response (AES/CBC)
+
+    Note over C,S: Client enters multiplexer mode
+    D->>S: External connection (TLS / SNI)
+    S->>C: Forward over multiplexer (AES/CBC)
+    C->>E: Open local connection
+
+    Note over E,D: End-to-end SSL (trusted connection)
 ```
 
 ## Fernet token
 
-The session master creates a Fernet token from the client's configuration (AES key/IV) and attaches the hostname and a UTC timestamp until which the token is valid.
+The session master encrypts the client's configuration into a [Fernet](https://cryptography.io/en/latest/fernet/) token. The session master and the SniTun server share the Fernet key(s), so only the SniTun server can decrypt the token; the client just relays it when it connects.
+
+The token payload is a JSON object:
 
 ```json
 {
-  "valid": 1923841,
+  "valid": 1924948800.0,
   "hostname": "myname.ui.nabu.casa",
-  "aes_key": "hexstring",
-  "aes_iv": "hexstring"
+  "aes_key": "401933e35f9f43d18db1d1de2e5d2e9a9f4c3b2a1d0e9f8c7b6a5d4c3b2a1f0e",
+  "aes_iv": "9b2c4d6e8f0a1b3c5d7e9f0a1b2c3d4e",
+  "protocol_version": 2,
+  "alias": ["www.myname.ui.nabu.casa"]
 }
 ```
+
+| Field              | Type     | Description                                                                                                                                                                    |
+| ------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `valid`            | float    | Expiry as a UTC Unix timestamp in seconds. The SniTun server rejects the token once this time has passed.                                                                      |
+| `hostname`         | string   | Primary hostname (matched against the TLS SNI) that this peer serves.                                                                                                          |
+| `aes_key`          | string   | Hex-encoded 32-byte key (AES-256) used to encrypt the multiplexer header.                                                                                                      |
+| `aes_iv`           | string   | Hex-encoded 16-byte initialization vector for AES-CBC.                                                                                                                         |
+| `protocol_version` | int      | Multiplexer protocol version the client speaks (see [Protocol versioning considerations](#protocol-versioning-considerations)). Optional; the server assumes `0` when omitted. |
+| `alias`            | string[] | Additional hostnames the peer also serves. Optional.                                                                                                                           |
 
 The SniTun server must be able to decrypt this token to validate the client's authenticity. SniTun then initiates a challenge-response handling to validate the AES key and ensure that it is the same client that requested the Fernet token from the session master.
 
