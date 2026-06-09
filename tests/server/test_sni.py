@@ -36,6 +36,16 @@ def test_bad_client_hello(test_package: bytes) -> None:
         sni.parse_tls_sni(test_package)
 
 
+class _ChunkReader:
+    """Minimal async reader that yields pre-set chunks, then EOF."""
+
+    def __init__(self, *chunks: bytes) -> None:
+        self._chunks = list(chunks)
+
+    async def read(self, _n: int = -1) -> bytes:
+        return self._chunks.pop(0) if self._chunks else b""
+
+
 async def test_payload_reader_good() -> None:
     """A complete ClientHello is returned intact."""
     reader = asyncio.StreamReader()
@@ -43,6 +53,13 @@ async def test_payload_reader_good() -> None:
     reader.feed_eof()
 
     assert await sni.payload_reader(reader) == raw.TLS_1_2
+
+
+async def test_payload_reader_completes_across_reads() -> None:
+    """A record split across multiple reads is reassembled."""
+    reader = _ChunkReader(raw.TLS_1_2[:6], raw.TLS_1_2[6:])
+
+    assert await sni.payload_reader(reader) == raw.TLS_1_2  # type: ignore[arg-type]
 
 
 async def test_payload_reader_short_record_header() -> None:

@@ -30,11 +30,9 @@ async def payload_reader(
     # handshake type byte (read below as data[5]). read() returns whatever is
     # available, so loop until we have enough or the peer stops sending. A
     # short read or EOF means there is no usable ClientHello -> bail (None).
+    # A reset/broken connection raises OSError here, which the caller handles.
     while len(data) < 6:
-        try:
-            chunk = await reader.read(MAX_READ_SIZE)
-        except ConnectionResetError:
-            return None
+        chunk = await reader.read(MAX_READ_SIZE)
         if not chunk:
             return None
         data += chunk
@@ -47,10 +45,7 @@ async def payload_reader(
 
     tls_size = (data[3] << 8) + data[4] + TLS_HEADER_LEN
     while (data_size := len(data)) < tls_size and data_size <= MAX_BUFFER_SIZE:
-        try:
-            chunk = await reader.read(MAX_READ_SIZE)
-        except ConnectionResetError:
-            return None
+        chunk = await reader.read(MAX_READ_SIZE)
         if not chunk:
             # EOF before the full record arrived; avoid spinning on read().
             return None

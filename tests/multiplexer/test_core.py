@@ -521,9 +521,14 @@ async def test_delete_channel_survives_missing_queue_channel(
 async def test_multiplexer_rejects_truncated_new_address(
     test_server: list[Client],
     test_client: Client,
-    crypto_key_iv: tuple[bytes, bytes],
 ) -> None:
-    """A NEW frame with a too-short source address is dropped, not decoded."""
+    """A NEW frame with a too-short source address is dropped, not decoded.
+
+    Uses GCM because CBC would buffer the sub-block data and never frame it;
+    GCM encrypts each unit at its exact length so the malformed NEW reaches
+    the address parser.
+    """
+    key = os.urandom(32)
     server_conn = test_server[0]
 
     async def mock_new_channel(
@@ -533,13 +538,13 @@ async def test_multiplexer_rejects_truncated_new_address(
         """Mock new channel."""
 
     multiplexer = Multiplexer(
-        CBCCryptoTransport(*crypto_key_iv),
+        GCMCryptoTransport(key),
         server_conn.reader,
         server_conn.writer,
         snitun.PROTOCOL_VERSION,
         mock_new_channel,
     )
-    sender = CBCCryptoTransport(*crypto_key_iv)
+    sender = GCMCryptoTransport(key)
 
     # NEW data declares IPv4 ("4") but carries only 2 of the 4 address bytes.
     data = b"4" + os.urandom(2)
