@@ -924,6 +924,21 @@ def test_create_listen_sockets_dual_stack() -> None:
             sock.close()
 
 
+def test_snitun_worker_default_host_binds_wildcard(
+    event_loop: asyncio.AbstractEventLoop,
+) -> None:
+    """With no host the worker binds the wildcard (reachable via loopback)."""
+    server = SniTunServerWorker(FERNET_TOKENS, port=32026, worker_size=2)
+    server.start()
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(("127.0.0.1", 32026))
+        sock.close()
+        time.sleep(0.1)
+    finally:
+        server.stop()
+
+
 @skip_without_ipv6
 def test_snitun_worker_dual_stack(event_loop: asyncio.AbstractEventLoop) -> None:
     """The worker server accepts connections on both IPv4 and IPv6."""

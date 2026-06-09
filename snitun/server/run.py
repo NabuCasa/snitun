@@ -155,7 +155,7 @@ class SniTunServerSingle:
     def __init__(
         self,
         fernet_keys: list[str],
-        host: Hosts = "0.0.0.0",
+        host: Hosts = None,
         port: int | None = None,
         throttling: int | None = None,
         proxy_protocol: bool = False,
@@ -164,8 +164,8 @@ class SniTunServerSingle:
 
         ``host`` accepts a single address or a sequence of addresses (e.g.
         ``["0.0.0.0", "::"]`` to listen on IPv4 and IPv6). Each address may be
-        a string (hostname or IP) or an ipaddress object. ``None`` binds all
-        interfaces.
+        a string (hostname or IP) or an ipaddress object. The default,
+        ``None``, binds all interfaces (IPv4 and IPv6).
         """
         self._server: asyncio.AbstractServer | None = None
         self._peers: PeerManager = PeerManager(fernet_keys, throttling=throttling)
@@ -325,7 +325,7 @@ class SniTunServerWorker(Thread):
     def __init__(
         self,
         fernet_keys: list[str],
-        host: Hosts = "0.0.0.0",
+        host: Hosts = None,
         port: int | None = None,
         worker_size: int | None = None,
         throttling: int | None = None,
@@ -337,8 +337,8 @@ class SniTunServerWorker(Thread):
 
         ``host`` accepts a single address or a sequence of addresses (e.g.
         ``["0.0.0.0", "::"]`` to listen on IPv4 and IPv6). Each address may be
-        a string (hostname or IP) or an ipaddress object. ``None`` binds all
-        interfaces.
+        a string (hostname or IP) or an ipaddress object. The default,
+        ``None``, binds all interfaces (IPv4 and IPv6).
         """
         super().__init__()
 
