@@ -3,6 +3,7 @@
 from ipaddress import ip_address
 
 from snitun.utils import ipaddress as ip_modul
+from snitun.utils.ipaddress import normalize_hosts
 
 
 def test_ipaddress_to_binary() -> None:
@@ -33,3 +34,20 @@ def test_ipv6_roundtrip() -> None:
 def test_invalid_bytes_returns_empty() -> None:
     """Bytes that are neither 4 nor 16 long decode to the empty address."""
     assert ip_modul.bytes_to_ip_address(b"\x00\x00\x00") == ip_modul.EMPTY_IP_ADDRESS
+
+
+def test_normalize_hosts_none() -> None:
+    """None yields None so the caller can pick its own default."""
+    assert normalize_hosts(None) is None
+
+
+def test_normalize_hosts_single() -> None:
+    """A single string or ipaddress object yields a one-element list."""
+    assert normalize_hosts("0.0.0.0") == ["0.0.0.0"]
+    assert normalize_hosts(ip_address("127.0.0.1")) == ["127.0.0.1"]
+    assert normalize_hosts(ip_address("::1")) == ["::1"]
+
+
+def test_normalize_hosts_sequence_mixed() -> None:
+    """A sequence of mixed strings and ipaddress objects is stringified."""
+    assert normalize_hosts(["0.0.0.0", ip_address("::1")]) == ["0.0.0.0", "::1"]

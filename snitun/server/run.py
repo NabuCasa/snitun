@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Coroutine, Iterator
+from collections.abc import Coroutine, Iterator, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field
 import ipaddress
@@ -23,6 +23,7 @@ from ..exceptions import (
     ParseSNIIncompleteError,
 )
 from ..metrics import MetricsCollector, MetricsFactory, create_noop_metrics_collector
+from ..utils.ipaddress import Hosts, normalize_hosts
 from ..utils.server import MAX_BUFFER_SIZE, MAX_READ_SIZE
 from .listener_peer import PeerListener
 from .listener_sni import SNIProxy
@@ -34,6 +35,47 @@ from .worker import ServerWorker
 _LOGGER = logging.getLogger(__name__)
 
 WORKER_STALE_MAX = 30
+LISTEN_BACKLOG = 80 * 1000
+
+
+def create_listen_sockets(hosts: Sequence[str], port: int) -> list[socket.socket]:
+    """Create bound, listening TCP sockets for the given hosts.
+
+    Each host is resolved with ``getaddrinfo`` so both IPv4 and IPv6
+    addresses are supported. IPv6 sockets are bound with ``IPV6_V6ONLY`` so
+    that binding ``"::"`` does not collide with a separate ``"0.0.0.0"`` bind.
+    """
+    sockets: list[socket.socket] = []
+    seen: set[tuple] = set()
+    try:
+        for host in hosts:
+            for family, sock_type, proto, _, sockaddr in socket.getaddrinfo(
+                host,
+                port,
+                type=socket.SOCK_STREAM,
+                flags=socket.AI_PASSIVE,
+            ):
+                if sockaddr in seen:
+                    continue
+                seen.add(sockaddr)
+
+                sock = socket.socket(family, sock_type, proto)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                if family == socket.AF_INET6:
+                    sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+                sock.bind(sockaddr)
+                sock.setblocking(False)
+                sock.listen(LISTEN_BACKLOG)
+                sockets.append(sock)
+    except OSError:
+        for sock in sockets:
+            sock.close()
+        raise
+
+    if not sockets:
+        raise RuntimeError(f"No listening sockets created for hosts: {hosts}")
+
+    return sockets
 
 
 class SniTunServer:
@@ -43,13 +85,18 @@ class SniTunServer:
         self,
         fernet_keys: list[str],
         sni_port: int | None = None,
-        sni_host: str | None = None,
+        sni_host: Hosts = None,
         peer_port: int | None = None,
-        peer_host: str | None = None,
+        peer_host: Hosts = None,
         throttling: int | None = None,
         proxy_protocol: bool = False,
     ) -> None:
-        """Initialize SniTun Server."""
+        """Initialize SniTun Server.
+
+        ``sni_host``/``peer_host`` accept a single address or a sequence of
+        addresses (e.g. ``["0.0.0.0", "::"]`` to listen on IPv4 and IPv6).
+        Each address may be a string (hostname or IP) or an ipaddress object.
+        """
         self._peers: PeerManager = PeerManager(fernet_keys, throttling=throttling)
         self._list_sni: SNIProxy = SNIProxy(
             self._peers,
@@ -103,17 +150,22 @@ class SniTunServerSingle:
     def __init__(
         self,
         fernet_keys: list[str],
-        host: str | None = None,
+        host: Hosts = None,
         port: int | None = None,
         throttling: int | None = None,
         proxy_protocol: bool = False,
     ) -> None:
-        """Initialize SniTun Server."""
+        """Initialize SniTun Server.
+
+        ``host`` accepts a single address or a sequence of addresses (e.g.
+        ``["0.0.0.0", "::"]`` to listen on IPv4 and IPv6). Each address may be
+        a string (hostname or IP) or an ipaddress object.
+        """
         self._server: asyncio.AbstractServer | None = None
         self._peers: PeerManager = PeerManager(fernet_keys, throttling=throttling)
         self._list_sni: SNIProxy = SNIProxy(self._peers)
         self._list_peer: PeerListener = PeerListener(self._peers)
-        self._host: str = host or "0.0.0.0"
+        self._host: list[str] = normalize_hosts(host) or ["0.0.0.0"]
         self._port: int = port or 443
         self._connection_tasks: set[asyncio.Task[None]] = set()
         # Only trust a PROXY protocol header when explicitly enabled (i.e. when
@@ -267,7 +319,7 @@ class SniTunServerWorker(Thread):
     def __init__(
         self,
         fernet_keys: list[str],
-        host: str | None = None,
+        host: Hosts = None,
         port: int | None = None,
         worker_size: int | None = None,
         throttling: int | None = None,
@@ -275,10 +327,15 @@ class SniTunServerWorker(Thread):
         metrics_interval: int = 60,
         proxy_protocol: bool = False,
     ) -> None:
-        """Initialize SniTun Server."""
+        """Initialize SniTun Server.
+
+        ``host`` accepts a single address or a sequence of addresses (e.g.
+        ``["0.0.0.0", "::"]`` to listen on IPv4 and IPv6). Each address may be
+        a string (hostname or IP) or an ipaddress object.
+        """
         super().__init__()
 
-        self._host: str = host or "0.0.0.0"
+        self._hosts: list[str] = normalize_hosts(host) or ["0.0.0.0"]
         self._port: int = port or 443
         self._fernet_keys: list[str] = fernet_keys
         self._throttling: int | None = throttling
@@ -293,7 +350,7 @@ class SniTunServerWorker(Thread):
         self._proxy_protocol = proxy_protocol
 
         # TCP server
-        self._server: socket.socket | None = None
+        self._servers: list[socket.socket] = []
         self._poller: select.epoll | None = None
 
     @property
@@ -317,15 +374,12 @@ class SniTunServerWorker(Thread):
             worker.start()
             self._workers.append(worker)
 
-        self._server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._server.bind((self._host, self._port))
-        self._server.setblocking(False)
-        self._server.listen(80 * 1000)
+        self._servers = create_listen_sockets(self._hosts, self._port)
 
         self._running = True
         self._poller = select.epoll()
-        self._poller.register(self._server.fileno(), select.EPOLLIN)
+        for server in self._servers:
+            self._poller.register(server.fileno(), select.EPOLLIN)
 
         super().start()
 
@@ -340,28 +394,31 @@ class SniTunServerWorker(Thread):
             worker.close()
 
         self._workers.clear()
-        assert self._server is not None, "Server not started"
-        self._server.close()
+        assert self._servers, "Server not started"
+        for server in self._servers:
+            server.close()
         assert self._poller is not None, "Poller not started"
         self._poller.close()
 
     def run(self) -> None:
         """Handle incoming connection."""
-        assert self._server is not None, "Server not started"
-        fd_server = self._server.fileno()
+        assert self._servers, "Server not started"
+        servers: dict[int, socket.socket] = {
+            server.fileno(): server for server in self._servers
+        }
         connections: dict[int, Connection] = {}
         worker_lb = cycle(self._workers)
 
-        _LOGGER.info("Server started, fd: %s", fd_server)
+        _LOGGER.info("Server started, fds: %s", list(servers))
         assert self._poller is not None, "Poller not started"
 
         while self._running:
             events = self._poller.poll(1)
             for fileno, event in events:
                 # New Connection
-                if fileno == fd_server:
+                if server := servers.get(fileno):
                     try:
-                        con, _ = self._server.accept()
+                        con, _ = server.accept()
                     except OSError as err:
                         _LOGGER.warning("Accept failed: %s", err)
                         continue
