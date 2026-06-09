@@ -361,10 +361,14 @@ class Multiplexer:
             # Protocol >= 2 carries "family marker + packed address" in the
             # (decrypted) data; older peers keep the IPv4 address in extra.
             if self._peer_protocol_version >= MIN_PROTOCOL_VERSION_FOR_ENCRYPTED_NEW:
-                if message.data[:1] == b"6":
-                    ip_address = bytes_to_ip_address(message.data[1:17])
-                else:
-                    ip_address = bytes_to_ip_address(message.data[1:5])
+                family, packed = message.data[:1], message.data[1:]
+                # Reject a truncated address rather than silently decoding it to
+                # the empty (0.0.0.0) sentinel and mis-attributing the source.
+                expected = 16 if family == b"6" else 4
+                if len(packed) < expected:
+                    _LOGGER.warning("Received malformed NEW channel address")
+                    return
+                ip_address = bytes_to_ip_address(packed[:expected])
             else:
                 ip_address = bytes_to_ip_address(message.extra[1:5])
             channel = MultiplexerChannel(
@@ -459,7 +463,11 @@ class Multiplexer:
 
         message = channel.init_close()
         try:
-            self._queue.put_nowait_force(channel.id, message)
+            # Best-effort CLOSE delivery: the queue-side channel may already be
+            # gone (drained-then-removed during a concurrent close), in which
+            # case put_nowait_force raises RuntimeError. Cleanup below is enough.
+            with suppress(RuntimeError):
+                self._queue.put_nowait_force(channel.id, message)
         finally:
             self._delete_channel_and_queue(channel.id)
 

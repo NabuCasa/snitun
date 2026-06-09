@@ -26,16 +26,18 @@ async def payload_reader(
     not lost.
     """
     data = initial
-    if len(data) < 6:
+    # We need at least 6 bytes: the 5-byte TLS record header plus the
+    # handshake type byte (read below as data[5]). read() returns whatever is
+    # available, so loop until we have enough or the peer stops sending. A
+    # short read or EOF means there is no usable ClientHello -> bail (None).
+    while len(data) < 6:
         try:
-            data += await reader.read(6)
+            chunk = await reader.read(MAX_READ_SIZE)
         except ConnectionResetError:
-            raise ParseSNIError from None
-
-    if not data:
-        raise ParseSNIError
-    if len(data) < 5:
-        raise ParseSNIError
+            return None
+        if not chunk:
+            return None
+        data += chunk
 
     if (
         data[0] != TLS_HANDSHAKE_CONTENT_TYPE
@@ -46,9 +48,13 @@ async def payload_reader(
     tls_size = (data[3] << 8) + data[4] + TLS_HEADER_LEN
     while (data_size := len(data)) < tls_size and data_size <= MAX_BUFFER_SIZE:
         try:
-            data += await reader.read(MAX_READ_SIZE)
+            chunk = await reader.read(MAX_READ_SIZE)
         except ConnectionResetError:
-            raise ParseSNIError from None
+            return None
+        if not chunk:
+            # EOF before the full record arrived; avoid spinning on read().
+            return None
+        data += chunk
 
     return data
 

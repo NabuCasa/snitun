@@ -503,6 +503,64 @@ async def test_multiplexer_gcm_tampered_new_data_closes(
     server_conn.close.set()
 
 
+async def test_delete_channel_survives_missing_queue_channel(
+    multiplexer_client: Multiplexer,
+) -> None:
+    """delete_channel tolerates the queue channel already being gone (close race)."""
+    channel = await multiplexer_client.create_channel(IP_ADDR, lambda _: None)
+    assert channel.id in multiplexer_client._channels
+
+    # Simulate the queue-side channel being drained/removed concurrently.
+    multiplexer_client._queue.delete_channel(channel.id)
+
+    # Must not raise RuntimeError despite the missing queue channel.
+    multiplexer_client.delete_channel(channel)
+    assert channel.id not in multiplexer_client._channels
+
+
+async def test_multiplexer_rejects_truncated_new_address(
+    test_server: list[Client],
+    test_client: Client,
+    crypto_key_iv: tuple[bytes, bytes],
+) -> None:
+    """A NEW frame with a too-short source address is dropped, not decoded."""
+    server_conn = test_server[0]
+
+    async def mock_new_channel(
+        multiplexer: Multiplexer,
+        channel: MultiplexerChannel,
+    ) -> None:
+        """Mock new channel."""
+
+    multiplexer = Multiplexer(
+        CBCCryptoTransport(*crypto_key_iv),
+        server_conn.reader,
+        server_conn.writer,
+        snitun.PROTOCOL_VERSION,
+        mock_new_channel,
+    )
+    sender = CBCCryptoTransport(*crypto_key_iv)
+
+    # NEW data declares IPv4 ("4") but carries only 2 of the 4 address bytes.
+    data = b"4" + os.urandom(2)
+    header = HEADER_STRUCT.pack(
+        MultiplexerChannelId(os.urandom(16)).bytes,
+        CHANNEL_FLOW_NEW,
+        len(data),
+        os.urandom(11),
+    )
+    test_client.writer.write(sender.encrypt(header) + sender.encrypt(data))
+    await test_client.writer.drain()
+    await asyncio.sleep(0.1)
+
+    # The malformed frame is dropped: no channel created, connection survives.
+    assert not multiplexer._channels
+    assert multiplexer.is_connected
+
+    multiplexer.shutdown()
+    server_conn.close.set()
+
+
 async def test_multiplexer_channel_shutdown(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
