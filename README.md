@@ -21,7 +21,7 @@ End-to-End encryption with SNI proxy on top of a TCP multiplexer
 
 ## Fernet token
 
-The session master creates a Fernet token from the client's configuration (AES/whitelist) and attaches the hostname and a UTC timestamp until which the token is valid.
+The session master creates a Fernet token from the client's configuration (AES key/IV) and attaches the hostname and a UTC timestamp until which the token is valid.
 
 ```json
 {

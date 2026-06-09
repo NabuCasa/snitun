@@ -16,6 +16,8 @@ from . import DEFAULT_PROTOCOL_VERSION
 if TYPE_CHECKING:
     from aiohttp.web import AppRunner
 
+    from ..client.access_list import AccessList
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -43,11 +45,11 @@ class SniTunClientAioHttp:
         return self._client.is_connected
 
     @property
-    def whitelist(self) -> set:
-        """Return whitelist from connector."""
+    def access_list(self) -> AccessList | None:
+        """Return the access list from the connector."""
         if self._connector:
-            return self._connector.whitelist
-        return set()
+            return self._connector.access_list
+        return None
 
     def wait(self) -> asyncio.Future[None]:
         """Block until connection to snitun is closed."""
@@ -55,7 +57,7 @@ class SniTunClientAioHttp:
 
     async def start(
         self,
-        whitelist: bool = False,
+        access_list: AccessList | None = None,
         endpoint_connection_error_callback: Callable[[], Coroutine[Any, Any, None]]
         | None = None,
     ) -> None:
@@ -70,7 +72,7 @@ class SniTunClientAioHttp:
             )
         server = self._protocol_factory
         assert server is not None, "Server is not initialized"
-        self._connector = TransportConnector(server, self._ssl_context, whitelist)
+        self._connector = TransportConnector(server, self._ssl_context, access_list)
         _LOGGER.info("AioHTTP snitun client started")
 
     async def stop(self, *, wait: bool = False) -> None:  # noqa: ARG002

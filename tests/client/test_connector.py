@@ -10,6 +10,7 @@ import aiohttp
 from aiohttp import ClientConnectorError
 import pytest
 
+from snitun.client.access_list import AccessList, AccessListAction
 from snitun.client.connector import Connector
 from snitun.exceptions import MultiplexerTransportClose
 from snitun.multiplexer.channel import MultiplexerChannel
@@ -26,7 +27,7 @@ async def test_connector_disallowed_ip_address(
     connector: Connector,
     client_ssl_context: ssl.SSLContext,
 ) -> None:
-    """End to end test from connecting from a non-whitelisted IP."""
+    """End to end test from connecting from a non-allowlisted IP."""
     multiplexer_client._new_connections = connector.handler
     connector = helpers.ChannelConnector(
         multiplexer_server,
@@ -536,20 +537,24 @@ async def test_connector_valid_url_buffer_updated_raises_server_side(
     assert "consuming buffer or protocol.buffer_updated() call failed" in caplog.text
 
 
-async def test_init_connector_whitelist_bad(
+async def test_init_connector_allowlist_bad(
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
     client_ssl_context: ssl.SSLContext,
     server_ssl_context: ssl.SSLContext,
 ) -> None:
-    """Test and init a connector with whitelist bad requests."""
-    connector_with_streams = make_snitun_connector(server_ssl_context, whitelist=True)
+    """Test and init a connector with allowlist bad requests."""
+    access_list = AccessList(default_action=AccessListAction.ALLOW)
+    connector_with_streams = make_snitun_connector(
+        server_ssl_context,
+        access_list=access_list,
+    )
     connector = connector_with_streams.connector
     multiplexer_client._new_connections = connector.handler
 
-    connector.whitelist.add(IP_ADDR)
-    assert IP_ADDR in connector.whitelist
-    assert BAD_ADDR not in connector.whitelist
+    access_list.add(IP_ADDR)
+    assert access_list.check_policy(IP_ADDR)
+    assert not access_list.check_policy(BAD_ADDR)
     channel = await multiplexer_server.create_channel(BAD_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
