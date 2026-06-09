@@ -141,19 +141,19 @@ async def test_close_connector_local(
         await channel.read()
 
 
-async def test_init_connector_whitelist(
+async def test_init_connector_allowlist(
     test_endpoint: list[Client],
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
 ) -> None:
-    """Test and init a connector with whitelist."""
+    """Test and init a connector with allowlist."""
     assert not test_endpoint
 
     connector = EndpointConnector("127.0.0.1", "8822", True)
     multiplexer_client._new_connections = connector.handler
 
-    connector.whitelist.add(IP_ADDR)
-    assert IP_ADDR in connector.whitelist
+    connector.allowlist.add(IP_ADDR)
+    assert IP_ADDR in connector.allowlist
     channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 
@@ -167,20 +167,20 @@ async def test_init_connector_whitelist(
     test_connection.close.set()
 
 
-async def test_init_connector_whitelist_bad(
+async def test_init_connector_allowlist_bad(
     test_endpoint: list[Client],
     multiplexer_client: Multiplexer,
     multiplexer_server: Multiplexer,
 ) -> None:
-    """Test and init a connector with whitelist bad requests."""
+    """Test and init a connector with allowlist bad requests."""
     assert not test_endpoint
 
     connector = EndpointConnector("127.0.0.1", "8822", True)
     multiplexer_client._new_connections = connector.handler
 
-    connector.whitelist.add(IP_ADDR)
-    assert IP_ADDR in connector.whitelist
-    assert BAD_ADDR not in connector.whitelist
+    connector.allowlist.add(IP_ADDR)
+    assert IP_ADDR in connector.allowlist
+    assert BAD_ADDR not in connector.allowlist
     channel = await multiplexer_server.create_channel(BAD_ADDR, lambda _: None)
     await asyncio.sleep(0.1)
 

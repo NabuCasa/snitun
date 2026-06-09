@@ -43,10 +43,10 @@ class SniTunClientAioHttp:
         return self._client.is_connected
 
     @property
-    def whitelist(self) -> set:
-        """Return whitelist from connector."""
+    def allowlist(self) -> set:
+        """Return allowlist from connector."""
         if self._connector:
-            return self._connector.whitelist
+            return self._connector.allowlist
         return set()
 
     def wait(self) -> asyncio.Future[None]:
@@ -55,7 +55,7 @@ class SniTunClientAioHttp:
 
     async def start(
         self,
-        whitelist: bool = False,
+        allowlist: bool = False,
         endpoint_connection_error_callback: Callable[[], Coroutine[Any, Any, None]]
         | None = None,
     ) -> None:
@@ -70,7 +70,7 @@ class SniTunClientAioHttp:
             )
         server = self._protocol_factory
         assert server is not None, "Server is not initialized"
-        self._connector = TransportConnector(server, self._ssl_context, whitelist)
+        self._connector = TransportConnector(server, self._ssl_context, allowlist)
         _LOGGER.info("AioHTTP snitun client started")
 
     async def stop(self, *, wait: bool = False) -> None:  # noqa: ARG002
