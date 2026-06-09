@@ -36,14 +36,14 @@ The token payload is a JSON object:
 }
 ```
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `valid` | float | Expiry as a UTC Unix timestamp in seconds. The SniTun server rejects the token once this time has passed. |
-| `hostname` | string | Primary hostname (matched against the TLS SNI) that this peer serves. |
-| `aes_key` | string | Hex-encoded 32-byte key (AES-256) used to encrypt the multiplexer header. |
-| `aes_iv` | string | Hex-encoded 16-byte initialization vector for AES-CBC. |
-| `protocol_version` | int | Multiplexer protocol version the client speaks (see [Protocol versioning considerations](#protocol-versioning-considerations)). Optional; the server assumes `0` when omitted. |
-| `alias` | string[] | Additional hostnames the peer also serves. Optional. |
+| Field              | Type     | Description                                                                                                                                                                    |
+| ------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `valid`            | float    | Expiry as a UTC Unix timestamp in seconds. The SniTun server rejects the token once this time has passed.                                                                      |
+| `hostname`         | string   | Primary hostname (matched against the TLS SNI) that this peer serves.                                                                                                          |
+| `aes_key`          | string   | Hex-encoded 32-byte key (AES-256) used to encrypt the multiplexer header.                                                                                                      |
+| `aes_iv`           | string   | Hex-encoded 16-byte initialization vector for AES-CBC.                                                                                                                         |
+| `protocol_version` | int      | Multiplexer protocol version the client speaks (see [Protocol versioning considerations](#protocol-versioning-considerations)). Optional; the server assumes `0` when omitted. |
+| `alias`            | string[] | Additional hostnames the peer also serves. Optional.                                                                                                                           |
 
 The SniTun server must be able to decrypt this token to validate the client's authenticity. SniTun then initiates a challenge-response handling to validate the AES key and ensure that it is the same client that requested the Fernet token from the session master.
 
