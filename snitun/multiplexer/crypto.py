@@ -1,6 +1,7 @@
 """Encrypt or Decrypt multiplexer transport data."""
 
 from abc import ABC, abstractmethod
+from functools import cache
 import os
 
 from cryptography.exceptions import InvalidTag, UnsupportedAlgorithm
@@ -157,8 +158,12 @@ class GCMSIVCryptoTransport(_AEADCryptoTransport):
         self._aead = AESGCMSIV(key)
 
 
+@cache
 def gcm_siv_supported() -> bool:
-    """Return True if the runtime's OpenSSL provides AES-GCM-SIV."""
+    """Return True if the runtime's OpenSSL provides AES-GCM-SIV.
+
+    The result is cached: OpenSSL support cannot change within a process.
+    """
     try:
         AESGCMSIV(b"\x00" * 32)
     except UnsupportedAlgorithm:
