@@ -7,11 +7,14 @@ import os
 import pytest
 
 from snitun.exceptions import SniTunInvalidPeer
+from snitun.multiplexer import crypto as crypto_module
 from snitun.multiplexer.core import Multiplexer
 from snitun.multiplexer.crypto import (
     CIPHER_GCM,
+    CIPHER_GCM_SIV,
     CBCCryptoTransport,
     GCMCryptoTransport,
+    GCMSIVCryptoTransport,
 )
 from snitun.server.peer import Peer
 from snitun.server.peer_manager import PeerManager, PeerManagerEvent
@@ -83,6 +86,45 @@ async def test_init_new_peer_with_gcm_cipher() -> None:
 
     peer = manager.create_peer(fernet_token)
     assert isinstance(peer._crypto, GCMCryptoTransport)
+
+
+async def test_init_new_peer_with_gcm_siv_cipher() -> None:
+    """A token requesting AES-GCM-SIV builds a GCM-SIV crypto transport."""
+    manager = PeerManager(FERNET_TOKENS)
+
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
+    aes_key = os.urandom(32)
+    aes_iv = os.urandom(16)
+    fernet_token = create_peer_config(
+        valid.timestamp(),
+        "localhost",
+        aes_key,
+        aes_iv,
+        cipher=CIPHER_GCM_SIV,
+    )
+
+    peer = manager.create_peer(fernet_token)
+    assert isinstance(peer._crypto, GCMSIVCryptoTransport)
+
+
+async def test_init_new_peer_gcm_siv_unsupported(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A token requesting AES-GCM-SIV is rejected when the runtime lacks it."""
+    monkeypatch.setattr(crypto_module, "gcm_siv_supported", lambda: False)
+    manager = PeerManager(FERNET_TOKENS)
+
+    valid = datetime.now(tz=UTC) + timedelta(days=1)
+    fernet_token = create_peer_config(
+        valid.timestamp(),
+        "localhost",
+        os.urandom(32),
+        os.urandom(16),
+        cipher=CIPHER_GCM_SIV,
+    )
+
+    with pytest.raises(SniTunInvalidPeer, match="Unsupported cipher"):
+        manager.create_peer(fernet_token)
 
 
 async def test_init_new_peer_with_alias() -> None:

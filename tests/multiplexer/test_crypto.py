@@ -2,6 +2,7 @@
 
 import os
 
+from cryptography.exceptions import UnsupportedAlgorithm
 import pytest
 
 from snitun.exceptions import MultiplexerTransportDecrypt, MultiplexerTransportError
@@ -118,6 +119,19 @@ def test_aead_rejects_short_frame(transport: type[CryptoTransport]) -> None:
 def test_gcm_siv_supported() -> None:
     """The runtime used for the test suite provides AES-GCM-SIV."""
     assert gcm_siv_supported() is True
+
+
+def test_gcm_siv_supported_false_without_openssl(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The probe reports False when OpenSSL cannot provide AES-GCM-SIV."""
+
+    def _raise(_key: bytes) -> None:
+        raise UnsupportedAlgorithm("no gcm-siv")
+
+    monkeypatch.setattr(crypto_module, "AESGCMSIV", _raise)
+    # Bypass the cache to exercise the probe directly.
+    assert gcm_siv_supported.__wrapped__() is False
 
 
 def test_factory_selects_cipher() -> None:
