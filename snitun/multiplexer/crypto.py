@@ -97,6 +97,8 @@ class _AEADCryptoTransport(CryptoTransport):
 
     __slots__ = ["_aead"]
 
+    _aead: AESGCM | AESGCMSIV
+
     @property
     def overhead(self) -> int:
         """Return the extra bytes added to each encrypted unit on the wire."""
