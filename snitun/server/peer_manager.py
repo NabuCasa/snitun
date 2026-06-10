@@ -11,7 +11,7 @@ import logging
 
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
-from ..exceptions import SniTunInvalidPeer
+from ..exceptions import MultiplexerTransportError, SniTunInvalidPeer
 from ..multiplexer.crypto import DEFAULT_CIPHER
 from ..utils.server import TokenData
 from .peer import Peer
@@ -68,16 +68,21 @@ class PeerManager:
         aes_key = bytes.fromhex(config["aes_key"])
         aes_iv = bytes.fromhex(config["aes_iv"])
 
-        return Peer(
-            hostname,
-            valid,
-            aes_key,
-            aes_iv,
-            protocol_version=config.get("protocol_version", 0),
-            cipher=config.get("cipher", DEFAULT_CIPHER),
-            throttling=self._throttling,
-            alias=config.get("alias", []),
-        )
+        try:
+            return Peer(
+                hostname,
+                valid,
+                aes_key,
+                aes_iv,
+                protocol_version=config.get("protocol_version", 0),
+                cipher=config.get("cipher", DEFAULT_CIPHER),
+                throttling=self._throttling,
+                alias=config.get("alias", []),
+            )
+        except MultiplexerTransportError as err:
+            # The token requested a cipher this runtime cannot provide
+            # (e.g. AES-GCM-SIV without OpenSSL 3.0+).
+            raise SniTunInvalidPeer("Unsupported cipher") from err
 
     def add_peer(self, peer: Peer) -> None:
         """Register peer to internal hostname list."""

@@ -11,8 +11,10 @@ import snitun
 from snitun.exceptions import SniTunChallengeError
 from snitun.multiplexer.crypto import (
     CIPHER_GCM,
+    CIPHER_GCM_SIV,
     CBCCryptoTransport,
     GCMCryptoTransport,
+    GCMSIVCryptoTransport,
 )
 from snitun.multiplexer.message import CHANNEL_FLOW_PING
 from snitun.server.peer import Peer
@@ -83,11 +85,20 @@ async def test_init_peer_multiplexer(
     assert not peer.multiplexer.is_connected
 
 
+@pytest.mark.parametrize(
+    ("cipher", "transport"),
+    [
+        (CIPHER_GCM, GCMCryptoTransport),
+        (CIPHER_GCM_SIV, GCMSIVCryptoTransport),
+    ],
+)
 async def test_init_peer_multiplexer_gcm(
     test_client: Client,
     test_server: list[Client],
+    cipher: str,
+    transport: type[GCMCryptoTransport | GCMSIVCryptoTransport],
 ) -> None:
-    """Test the challenge/response handshake with the AES-GCM cipher."""
+    """Test the challenge/response handshake with the AEAD ciphers."""
     loop = asyncio.get_running_loop()
     client = test_server[0]
     aes_key = os.urandom(32)
@@ -100,9 +111,9 @@ async def test_init_peer_multiplexer_gcm(
         aes_key,
         aes_iv,
         snitun.PROTOCOL_VERSION,
-        cipher=CIPHER_GCM,
+        cipher=cipher,
     )
-    crypto = GCMCryptoTransport(aes_key)
+    crypto = transport(aes_key)
 
     init_task = loop.create_task(
         peer.init_multiplexer_challenge(test_client.reader, test_client.writer),
@@ -110,7 +121,7 @@ async def test_init_peer_multiplexer_gcm(
     await asyncio.sleep(0.1)
     assert not init_task.done()
 
-    # The GCM challenge frame is 32 bytes + nonce + tag.
+    # The AEAD challenge frame is 32 bytes + nonce + tag.
     token = await client.reader.readexactly(32 + crypto.overhead)
     answer = hashlib.sha256(crypto.decrypt(token)).digest()
     client.writer.write(crypto.encrypt(answer))

@@ -4,15 +4,23 @@ import os
 
 import pytest
 
-from snitun.exceptions import MultiplexerTransportDecrypt
+from snitun.exceptions import MultiplexerTransportDecrypt, MultiplexerTransportError
+from snitun.multiplexer import crypto as crypto_module
 from snitun.multiplexer.crypto import (
     CIPHER_CBC,
     CIPHER_GCM,
+    CIPHER_GCM_SIV,
     DEFAULT_CIPHER,
     CBCCryptoTransport,
+    CryptoTransport,
     GCMCryptoTransport,
+    GCMSIVCryptoTransport,
     create_crypto_transport,
+    gcm_siv_supported,
 )
+
+# AEAD transports that share the nonce || ciphertext || tag framing.
+AEAD_TRANSPORTS = [GCMCryptoTransport, GCMSIVCryptoTransport]
 
 
 def test_setup_crypto_transport() -> None:
@@ -51,55 +59,65 @@ def test_cbc_overhead() -> None:
     assert crypto.overhead == 0
 
 
-def test_gcm_round_trip() -> None:
-    """A GCM transport round-trips many messages."""
+@pytest.mark.parametrize("transport", AEAD_TRANSPORTS)
+def test_aead_round_trip(transport: type[CryptoTransport]) -> None:
+    """An AEAD transport round-trips many messages."""
     key = os.urandom(32)
-    encrypt_side = GCMCryptoTransport(key)
-    decrypt_side = GCMCryptoTransport(key)
+    encrypt_side = transport(key)
+    decrypt_side = transport(key)
 
     for _ in range(10):
         test_data = os.urandom(32)
         assert decrypt_side.decrypt(encrypt_side.encrypt(test_data)) == test_data
 
 
-def test_gcm_overhead() -> None:
-    """GCM prepends a 12-byte nonce and appends a 16-byte tag."""
-    crypto = GCMCryptoTransport(os.urandom(32))
+@pytest.mark.parametrize("transport", AEAD_TRANSPORTS)
+def test_aead_overhead(transport: type[CryptoTransport]) -> None:
+    """AEAD ciphers prepend a 12-byte nonce and append a 16-byte tag."""
+    crypto = transport(os.urandom(32))
     assert crypto.overhead == 28
 
     encrypted = crypto.encrypt(os.urandom(32))
     assert len(encrypted) == 32 + 28
 
 
-def test_gcm_fresh_nonce_per_call() -> None:
+@pytest.mark.parametrize("transport", AEAD_TRANSPORTS)
+def test_aead_fresh_nonce_per_call(transport: type[CryptoTransport]) -> None:
     """Encrypting the same plaintext twice yields different output."""
-    crypto = GCMCryptoTransport(os.urandom(32))
+    crypto = transport(os.urandom(32))
     data = b"same plaintext input value 32byt"
     assert crypto.encrypt(data) != crypto.encrypt(data)
 
 
-def test_gcm_detects_tampering() -> None:
+@pytest.mark.parametrize("transport", AEAD_TRANSPORTS)
+def test_aead_detects_tampering(transport: type[CryptoTransport]) -> None:
     """Flipping any byte of the frame fails the tag check."""
     key = os.urandom(32)
-    crypto = GCMCryptoTransport(key)
+    crypto = transport(key)
     encrypted = bytearray(crypto.encrypt(os.urandom(32)))
 
     for index in range(len(encrypted)):
         tampered = bytearray(encrypted)
         tampered[index] ^= 0x01
         with pytest.raises(MultiplexerTransportDecrypt):
-            GCMCryptoTransport(key).decrypt(bytes(tampered))
+            transport(key).decrypt(bytes(tampered))
 
 
-def test_gcm_rejects_short_frame() -> None:
+@pytest.mark.parametrize("transport", AEAD_TRANSPORTS)
+def test_aead_rejects_short_frame(transport: type[CryptoTransport]) -> None:
     """A truncated frame fails cleanly with a decrypt error."""
-    crypto = GCMCryptoTransport(os.urandom(32))
+    crypto = transport(os.urandom(32))
     # Shorter than the tag (empty ciphertext) -> InvalidTag.
     with pytest.raises(MultiplexerTransportDecrypt):
         crypto.decrypt(os.urandom(12))
     # Shorter than a valid nonce -> ValueError, also surfaced as a decrypt error.
     with pytest.raises(MultiplexerTransportDecrypt):
         crypto.decrypt(b"x")
+
+
+def test_gcm_siv_supported() -> None:
+    """The runtime used for the test suite provides AES-GCM-SIV."""
+    assert gcm_siv_supported() is True
 
 
 def test_factory_selects_cipher() -> None:
@@ -109,8 +127,19 @@ def test_factory_selects_cipher() -> None:
 
     assert isinstance(create_crypto_transport(CIPHER_CBC, key, iv), CBCCryptoTransport)
     assert isinstance(create_crypto_transport(CIPHER_GCM, key, iv), GCMCryptoTransport)
+    assert isinstance(
+        create_crypto_transport(CIPHER_GCM_SIV, key, iv),
+        GCMSIVCryptoTransport,
+    )
     # Unknown / default cipher falls back to CBC.
     assert isinstance(
         create_crypto_transport(DEFAULT_CIPHER, key, iv),
         CBCCryptoTransport,
     )
+
+
+def test_factory_gcm_siv_unsupported(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The factory raises a clear error when the runtime lacks AES-GCM-SIV."""
+    monkeypatch.setattr(crypto_module, "gcm_siv_supported", lambda: False)
+    with pytest.raises(MultiplexerTransportError, match="AES-GCM-SIV"):
+        create_crypto_transport(CIPHER_GCM_SIV, os.urandom(32), os.urandom(16))
