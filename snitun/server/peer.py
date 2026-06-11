@@ -35,7 +35,14 @@ class Peer:
         self._throttling = throttling
         self._alias = alias or []
         self._multiplexer: Multiplexer | None = None
-        self._crypto = create_crypto_transport(cipher, aes_key, aes_iv)
+        # The server is the responder; the client initiates. The two share one
+        # AES key, so they must take opposite GCM counter-nonce prefixes.
+        self._crypto = create_crypto_transport(
+            cipher,
+            aes_key,
+            aes_iv,
+            is_initiator=False,
+        )
         self._protocol_version = protocol_version
 
     @property

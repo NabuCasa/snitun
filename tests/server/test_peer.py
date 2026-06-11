@@ -1,6 +1,7 @@
 """Test a Peer object."""
 
 import asyncio
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 import hashlib
 import os
@@ -13,6 +14,7 @@ from snitun.multiplexer.crypto import (
     CIPHER_GCM,
     CIPHER_GCM_SIV,
     CBCCryptoTransport,
+    CryptoTransport,
     GCMCryptoTransport,
     GCMSIVCryptoTransport,
 )
@@ -86,9 +88,11 @@ async def test_init_peer_multiplexer(
 
 
 @pytest.mark.parametrize(
-    ("cipher", "transport"),
+    ("cipher", "build_client_crypto"),
     [
-        (CIPHER_GCM, GCMCryptoTransport),
+        # The Peer under test is the server (responder); the test plays the
+        # client, so its GCM transport takes the initiator direction.
+        (CIPHER_GCM, lambda key: GCMCryptoTransport(key, is_initiator=True)),
         (CIPHER_GCM_SIV, GCMSIVCryptoTransport),
     ],
 )
@@ -96,7 +100,7 @@ async def test_init_peer_multiplexer_gcm(
     test_client: Client,
     test_server: list[Client],
     cipher: str,
-    transport: type[GCMCryptoTransport | GCMSIVCryptoTransport],
+    build_client_crypto: Callable[[bytes], CryptoTransport],
 ) -> None:
     """Test the challenge/response handshake with the AEAD ciphers."""
     loop = asyncio.get_running_loop()
@@ -113,7 +117,7 @@ async def test_init_peer_multiplexer_gcm(
         snitun.PROTOCOL_VERSION,
         cipher=cipher,
     )
-    crypto = transport(aes_key)
+    crypto = build_client_crypto(aes_key)
 
     init_task = loop.create_task(
         peer.init_multiplexer_challenge(test_client.reader, test_client.writer),

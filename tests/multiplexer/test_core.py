@@ -408,14 +408,14 @@ async def test_multiplexer_data_channel_gcm(
         """Mock new channel."""
 
     multiplexer_server = Multiplexer(
-        GCMCryptoTransport(key),
+        GCMCryptoTransport(key, is_initiator=False),
         server_conn.reader,
         server_conn.writer,
         snitun.PROTOCOL_VERSION,
         mock_new_channel,
     )
     multiplexer_client = Multiplexer(
-        GCMCryptoTransport(key),
+        GCMCryptoTransport(key, is_initiator=True),
         test_client.reader,
         test_client.writer,
         snitun.PROTOCOL_VERSION,
@@ -453,7 +453,7 @@ async def test_multiplexer_gcm_tampered_header_closes(
     """A GCM peer closes the connection when a header fails its tag check."""
     server_conn = test_server[0]
     multiplexer = Multiplexer(
-        GCMCryptoTransport(os.urandom(32)),
+        GCMCryptoTransport(os.urandom(32), is_initiator=False),
         server_conn.reader,
         server_conn.writer,
         snitun.PROTOCOL_VERSION,
@@ -478,14 +478,14 @@ async def test_multiplexer_gcm_tampered_new_data_closes(
     key = os.urandom(32)
     server_conn = test_server[0]
     multiplexer = Multiplexer(
-        GCMCryptoTransport(key),
+        GCMCryptoTransport(key, is_initiator=False),
         server_conn.reader,
         server_conn.writer,
         snitun.PROTOCOL_VERSION,
     )
 
     # A valid NEW header announcing data, followed by a tampered data unit.
-    sender = GCMCryptoTransport(key)
+    sender = GCMCryptoTransport(key, is_initiator=True)
     data_size = 32
     header = HEADER_STRUCT.pack(
         MultiplexerChannelId(os.urandom(16)).bytes,
@@ -538,13 +538,13 @@ async def test_multiplexer_rejects_truncated_new_address(
         """Mock new channel."""
 
     multiplexer = Multiplexer(
-        GCMCryptoTransport(key),
+        GCMCryptoTransport(key, is_initiator=False),
         server_conn.reader,
         server_conn.writer,
         snitun.PROTOCOL_VERSION,
         mock_new_channel,
     )
-    sender = GCMCryptoTransport(key)
+    sender = GCMCryptoTransport(key, is_initiator=True)
 
     # NEW data declares IPv4 ("4") but carries only 2 of the 4 address bytes.
     data = b"4" + os.urandom(2)

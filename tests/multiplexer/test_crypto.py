@@ -1,5 +1,6 @@
 """Test crypto module for transport."""
 
+from collections.abc import Callable
 import os
 
 from cryptography.exceptions import UnsupportedAlgorithm
@@ -20,8 +21,13 @@ from snitun.multiplexer.crypto import (
     gcm_siv_supported,
 )
 
-# AEAD transports that share the nonce || ciphertext || tag framing.
-AEAD_TRANSPORTS = [GCMCryptoTransport, GCMSIVCryptoTransport]
+# AEAD transport builders that share the nonce || ciphertext || tag framing.
+# GCM and GCM-SIV differ in their constructor (GCM needs a direction), so each
+# builder hides that behind a uniform key -> transport callable.
+AEAD_BUILDERS: list[Callable[[bytes], CryptoTransport]] = [
+    lambda key: GCMCryptoTransport(key, is_initiator=True),
+    GCMSIVCryptoTransport,
+]
 
 
 def test_setup_crypto_transport() -> None:
@@ -60,54 +66,54 @@ def test_cbc_overhead() -> None:
     assert crypto.overhead == 0
 
 
-@pytest.mark.parametrize("transport", AEAD_TRANSPORTS)
-def test_aead_round_trip(transport: type[CryptoTransport]) -> None:
+@pytest.mark.parametrize("build", AEAD_BUILDERS)
+def test_aead_round_trip(build: Callable[[bytes], CryptoTransport]) -> None:
     """An AEAD transport round-trips many messages."""
     key = os.urandom(32)
-    encrypt_side = transport(key)
-    decrypt_side = transport(key)
+    encrypt_side = build(key)
+    decrypt_side = build(key)
 
     for _ in range(10):
         test_data = os.urandom(32)
         assert decrypt_side.decrypt(encrypt_side.encrypt(test_data)) == test_data
 
 
-@pytest.mark.parametrize("transport", AEAD_TRANSPORTS)
-def test_aead_overhead(transport: type[CryptoTransport]) -> None:
+@pytest.mark.parametrize("build", AEAD_BUILDERS)
+def test_aead_overhead(build: Callable[[bytes], CryptoTransport]) -> None:
     """AEAD ciphers prepend a 12-byte nonce and append a 16-byte tag."""
-    crypto = transport(os.urandom(32))
+    crypto = build(os.urandom(32))
     assert crypto.overhead == 28
 
     encrypted = crypto.encrypt(os.urandom(32))
     assert len(encrypted) == 32 + 28
 
 
-@pytest.mark.parametrize("transport", AEAD_TRANSPORTS)
-def test_aead_fresh_nonce_per_call(transport: type[CryptoTransport]) -> None:
+@pytest.mark.parametrize("build", AEAD_BUILDERS)
+def test_aead_fresh_nonce_per_call(build: Callable[[bytes], CryptoTransport]) -> None:
     """Encrypting the same plaintext twice yields different output."""
-    crypto = transport(os.urandom(32))
+    crypto = build(os.urandom(32))
     data = b"same plaintext input value 32byt"
     assert crypto.encrypt(data) != crypto.encrypt(data)
 
 
-@pytest.mark.parametrize("transport", AEAD_TRANSPORTS)
-def test_aead_detects_tampering(transport: type[CryptoTransport]) -> None:
+@pytest.mark.parametrize("build", AEAD_BUILDERS)
+def test_aead_detects_tampering(build: Callable[[bytes], CryptoTransport]) -> None:
     """Flipping any byte of the frame fails the tag check."""
     key = os.urandom(32)
-    crypto = transport(key)
+    crypto = build(key)
     encrypted = bytearray(crypto.encrypt(os.urandom(32)))
 
     for index in range(len(encrypted)):
         tampered = bytearray(encrypted)
         tampered[index] ^= 0x01
         with pytest.raises(MultiplexerTransportDecrypt):
-            transport(key).decrypt(bytes(tampered))
+            build(key).decrypt(bytes(tampered))
 
 
-@pytest.mark.parametrize("transport", AEAD_TRANSPORTS)
-def test_aead_rejects_short_frame(transport: type[CryptoTransport]) -> None:
+@pytest.mark.parametrize("build", AEAD_BUILDERS)
+def test_aead_rejects_short_frame(build: Callable[[bytes], CryptoTransport]) -> None:
     """A truncated frame fails cleanly with a decrypt error."""
-    crypto = transport(os.urandom(32))
+    crypto = build(os.urandom(32))
     # Shorter than the tag (empty ciphertext) -> InvalidTag.
     with pytest.raises(MultiplexerTransportDecrypt):
         crypto.decrypt(os.urandom(12))
@@ -139,15 +145,21 @@ def test_factory_selects_cipher() -> None:
     key = os.urandom(32)
     iv = os.urandom(16)
 
-    assert isinstance(create_crypto_transport(CIPHER_CBC, key, iv), CBCCryptoTransport)
-    assert isinstance(create_crypto_transport(CIPHER_GCM, key, iv), GCMCryptoTransport)
     assert isinstance(
-        create_crypto_transport(CIPHER_GCM_SIV, key, iv),
+        create_crypto_transport(CIPHER_CBC, key, iv, is_initiator=True),
+        CBCCryptoTransport,
+    )
+    assert isinstance(
+        create_crypto_transport(CIPHER_GCM, key, iv, is_initiator=True),
+        GCMCryptoTransport,
+    )
+    assert isinstance(
+        create_crypto_transport(CIPHER_GCM_SIV, key, iv, is_initiator=True),
         GCMSIVCryptoTransport,
     )
     # Unknown / default cipher falls back to CBC.
     assert isinstance(
-        create_crypto_transport(DEFAULT_CIPHER, key, iv),
+        create_crypto_transport(DEFAULT_CIPHER, key, iv, is_initiator=True),
         CBCCryptoTransport,
     )
 
@@ -156,4 +168,59 @@ def test_factory_gcm_siv_unsupported(monkeypatch: pytest.MonkeyPatch) -> None:
     """The factory raises a clear error when the runtime lacks AES-GCM-SIV."""
     monkeypatch.setattr(crypto_module, "gcm_siv_supported", lambda: False)
     with pytest.raises(MultiplexerTransportError, match="AES-GCM-SIV"):
-        create_crypto_transport(CIPHER_GCM_SIV, os.urandom(32), os.urandom(16))
+        create_crypto_transport(
+            CIPHER_GCM_SIV,
+            os.urandom(32),
+            os.urandom(16),
+            is_initiator=True,
+        )
+
+
+def test_gcm_counter_nonce_is_deterministic_and_increments() -> None:
+    """GCM emits prefix || counter nonces that advance by one per unit."""
+    crypto = GCMCryptoTransport(os.urandom(32), is_initiator=True)
+    first = crypto.encrypt(b"")[:12]
+    second = crypto.encrypt(b"")[:12]
+
+    # Initiator prefix is 0; counter starts at 0 and increments.
+    assert first == (0).to_bytes(4, "big") + (0).to_bytes(8, "big")
+    assert second == (0).to_bytes(4, "big") + (1).to_bytes(8, "big")
+
+
+def test_gcm_initiator_and_responder_nonces_are_disjoint() -> None:
+    """The two directions never share a nonce, even with the same key.
+
+    This is the critical safety property: both ends use one key, so a shared
+    nonce would be catastrophic for GCM. The direction prefix keeps the two
+    counter ranges disjoint.
+    """
+    key = os.urandom(32)
+    initiator = GCMCryptoTransport(key, is_initiator=True)
+    responder = GCMCryptoTransport(key, is_initiator=False)
+
+    initiator_nonces = {initiator.encrypt(b"")[:12] for _ in range(1000)}
+    responder_nonces = {responder.encrypt(b"")[:12] for _ in range(1000)}
+
+    assert initiator_nonces.isdisjoint(responder_nonces)
+
+
+def test_gcm_round_trip_between_opposite_roles() -> None:
+    """An initiator and a responder GCM transport decrypt each other."""
+    key = os.urandom(32)
+    initiator = GCMCryptoTransport(key, is_initiator=True)
+    responder = GCMCryptoTransport(key, is_initiator=False)
+
+    for _ in range(10):
+        payload = os.urandom(32)
+        assert responder.decrypt(initiator.encrypt(payload)) == payload
+        assert initiator.decrypt(responder.encrypt(payload)) == payload
+
+
+def test_gcm_counter_exhaustion_raises() -> None:
+    """GCM refuses to wrap its counter rather than repeat a nonce."""
+    crypto = GCMCryptoTransport(os.urandom(32), is_initiator=True)
+    # Jump to the last valid counter value.
+    crypto._counter = crypto_module._GCM_MAX_COUNTER
+    crypto.encrypt(b"")  # consumes the final nonce
+    with pytest.raises(MultiplexerTransportError, match="counter exhausted"):
+        crypto.encrypt(b"")
