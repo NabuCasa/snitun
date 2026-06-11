@@ -92,8 +92,10 @@ class ClientPeer:
                 "Timeout while writing connection token",
             ) from None
 
-        # Challenge/Response
-        crypto = create_crypto_transport(cipher, aes_key, aes_iv)
+        # Challenge/Response. The client initiates; the server responds. They
+        # share one AES key, so they must take opposite GCM counter-nonce
+        # prefixes.
+        crypto = create_crypto_transport(cipher, aes_key, aes_iv, is_initiator=True)
         try:
             async with asyncio.timeout(CONNECTION_TIMEOUT):
                 challenge = await reader.readexactly(32 + crypto.overhead)
