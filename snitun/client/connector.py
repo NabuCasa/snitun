@@ -271,7 +271,7 @@ class ConnectorHandler:
         # _force_close, and calling close() would start an SSL
         # shutdown that can never complete (the channel is closed so
         # the peer's close_notify never arrives).
-        _LOGGER.info("Connected peer: %s (%s)", channel.ip_address, channel.id)
+        _LOGGER.debug("Connected peer: %s (%s)", channel.ip_address, channel.id)
         exc: Exception | None = None
         try:
             protocol.connection_made(new_transport)
