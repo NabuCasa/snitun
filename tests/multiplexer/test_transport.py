@@ -1,6 +1,8 @@
 """Tests for core multiplexer transport."""
 
 import asyncio
+from asyncio import sslproto
+import ssl
 from unittest.mock import patch
 
 import pytest
@@ -235,4 +237,47 @@ async def test_write_queue_full(
     with patch.object(channel, "write_no_wait", side_effect=MultiplexerTransportError):
         transport.write(b"test")
 
+    assert transport.is_closing() is True
+
+
+async def test_force_close_twice_during_tls_handshake(
+    multiplexer_client: Multiplexer,
+    multiplexer_server: Multiplexer,
+) -> None:
+    """Test connection_lost reaches SSLProtocol once when force closed twice.
+
+    A server-side start_tls() SSLProtocol clears its app protocol when
+    connection_lost() is called mid-handshake, so a second call raises
+    AttributeError in the event loop.
+    """
+    loop = asyncio.get_running_loop()
+    exceptions: list[dict] = []
+    loop.set_exception_handler(lambda _loop, context: exceptions.append(context))
+
+    channel = await multiplexer_server.create_channel(IP_ADDR, lambda _: None)
+    transport = ChannelTransport(channel, multiplexer_server)
+    ssl_protocol = sslproto.SSLProtocol(
+        loop,
+        asyncio.Protocol(),
+        ssl.create_default_context(ssl.Purpose.CLIENT_AUTH),
+        loop.create_future(),
+        server_side=True,
+        call_connection_made=False,
+    )
+    transport.set_protocol(ssl_protocol)
+    ssl_protocol.connection_made(transport)
+
+    with patch.object(
+        ssl_protocol,
+        "connection_lost",
+        wraps=ssl_protocol.connection_lost,
+    ) as connection_lost:
+        # e.g. the reader sees the channel close and a write fails
+        transport._force_close(None)
+        transport._force_close(None)
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+
+    assert connection_lost.call_count == 1
+    assert exceptions == []
     assert transport.is_closing() is True

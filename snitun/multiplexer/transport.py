@@ -97,6 +97,7 @@ class ChannelTransport(Transport):
         self._reader_task: asyncio.Task[None] | None = None
         self._protocol_ready: asyncio.Future[None] = self._loop.create_future()
         self._protocol_set: bool = False
+        self._conn_lost: bool = False
         self._multiplexer = multiplexer
         # Present the real client IP to the protocol as the transport
         # peername so the end resource can use it for blocking, failed
@@ -308,9 +309,18 @@ class ChannelTransport(Transport):
         _SSLProtocolTransport.set_protocol(). This is a CPython bug in
         _sendfile_fallback.restore() — it does not guard against the
         transport being torn down mid-transfer.
+
+        connection_lost is scheduled at most once, like asyncio's own
+        transports. The reader, write() and SSLProtocol._fatal_error() can
+        all force close the transport, and a second connection_lost on a
+        server-side start_tls SSLProtocol that was torn down mid-handshake
+        raises AttributeError in the event loop.
         """
         self.close()
+        if self._conn_lost:
+            return
         if self._protocol is not None and (exc is None or isinstance(exc, Exception)):
+            self._conn_lost = True
             self._loop.call_soon(self._protocol.connection_lost, exc)
 
     def _fatal_error(self, exc: BaseException, message: str) -> None:
