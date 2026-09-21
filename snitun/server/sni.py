@@ -11,6 +11,7 @@ from ..utils.server import MAX_BUFFER_SIZE, MAX_READ_SIZE
 _LOGGER = logging.getLogger(__name__)
 
 TLS_HEADER_LEN = 5
+TLS_HANDSHAKE_HEADER_LEN = 4
 TLS_HANDSHAKE_CONTENT_TYPE = 0x16
 TLS_HANDSHAKE_TYPE_CLIENT_HELLO = 0x01
 
@@ -76,66 +77,79 @@ def parse_tls_sni(data: bytes) -> str:
         _LOGGER.debug("Can't calculate the TLS record size")
         raise ParseSNIIncompleteError
 
+    if tls_size < TLS_HEADER_LEN + TLS_HANDSHAKE_HEADER_LEN:
+        _LOGGER.debug("Invalid handshake header length")
+        raise ParseSNIError
+
     # Check if handshake is a ClientHello
     pos = TLS_HEADER_LEN
     if data[pos] != TLS_HANDSHAKE_TYPE_CLIENT_HELLO:
         _LOGGER.debug("Invalid ClientHello type")
         raise ParseSNIError
 
+    # Bound parsing to this ClientHello, not subsequent bytes in the TCP read.
+    hello_size = (
+        TLS_HEADER_LEN
+        + TLS_HANDSHAKE_HEADER_LEN
+        + int.from_bytes(data[pos + 1 : pos + TLS_HANDSHAKE_HEADER_LEN], "big")
+    )
+    if hello_size > tls_size:
+        _LOGGER.debug("ClientHello exceeds TLS record")
+        raise ParseSNIError
+
     # Seek fixed length header part
     pos += 38
 
     # Seek SessionID
-    try:
-        pos += 1 + data[pos]
-    except IndexError:
+    if pos >= hello_size:
         _LOGGER.debug("Invalid SessionID")
-        raise ParseSNIError from None
+        raise ParseSNIError
+    pos += 1 + data[pos]
 
     # Seek Cipher Suites
-    try:
-        pos += 2 + (data[pos] << 8) + data[pos + 1]
-    except IndexError:
+    if pos + 2 > hello_size:
         _LOGGER.debug("Invalid CipherSuites")
-        raise ParseSNIError from None
+        raise ParseSNIError
+    pos += 2 + (data[pos] << 8) + data[pos + 1]
 
     # Seek Compression Methods
-    try:
-        pos += 1 + data[pos]
-    except IndexError:
+    if pos >= hello_size:
         _LOGGER.debug("Invalid CompressionMethods")
-        raise ParseSNIError from None
+        raise ParseSNIError
+    pos += 1 + data[pos]
 
     # Check data buffer + extension size
-    if pos + 2 > data_size:
+    if pos + 2 > hello_size:
         _LOGGER.debug("Mismatch Extension TLS header")
         raise ParseSNIError
 
     # Process extension
-    return _parse_extension(data, pos, data_size)
+    return _parse_extension(data, pos, hello_size)
 
 
 def _parse_extension(data: bytes, pos: int, data_size: int) -> str:
     """Parse TLS ClientHello Extension."""
     # Seek Extension start
-    try:
-        tls_extension_size = (data[pos] << 8) + data[pos + 1]
-        pos += 2
-    except IndexError:
-        raise ParseSNIError from None
+    tls_extension_size = (data[pos] << 8) + data[pos + 1]
+    pos += 2
 
     # Check data buffer + extension size
-    if pos + tls_extension_size > data_size:
+    if pos + tls_extension_size != data_size:
         _LOGGER.debug("Mismatch Extension TLS header")
         raise ParseSNIError
 
     # Loop over extension until we have our SNI
     while pos + 4 <= data_size:
+        extension_end = pos + 4 + (data[pos + 2] << 8) + data[pos + 3]
+        if extension_end > data_size:
+            _LOGGER.debug("Extension exceeds ClientHello")
+            raise ParseSNIError
+
         # SNI?
         if data[pos] == 0x00 and data[pos + 1] == 0x00:
-            return _parse_host_name(data, pos + 4, data_size)
+            return _parse_host_name(data, pos + 4, extension_end)
 
-        pos += 4 + (data[pos + 2] << 8) + data[pos + 3]
+        pos = extension_end
 
     _LOGGER.debug("Can't find any ServerName Extension")
     raise ParseSNIError
@@ -143,21 +157,34 @@ def _parse_extension(data: bytes, pos: int, data_size: int) -> str:
 
 def _parse_host_name(data: bytes, pos: int, data_size: int) -> str:
     """Parse TLS ServerName Extension."""
-    # Seek list size
+    if pos + 2 > data_size:
+        _LOGGER.debug("Missing ServerName list length")
+        raise ParseSNIError
+    list_size = (data[pos] << 8) + data[pos + 1]
     pos += 2
+    if not list_size or pos + list_size != data_size:
+        _LOGGER.debug("Mismatch ServerName list length")
+        raise ParseSNIError
 
-    while pos + 3 < data_size:
+    while pos + 3 <= data_size:
         size = (data[pos + 1] << 8) + data[pos + 2]
+        name_end = pos + 3 + size
+        if name_end > data_size:
+            _LOGGER.debug("ServerName exceeds list")
+            raise ParseSNIError
 
         # Unknown server name type
         if data[pos] != 0x00:
             _LOGGER.debug("Unknown ServerName type")
-            pos += 3 + size
+            pos = name_end
             continue
 
+        if not size:
+            _LOGGER.debug("Empty host name")
+            raise ParseSNIError
         try:
-            return bytes(data[pos + 3 : pos + 3 + size]).decode("utf-8")
-        except (IndexError, UnicodeDecodeError):
+            return data[pos + 3 : name_end].decode("utf-8")
+        except UnicodeDecodeError:
             _LOGGER.debug("Wrong host length/format")
             raise ParseSNIError from None
 
