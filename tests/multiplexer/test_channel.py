@@ -445,3 +445,30 @@ async def test_concurrent_pause_resume_race_condition() -> None:
     # Already resumed
     channel.on_remote_input_under_water(False)
     assert callback_count["resume"] == 1
+
+
+async def test_reentrant_resume_keeps_nested_pause() -> None:
+    """A resume that refills the queue must not drop the nested pause."""
+    output = MultiplexerMultiChannelQueue(
+        OUTGOING_QUEUE_MAX_BYTES_CHANNEL,
+        OUTGOING_QUEUE_LOW_WATERMARK,
+        OUTGOING_QUEUE_HIGH_WATERMARK,
+    )
+    channel = MultiplexerChannel(output, IP_ADDR, snitun.PROTOCOL_VERSION)
+    calls: list[bool] = []
+
+    def callback(pause: bool) -> None:
+        """Record the call, and pause again as soon as we resume."""
+        calls.append(pause)
+        if not pause:
+            channel._on_local_output_under_water(True)
+
+    channel.set_pause_resume_reader_callback(callback)
+
+    channel._on_local_output_under_water(True)
+    assert calls == [True]
+    assert channel._reader_paused is True
+
+    channel._on_local_output_under_water(False)
+    assert calls == [True, False, True]
+    assert channel._reader_paused is True
