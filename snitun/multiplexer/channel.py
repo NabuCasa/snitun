@@ -204,10 +204,17 @@ class MultiplexerChannel:
             return
         pause_reader = self._local_output_under_water or self._remote_input_under_water
         if self._reader_paused != pause_reader:
-            # Call the callback first, then update state if successful
-            # This ensures state consistency even if callback fails
-            self._pause_resume_reader_callback(pause_reader)
+            # Publish the new state before the callback. Resuming can
+            # synchronously refill the output queue and ask to pause again.
+            # If the flag is still the old value, that nested pause looks
+            # like a no-op and the reader stays resumed past the watermark.
+            previous = self._reader_paused
             self._reader_paused = pause_reader
+            try:
+                self._pause_resume_reader_callback(pause_reader)
+            except Exception:
+                self._reader_paused = previous
+                raise
 
     @property
     def id(self) -> MultiplexerChannelId:
