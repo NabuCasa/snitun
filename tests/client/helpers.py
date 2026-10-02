@@ -124,6 +124,7 @@ class ChannelConnector(BaseConnector):
                 protocol,
                 self._ssl_context,
                 server_side=False,
+                server_hostname=req.host,
             )
         except MultiplexerTransportClose as ex:
             raise ClientConnectorError(
