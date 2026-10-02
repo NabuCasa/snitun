@@ -630,6 +630,7 @@ async def snitun_loopback(
             server_protocol,
             client_ssl_context,
             server_side=False,
+            server_hostname="localhost",
         )
         assert tls_wrapped_server_transport is not None, "Failed to start TLS"
         server_protocol.connection_made(tls_wrapped_server_transport)
